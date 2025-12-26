@@ -1,9 +1,6 @@
-import TrackOrder from '@/Pages/TrackOrder';
+'use client';
 
-export const metadata = {
-  title: 'Track Order - Vyra Herbals',
-  description: 'Track your order status',
-};
+import TrackOrder from '@/Pages/TrackOrder';
 
 export default function TrackOrderPage() {
   return <TrackOrder />;

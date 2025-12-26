@@ -1,9 +1,6 @@
-import About from '@/Pages/About';
+'use client';
 
-export const metadata = {
-  title: 'About Us - Vyra Herbals',
-  description: 'Learn more about Vyra Herbals',
-};
+import About from '@/Pages/About';
 
 export default function AboutPage() {
   return <About />;

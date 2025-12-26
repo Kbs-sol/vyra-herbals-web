@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Open_Sans } from 'next/font/google';
 import Script from 'next/script';
+import { Suspense } from 'react';
 import { AuthProvider } from '@/Components/Contexts/AuthContext';
 import { CartProvider } from '@/Components/Contexts/CartContext';
 import Header from '@/Components/Common/Header';
@@ -103,7 +104,9 @@ export default function RootLayout({
 
         <AuthProvider>
           <CartProvider>
-            <Header />
+            <Suspense fallback={<div />}>
+              <Header />
+            </Suspense>
             {children}
             <Footer />
           </CartProvider>

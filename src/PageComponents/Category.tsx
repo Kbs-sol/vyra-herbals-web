@@ -21,7 +21,8 @@ import LazyImage from "../Components/Common/LazyImage";
 import styled from "styled-components";
 
 const Category = () => {
-  const { categoryName } = useParams();
+  const params = useParams();
+  const categoryName = params?.categoryName || '';
   const [categoryData, setCategoryData] = useState([]);
 
   useEffect(() => {

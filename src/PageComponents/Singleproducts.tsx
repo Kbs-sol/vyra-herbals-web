@@ -33,7 +33,8 @@ import Pagination from "../Components/Common/Pagination";
 import QuantitySelector from "../Components/Common/QuantitySelector";
 
 const Singleproducts = () => {
-  const { productHandle } = useParams();
+  const params = useParams();
+  const productHandle = params?.productHandle || '';
   const [product, setProduct] = useState(null);
   const [mainImage, setMainImage] = useState(null);
   const [isInCart, setIsInCart] = useState(false);

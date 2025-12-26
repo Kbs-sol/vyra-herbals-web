@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 
 const Transaction = () => {
-  const { transactionStatus } = useParams();
+  const params = useParams();
+  const transactionStatus = params?.transactionStatus || 'unknown';
+  
   return (
     <div className="text-center m-5">
       {" "}

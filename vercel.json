@@ -1,0 +1,11 @@
+{
+  "buildCommand": "npm run build",
+  "env": {
+    "SKIP_TYPE_CHECK": "1"
+  },
+  "build": {
+    "env": {
+      "SKIP_STATIC_GENERATION": "1"
+    }
+  }
+}

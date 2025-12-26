@@ -1,9 +1,6 @@
-import Faqs from '@/Pages/Faqs';
+'use client';
 
-export const metadata = {
-  title: 'FAQs - Vyra Herbals',
-  description: 'Frequently asked questions',
-};
+import Faqs from '@/Pages/Faqs';
 
 export default function FaqsPage() {
   return <Faqs />;

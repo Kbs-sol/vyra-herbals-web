@@ -1,10 +1,14 @@
+'use client';
+
+import { Suspense } from 'react';
 import SearchResult from '@/Pages/SearchResult';
 
-export const metadata = {
-  title: 'Search Results - Vyra Herbals',
-  description: 'Search results for products',
-};
+export const dynamic = 'force-dynamic';
 
 export default function SearchPage() {
-  return <SearchResult />;
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <SearchResult />
+    </Suspense>
+  );
 }

@@ -1,9 +1,6 @@
-import PrivacyPolicy from '@/Pages/PrivacyPolicy';
+'use client';
 
-export const metadata = {
-  title: 'Privacy Policy - Vyra Herbals',
-  description: 'Our privacy policy',
-};
+import PrivacyPolicy from '@/Pages/PrivacyPolicy';
 
 export default function PrivacyPage() {
   return <PrivacyPolicy />;

@@ -1,13 +1,9 @@
+'use client';
+
 import Transaction from '@/Pages/Transaction';
 
-export async function generateMetadata({ params }) {
-  const { transactionStatus } = await params;
-  return {
-    title: `Transaction ${transactionStatus} - Vyra Herbals`,
-    description: `Transaction status: ${transactionStatus}`,
-  };
-}
+export const dynamic = 'force-dynamic';
 
-export default async function TransactionPage({ params }) {
+export default function TransactionPage() {
   return <Transaction />;
 }

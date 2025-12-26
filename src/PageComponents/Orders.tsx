@@ -11,7 +11,8 @@ import { useCart } from "../Components/Contexts/CartContext";
 const Orders = () => {
   const [orderData, setOrderData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const { orderId } = useParams();
+  const params = useParams();
+  const orderId = params?.orderId || '';
   const { cartItems, clearCart } = useCart();
 
   useEffect(() => {

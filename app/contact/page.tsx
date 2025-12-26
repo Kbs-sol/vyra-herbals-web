@@ -1,9 +1,6 @@
-import Contact from '@/Pages/Contact';
+'use client';
 
-export const metadata = {
-  title: 'Contact Us - Vyra Herbals',
-  description: 'Get in touch with us',
-};
+import Contact from '@/Pages/Contact';
 
 export default function ContactPage() {
   return <Contact />;

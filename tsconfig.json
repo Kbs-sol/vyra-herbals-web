@@ -17,18 +17,18 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
+    "skipLibCheck": true,
     "plugins": [
       {
         "name": "next"
       }
     ],
     "paths": {
-      "@/*": [
-        "./src/*"
-      ],
-      "@/app/*": [
-        "./app/*"
-      ]
+      "@/*": ["./src/*"],
+      "@/Pages/*": ["./src/PageComponents/*"],
+      "@/Components/*": ["./src/Components/*"],
+      "@/utils/*": ["./src/utils/*"],
+      "@/Contexts/*": ["./src/Components/Contexts/*"]
     },
     "strictNullChecks": true
   },

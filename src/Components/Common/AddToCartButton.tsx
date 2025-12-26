@@ -24,7 +24,7 @@ const AddToCartButton = (props) => {
     <StyledButton
       className="product-add goto-cart"
       title="Go to Cart"
-      onClick={() => navigate("/cart")}
+      onClick={() => router.push("/cart")}
     >
       <span>
         <FaShoppingCart /> Go to Cart
