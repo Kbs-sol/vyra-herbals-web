@@ -6,7 +6,9 @@
       "@/components/*": ["./src/Components/*"],
       "@/pages/*": ["./src/Pages/*"],
       "@/utils/*": ["./src/utils/*"],
-      "@/contexts/*": ["./src/Components/Contexts/*"]
+      "@/contexts/*": ["./src/Components/Contexts/*"],
+      "@/app/*": ["./app/*"],
+      "@/api/*": ["./app/api/*"]
     }
   },
   "exclude": ["node_modules", ".next"]

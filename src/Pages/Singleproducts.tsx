@@ -158,7 +158,7 @@ const Singleproducts = () => {
           requestData.user_id = user.id;
         }
 
-        const response = await fetch(`${API_PATH}/product_detail.php`, {
+        const response = await fetch(`${API_PATH}/products/detail`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -213,8 +213,7 @@ const Singleproducts = () => {
     };
 
     // Replace the placeholder URL with your actual API endpoint
-    // fetch(`${API_PATH}/get.php`, requestOptions)
-    fetch(`${API_PATH}/get.php`, requestOptions)
+    fetch(`${API_PATH}/data`, requestOptions)
       .then((response) => {
         if (!response.ok) {
           throw new Error("Failed to fetch handpicked products");

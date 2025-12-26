@@ -30,22 +30,24 @@ const AddReview = ({ reviewProductId, ratingDetails, onAddSuccess }) => {
     e.preventDefault();
     console.log("Hi", rating, reviewerName, reviewBody);
     sethasvalidation(true);
-    const data = {
-      product_id: reviewProductId,
-      rating: rating,
-      reviewer_name: reviewerName,
-      review_text: reviewBody,
+    const payload = {
       tbl_name: "reviews",
+      data: {
+        product_id: reviewProductId,
+        rating: rating,
+        reviewer_name: reviewerName,
+        review_text: reviewBody,
+      },
     };
 
     if (rating > 0 && reviewerName && reviewBody) {
       try {
-        const response = await fetch(`${API_PATH}/insert.php`, {
+        const response = await fetch(`${API_PATH}/reviews/create`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(data),
+          body: JSON.stringify(payload),
         });
 
         if (!response.ok) {

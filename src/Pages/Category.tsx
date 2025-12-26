@@ -26,7 +26,7 @@ const Category = () => {
 
   useEffect(() => {
     // Fetch category data from API
-    fetch(`${API_PATH}/category_products.php`, {
+    fetch(`${API_PATH}/products/by-category`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

@@ -20,7 +20,7 @@ const Orders = () => {
   }, [orderId]);
 
   const fetchOrderData = (orderId) => {
-    fetch(`${API_PATH}/order_info.php?order_id=${orderId}`)
+    fetch(`${API_PATH}/orders/info?order_id=${orderId}`)
       .then((response) => response.json())
       .then((data) => {
         if (data.status === "success") {

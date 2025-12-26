@@ -26,12 +26,7 @@ const BestSeller = () => {
     };
 
     // Replace the placeholder URL with your actual API endpoint
-    // fetch(`${API_PATH}/get.php`, requestOptions)
-    // fetch("https://vyraherbals.com/api/get.php", requestOptions)
-    fetch(
-      `${API_PATH}/get_products_with_reviews.php`,
-      requestOptions
-    )
+    fetch(`${API_PATH}/products/with-reviews`, requestOptions)
       .then((response) => {
         if (!response.ok) {
           throw new Error("Failed to fetch handpicked products");

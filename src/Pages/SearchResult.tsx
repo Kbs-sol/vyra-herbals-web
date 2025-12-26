@@ -62,7 +62,7 @@ const SearchResult = () => {
 
     setIsLoading(true);
     // Replace the placeholder URL with your actual API endpoint
-    fetch(`${API_PATH}/get.php`, requestOptions)
+    fetch(`${API_PATH}/data`, requestOptions)
       .then((response) => {
         if (!response.ok) {
           throw new Error("Failed to fetch handpicked products");

@@ -30,11 +30,36 @@ const openSans = Open_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'Vyra Herbals',
-  description: 'Premium herbal products for your health and wellness',
+  title: 'Vyra Herbals | Premium Herbal Hair & Skincare Products',
+  description: 'Discover premium herbal hair care and skincare products made from 100% natural ingredients. Chemical-free, organic, and effective solutions for healthy hair and skin.',
+  keywords: 'herbal hair oil, natural shampoo, hair care products, skincare, organic, chemical-free',
   icons: {
     icon: '/assets/images/vyra_favicon.jpg',
   },
+  openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    url: 'https://vyraherbals.com',
+    siteName: 'Vyra Herbals',
+    title: 'Vyra Herbals | Premium Herbal Hair & Skincare Products',
+    description: 'Discover premium herbal hair care and skincare products made from 100% natural ingredients.',
+    images: [
+      {
+        url: 'https://vyraherbals.com/assets/images/banner/og-image.jpg',
+        width: 1200,
+        height: 630,
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Vyra Herbals | Premium Herbal Hair & Skincare Products',
+    description: 'Discover premium herbal hair care and skincare products made from 100% natural ingredients.',
+  },
+  robots: 'index, follow',
+  authors: [{ name: 'Vyra Herbals' }],
+  creator: 'Vyra Herbals',
+  publisher: 'Vyra Herbals',
 };
 
 export const viewport: Viewport = {

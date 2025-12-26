@@ -67,27 +67,28 @@ const Footer = () => {
                       <Link href={"/search?searchtext=all"}>Shop</Link>
                     </li>
                     <li>
+                      {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
                       <a href="/#bestSellers">Best Seller</a>
                     </li>
                     {/* <li>
                       <a href="#">New Arrivals</a>
                     </li> */}
                     <li>
-                      <a href="/faqs">FAQs</a>
+                      <Link href="/faqs">FAQs</Link>
                     </li>
                   </ul>
                   <ul>
                     <li>
-                      <a href="/about">About Us</a>
+                      <Link href="/about">About Us</Link>
                     </li>
                     <li>
-                      <a href="/contact">Contact Us</a>
+                      <Link href="/contact">Contact Us</Link>
                     </li>
                     <li>
-                      <a href="/privacy-policy">Privacy Policy</a>
+                      <Link href="/privacy-policy">Privacy Policy</Link>
                     </li>
                     <li>
-                      <a href="/terms-conditions">Terms and Conditions</a>
+                      <Link href="/terms-conditions">Terms and Conditions</Link>
                     </li>
                   </ul>
                 </div>

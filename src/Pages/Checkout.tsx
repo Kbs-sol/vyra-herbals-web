@@ -338,7 +338,7 @@ const Checkout = ({ show, onHide, cartItems, product }) => {
       orderData.totalAmount += COD_Charges;
       orderData.transactionPrice = 0;
       // For COD payment, call the COD API
-      fetch(`${API_PATH}/payment/cod_order.php`, {
+      fetch(`${API_PATH}/payment/cod`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -360,7 +360,7 @@ const Checkout = ({ show, onHide, cartItems, product }) => {
         .finally(() => setLoading(false));
     } else if (paymentMethod === "online") {
       // For Prepaid payment, call the Prepaid API
-      fetch(`${API_PATH}/payment/order_session.php`, {
+      fetch(`${API_PATH}/payment/session`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -382,7 +382,7 @@ const Checkout = ({ show, onHide, cartItems, product }) => {
   };
 
   const getAccessKey = async () => {
-    const url = `${API_PATH}/payment/get_access.php`;
+    const url = `${API_PATH}/payment/access`;
     // const params = getParamsFromUrl();
     const params = {
       amount: transactionPrice,

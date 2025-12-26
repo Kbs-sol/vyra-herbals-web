@@ -34,9 +34,7 @@ const TrackOrder = () => {
     };
 
     try {
-      // "https://vyraherbals.com/api/insert.php",
-      // "https://testecom.krishnagopi.online/shipping.php",
-      const response = await fetch(`${API_PATH}/shipping.php`, {
+      const response = await fetch(`${API_PATH}/shipping/track`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

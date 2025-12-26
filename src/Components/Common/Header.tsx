@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, forwardRef } from "react";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Offcanvas from "react-bootstrap/Offcanvas";
@@ -574,7 +574,15 @@ const StyledHeader = styled.section`
   }
 `;
 
-const StyledOffCanvas = styled(Offcanvas)`
+// Wrap Offcanvas with forwardRef so styled-components doesn't attempt
+// to access `element.ref` (removed in React 19). This forwards the ref
+// to the underlying Offcanvas component safely.
+const ForwardedOffcanvas = forwardRef<any, any>((props, ref) => (
+  // forward ref to react-bootstrap Offcanvas
+  <Offcanvas ref={ref} {...props} />
+));
+
+const StyledOffCanvas = styled(ForwardedOffcanvas)`
   .mobile-menu {
     height: 100%;
     display: flex;
