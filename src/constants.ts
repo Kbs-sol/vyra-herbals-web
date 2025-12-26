@@ -1,6 +1,6 @@
 // export const API_PATH = 'http://localhost/spro/vyra-api';
 
-export const API_PATH: string = "https://vyraherbals.com/api";
+export const API_PATH: string = "/api";
 
 export const APP_NAME: string = "VyraStore";
 

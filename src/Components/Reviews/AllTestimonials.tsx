@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from "react";
+import { API_PATH } from "../../constants";
 import styled from "styled-components";
 import LazyImage from "../Common/LazyImage";
 import { usePathname, useRouter } from "next/navigation";
@@ -80,7 +81,7 @@ const AllTestimonials = () => {
     };
 
     // Replace the placeholder URL with your actual API endpoint
-    fetch("https://vyraherbals.com/api/get.php", requestOptions)
+    fetch(`${API_PATH}/get.php`, requestOptions)
       .then((response) => {
         if (!response.ok) {
           throw new Error("Failed to fetch testimonials");

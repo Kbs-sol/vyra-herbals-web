@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { API_PATH } from "../../constants";
 import Link from "next/link";
 import { IoIosArrowBack } from "react-icons/io";
 import { IoIosArrowForward } from "react-icons/io";
@@ -116,7 +117,7 @@ const Testimonial = () => {
     };
 
     // Replace the placeholder URL with your actual API endpoint
-    fetch("https://vyraherbals.com/api/get.php", requestOptions)
+    fetch(`${API_PATH}/get.php`, requestOptions)
       .then((response) => {
         if (!response.ok) {
           throw new Error("Failed to fetch testimonials");

@@ -1,6 +1,7 @@
-'use client';
+"use client";
 
 import React, { useState } from "react";
+import { API_PATH } from "../../constants";
 import styled from "styled-components";
 import StarRatings from "../Common/StarRatings";
 import SVGIcon from "../Common/SVGIcon";
@@ -39,7 +40,7 @@ const AddReview = ({ reviewProductId, ratingDetails, onAddSuccess }) => {
 
     if (rating > 0 && reviewerName && reviewBody) {
       try {
-        const response = await fetch("https://vyraherbals.com/api/insert.php", {
+        const response = await fetch(`${API_PATH}/insert.php`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

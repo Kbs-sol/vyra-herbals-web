@@ -214,7 +214,7 @@ const Singleproducts = () => {
 
     // Replace the placeholder URL with your actual API endpoint
     // fetch(`${API_PATH}/get.php`, requestOptions)
-    fetch("https://vyraherbals.com/api/get.php", requestOptions)
+    fetch(`${API_PATH}/get.php`, requestOptions)
       .then((response) => {
         if (!response.ok) {
           throw new Error("Failed to fetch handpicked products");
@@ -528,7 +528,7 @@ const Singleproducts = () => {
                     <div className="details-list-group mt-3 mb-3">
                       <label className="details-list-title">
                         <WebShare
-                          url={`https://vyraherbals.com/product/${product.handle}`}
+                          url={`/product/${product.handle}`}
                           title={product.title}
                           label="Share"
                         />

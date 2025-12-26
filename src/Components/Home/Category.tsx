@@ -1,6 +1,7 @@
 'use client';
 
 import React from "react";
+import { API_PATH } from "../../constants";
 import { FaArrowRight } from "react-icons/fa6";
 import Link from "next/link";
 import styled from "styled-components";
@@ -23,10 +24,7 @@ const Category = () => {
                 <Link href="/category/hair-oil">
                   <div className="category-media">
                     <img src="/assets/images/cat/oil.jpg" alt="category" />
-                    <img
-                      src="https://vyraherbals.com/api/uploads/1.jpg"
-                      alt="Hair Oil"
-                    />
+                    <img src={`${API_PATH}/uploads/1.jpg`} alt="Hair Oil" />
                   </div>
                   <div className="category-meta">
                     <h4>
@@ -42,10 +40,7 @@ const Category = () => {
                 <Link href="/category/combs">
                   <div className="category-media">
                     <img src="/assets/images/cat/coomb.jpg" alt="category" />
-                    <img
-                      src="https://vyraherbals.com/api/uploads/16.jpg"
-                      alt="Comb"
-                    />
+                    <img src={`${API_PATH}/uploads/16.jpg`} alt="Comb" />
                   </div>
                   <div className="category-meta">
                     <h4>
@@ -58,10 +53,7 @@ const Category = () => {
                 <Link href="/category/shampoo">
                   <div className="category-media">
                     <img src="/assets/images/cat/shampoo.jpg" alt="category" />
-                    <img
-                      src="https://vyraherbals.com/api/uploads/14.jpg"
-                      alt="Shampoo"
-                    />
+                    <img src={`${API_PATH}/uploads/14.jpg`} alt="Shampoo" />
                   </div>
                   <div className="category-meta">
                     <h4>
@@ -74,10 +66,7 @@ const Category = () => {
                 <Link href="/category/scalp-massager">
                   <div className="category-media">
                     <img src="/assets/images/cat/scalp.jpg" alt="category" />
-                    <img
-                      src="https://vyraherbals.com/api/uploads/scalp_massager.jpg"
-                      alt="Scalp Massager"
-                    />
+                    <img src={`${API_PATH}/uploads/scalp_massager.jpg`} alt="Scalp Massager" />
                   </div>
                   <div className="category-meta">
                     <h4>

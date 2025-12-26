@@ -41,7 +41,7 @@ const About = () => {
         </section>
         <p>
           At Vyra Herbals, we believe in the power of nature to nurture your
-          hair. That's why we craft hair care products using only the finest
+          hair. That&apos;s why we craft hair care products using only the finest
           all-natural ingredients.
         </p>
 
@@ -58,7 +58,7 @@ const About = () => {
         <p>
           <strong>Chemical-Free:</strong> Our products are free from sulfates,
           parabens, and other harsh chemicals that can damage your hair. At
-          Vyra, it's all about what’s best for your hair.
+          Vyra, it&apos;s all about what&apos;s best for your hair.
         </p>
 
         <p>
@@ -73,7 +73,7 @@ const About = () => {
 
         <p>
           Our mission is to provide you with safe and effective hair care
-          solutions that are free from harsh chemicals. Whether you're looking
+          solutions that are free from harsh chemicals. Whether you are looking
           to nourish dry hair, frizz hair, or promote healthy growth, Vyra
           Herbals has a product to meet your needs.
         </p>
@@ -115,7 +115,7 @@ const About = () => {
             A Journey From Personal Struggle to Shared Success
           </h4>
           <p>
-            At Vyra Herbals, every bottle tells a story—my story. I'm Sahera
+            At Vyra Herbals, every bottle tells a story—my story. I&apos;m Sahera
             Banu, the founder, and I started this journey not as a
             businesswoman, but as someone struggling with hair problems, just
             like you. I faced significant challenges with my hair. I dealt with
@@ -134,24 +134,24 @@ const About = () => {
           <p>
             Seeing my own success, I began sharing my homemade solutions with
             friends who were facing similar issues. To my delight, they too saw
-            remarkable improvements. One friend remarked, 'My hair hasn't felt
-            this healthy in years,' while another said, 'I've finally found a
-            solution that works for me.' These consistent positive outcomes were
+            remarkable improvements. One friend remarked, &lsquo;My hair hasn&apos;t felt
+            this healthy in years,&rsquo; while another said, &lsquo;I&apos;ve finally found a
+            solution that works for me.&rsquo; These consistent positive outcomes were
             incredibly encouraging and made me realize that I had stumbled upon
             something truly special.
           </p>
           <p>
-            That's how Vyra Herbals was born – from a desire to find a solution,
+            That is how Vyra Herbals was born – from a desire to find a solution,
             a love for natural ingredients, and a passion for helping others
             achieve their hair goals. Vyra Herbals is more than just a brand;
-            it's a community of individuals who believe in the power of nature
+            it is a community of individuals who believe in the power of nature
             to nurture and beautify.
           </p>
           <p>
-            So, if you're reading this and struggling with your hair, know that
-            you're not alone. And know that there is hope. At Vyra Herbals, we
-            understand your frustration because we've been there. We believe in
-            the transformative power of natural ingredients, and we're here to
+            So, if you&apos;re reading this and struggling with your hair, know that
+            you&apos;re not alone. And know that there is hope. At Vyra Herbals, we
+            understand your frustration because we&apos;ve been there. We believe in
+            the transformative power of natural ingredients, and we&apos;re here to
             help you. Join us in embracing the beauty of natural, healthy hair
             and become part of the Vyra Herbals community.
           </p>

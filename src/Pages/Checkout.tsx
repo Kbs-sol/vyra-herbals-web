@@ -5,7 +5,7 @@ import { Modal, Button, Form } from "react-bootstrap";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { FaMinus, FaPlus } from "react-icons/fa";
-import { APP_NAME, COD_Charges } from "../constants";
+import { APP_NAME, COD_Charges, API_PATH } from "../constants";
 import styled from "styled-components";
 import LoadingIndicator from "../Components/Common/LoadingIndicator";
 import SVGIcon from "../Components/Common/SVGIcon";
@@ -338,7 +338,7 @@ const Checkout = ({ show, onHide, cartItems, product }) => {
       orderData.totalAmount += COD_Charges;
       orderData.transactionPrice = 0;
       // For COD payment, call the COD API
-      fetch("https://vyraherbals.com/payment/cod_order.php", {
+      fetch(`${API_PATH}/payment/cod_order.php`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -360,7 +360,7 @@ const Checkout = ({ show, onHide, cartItems, product }) => {
         .finally(() => setLoading(false));
     } else if (paymentMethod === "online") {
       // For Prepaid payment, call the Prepaid API
-      fetch("https://vyraherbals.com/payment/order_session.php", {
+      fetch(`${API_PATH}/payment/order_session.php`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -382,7 +382,7 @@ const Checkout = ({ show, onHide, cartItems, product }) => {
   };
 
   const getAccessKey = async () => {
-    const url = "https://vyraherbals.com/payment/get_access.php";
+    const url = `${API_PATH}/payment/get_access.php`;
     // const params = getParamsFromUrl();
     const params = {
       amount: transactionPrice,

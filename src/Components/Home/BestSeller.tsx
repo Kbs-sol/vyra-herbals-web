@@ -1,6 +1,7 @@
 'use client';
 
 import React from "react";
+import { API_PATH } from "../../constants";
 import { useState, useEffect } from "react";
 import ProductCard2 from "../Shared/ProductCard2";
 
@@ -28,7 +29,7 @@ const BestSeller = () => {
     // fetch(`${API_PATH}/get.php`, requestOptions)
     // fetch("https://vyraherbals.com/api/get.php", requestOptions)
     fetch(
-      "https://vyraherbals.com/api/get_products_with_reviews.php",
+      `${API_PATH}/get_products_with_reviews.php`,
       requestOptions
     )
       .then((response) => {

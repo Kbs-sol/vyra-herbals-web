@@ -2,14 +2,17 @@
 
 import React from "react";
 import { useState, useEffect } from "react";
+import { API_PATH } from "../../constants";
 import ProductCard from "../Shared/ProductCard";
 import Loader from "../Loader";
 import Link from "next/link";
 
 const Our1 = () => {
   const [handpickedProducts, setHandpickedProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   // Fetch handpicked products data from your API
   useEffect(() => {
+    setIsLoading(true);
     const postData = {
       tbl_name: "products",
       extra_condition: " ORDER BY id DESC LIMIT 8", // Assuming productId is already defined in your component
@@ -27,12 +30,7 @@ const Our1 = () => {
     };
 
     // Replace the placeholder URL with your actual API endpoint
-    // fetch(`${API_PATH}/get.php`, requestOptions)
-    // fetch("https://vyraherbals.com/api/get.php", requestOptions)
-    fetch(
-      "https://vyraherbals.com/api/get_products_with_reviews.php",
-      requestOptions
-    )
+    fetch(`${API_PATH}/get_products_with_reviews.php`, requestOptions)
       .then((response) => {
         if (!response.ok) {
           throw new Error("Failed to fetch handpicked products");
@@ -41,10 +39,12 @@ const Our1 = () => {
       })
       .then((data) => {
         // Update the state with the fetched handpicked products data
-        setHandpickedProducts(data);
+        setHandpickedProducts(data || []);
+        setIsLoading(false);
       })
       .catch((error) => {
         console.error("Error fetching handpicked products:", error);
+        setIsLoading(false);
       });
   }, []);
 
@@ -60,12 +60,18 @@ const Our1 = () => {
         </div>
 
         <div className="row row-cols-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-4">
-          {handpickedProducts.length > 0 ? (
+          {isLoading ? (
+            <div className="col-12 text-center">
+              <Loader />
+            </div>
+          ) : handpickedProducts.length > 0 ? (
             handpickedProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))
           ) : (
-            <Loader />
+            <div className="col-12 text-center">
+              <p>No products available.</p>
+            </div>
           )}
         </div>
         <div className="row">
