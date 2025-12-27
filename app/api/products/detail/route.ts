@@ -17,8 +17,27 @@ export async function POST(req: Request) {
     const product = products?.[0] || null;
     if (!product) return NextResponse.json({ error: 'Product not found' }, { status: 404 });
 
-    // fetch reviews
-    const { data: reviews } = await supabase.from('reviews').select('*').eq('product_id', product.id).order('created_at', { ascending: false });
+    // fetch approved reviews only (status = 1), fall back to all reviews if status column doesn't exist
+    let reviews: any[] = [];
+    const { data: approvedReviews, error: reviewsError } = await supabase
+      .from('reviews')
+      .select('*')
+      .eq('product_id', product.id)
+      .eq('status', 1)
+      .order('created_at', { ascending: false });
+    
+    if (reviewsError) {
+      // If status column doesn't exist, fetch all reviews
+      console.log('Reviews fetch with status failed, trying without status filter');
+      const { data: allReviews } = await supabase
+        .from('reviews')
+        .select('*')
+        .eq('product_id', product.id)
+        .order('created_at', { ascending: false });
+      reviews = allReviews || [];
+    } else {
+      reviews = approvedReviews || [];
+    }
 
     // is_in_cart check
     let is_in_cart = '0';

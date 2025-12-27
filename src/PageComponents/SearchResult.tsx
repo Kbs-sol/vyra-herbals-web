@@ -21,62 +21,50 @@ const SearchResult = () => {
   // Fetch handpicked products data from your API
 
   useEffect(() => {
-    let extraCondition = "";
-    if (word !== "all") {
-      extraCondition = ` AND title LIKE '%${word}%'`;
-    }
-
-    let postData = {
+    let postData: any = {
       tbl_name: "products",
-      extra_condition: extraCondition,
-      // Add other data properties as needed
     };
 
-    if (word === "all") {
-      postData = {
-        tbl_name: "products",
-        // new_query: "SELECT products.*, reviews.* FROM products JOIN reviews ON reviews.product_id = products.id;",
-        new_query: `
-        SELECT 
-            products.*, 
-            COUNT(reviews.id) AS reviews_count, 
-            AVG(reviews.rating) AS rating_average
-        FROM 
-            products
-        LEFT JOIN 
-            reviews ON reviews.product_id = products.id
-        GROUP BY 
-            products.id;
-        `,
-      };
-    }
-
+    // For search with a specific word, we'll filter client-side since Supabase doesn't support LIKE easily via REST
+    // For "all", just fetch all products
+    
     // Define the fetch options
     const requestOptions = {
       method: "POST",
       headers: {
-        "Content-Type": "application/json", // Specify the content type as JSON
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(postData), // Convert the data to JSON format
+      body: JSON.stringify(postData),
     };
 
     setIsLoading(true);
-    // Replace the placeholder URL with your actual API endpoint
+    // Fetch all products from API
     fetch(`${API_PATH}/data`, requestOptions)
       .then((response) => {
         if (!response.ok) {
-          throw new Error("Failed to fetch handpicked products");
+          throw new Error("Failed to fetch products");
         }
         return response.json();
       })
       .then((data) => {
         console.log(data);
-        // Update the state with the fetched handpicked products data
-        setSearchResults(data);
-        if (word == "all") {
+        let filteredData = data;
+        
+        // Filter by search word if not "all"
+        if (word !== "all" && Array.isArray(data)) {
+          const searchWord = word.toLowerCase();
+          filteredData = data.filter((product: any) => 
+            product.title?.toLowerCase().includes(searchWord) ||
+            product.description?.toLowerCase().includes(searchWord) ||
+            product.category?.toLowerCase().includes(searchWord)
+          );
+        }
+        
+        setSearchResults(filteredData);
+        if (word === "all") {
           setSearchHeading("Explore our Products");
         } else {
-          if (data.length <= 0) {
+          if (filteredData.length <= 0) {
             setSearchHeading(`No search results for "${word}"`);
           } else {
             setSearchHeading(`Search Results for "${word}"`);
@@ -84,7 +72,7 @@ const SearchResult = () => {
         }
       })
       .catch((error) => {
-        console.error("Error fetching handpicked products:", error);
+        console.error("Error fetching products:", error);
         setSearchResults(null);
       })
       .finally(() => {

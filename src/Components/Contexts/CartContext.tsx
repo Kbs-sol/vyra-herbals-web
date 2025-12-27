@@ -50,7 +50,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           body: JSON.stringify(postData),
         };
 
-        const response = await fetch(`${API_PATH}/get.php`, requestOptions);
+        const response = await fetch(`${API_PATH}/data`, requestOptions);
         const data = await response.json();
 
         // Ensure data is an array and set cart count
@@ -89,7 +89,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     };
     if (cartItems.length) {
       const productIds = cartItems.map((item) => item.id);
-      return fetch(`${API_PATH}/cart_products.php`, {
+      return fetch(`${API_PATH}/products/cart`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -2,17 +2,22 @@
 
 export interface Product {
   id: number | string;
+  handle?: string;                    // URL-friendly slug
   title: string;
   description?: string;
   price: number;
+  regular_price?: number;             // Original/MRP price
   discounted_price?: number;
+  image_url?: string;                 // Main product image
   images?: string[];
   image?: string;
   category?: string;
   in_stock?: boolean;
   quantity?: number;
   rating?: number;
-  reviews?: number;
+  reviews?: Review[];                 // Associated reviews
+  view_count?: number;
+  created_at?: string;
   [key: string]: any;
 }
 
@@ -26,27 +31,37 @@ export interface User {
   name: string;
   email: string;
   phone?: string;
+  password?: string;                  // Only used server-side
+  role?: number;                      // 1 = customer, 2 = admin, etc.
+  image?: string;                     // Profile image
   address?: string;
+  created_at?: string;
   [key: string]: any;
 }
 
 export interface Order {
   id: number | string;
-  user_id: number | string;
-  items: CartItem[];
-  total: number;
-  status: string;
-  created_at: string;
+  user_id?: number | string;
+  items: CartItem[] | any;            // JSONB from database
+  total_amount: number;
+  transaction_price?: number;
+  shipping_data?: any;                // JSONB with address info
+  payment_method?: string;            // 'cod' or 'online'
+  status: string;                     // placed, confirmed, shipped, delivered, cancelled
+  tracking_id?: string;
+  created_at?: string;
   [key: string]: any;
 }
 
 export interface Review {
   id: number | string;
   product_id: number | string;
-  user_id: number | string;
   rating: number;
-  comment: string;
-  created_at: string;
+  reviewer_name?: string;             // Name of reviewer
+  review_text?: string;               // Review content
+  status?: number;                    // 0 = pending, 1 = approved, 2 = rejected
+  date?: string;                      // Legacy field
+  created_at?: string;
   [key: string]: any;
 }
 
@@ -54,6 +69,8 @@ export interface Category {
   id: number | string;
   name: string;
   slug: string;
-  image?: string;
+  description?: string;
+  image_url?: string;
+  created_at?: string;
   [key: string]: any;
 }

@@ -1,8 +1,8 @@
 -- ========================================
 -- VYRA HERBALS - SUPABASE DATABASE SCHEMA
 -- ========================================
--- Copy and paste this entire file into Supabase SQL Editor
--- Click "Run" to create all tables at once
+-- This schema documents the database structure for Vyra Herbals
+-- Run MISSING_TABLES.sql for any missing tables/columns
 -- ========================================
 
 -- 1. USERS TABLE
@@ -11,7 +11,10 @@ CREATE TABLE IF NOT EXISTS users (
   id BIGSERIAL PRIMARY KEY,
   email TEXT UNIQUE,
   name TEXT,
-  phone TEXT,
+  phone INT8,
+  password TEXT,                              -- User password (consider hashing in production)
+  role INT8 DEFAULT 1,                        -- 1 = customer, 2 = admin, etc.
+  image TEXT,                                 -- Profile image URL
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

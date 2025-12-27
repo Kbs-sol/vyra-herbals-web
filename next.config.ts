@@ -2,9 +2,6 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  experimental: {
-    isrMemoryCacheSize: 0,
-  },
   
   // Image optimization
   images: {
@@ -12,6 +9,14 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'vyraherbals.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.supabase.co',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.supabase.in',
       },
     ],
     formats: ['image/avif', 'image/webp'],
