@@ -1,0 +1,841 @@
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import AdminLayoutWrapper from '../components/AdminLayoutWrapper';
+import { Testimonial } from '@/types';
+
+const STATUS_OPTIONS = [
+  { value: 'active', label: 'Active', color: '#10b981', bg: '#d1fae5' },
+  { value: 'inactive', label: 'Inactive', color: '#6b7280', bg: '#f3f4f6' },
+];
+
+export default function TestimonialsPage() {
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [showModal, setShowModal] = useState(false);
+  const [editingTestimonial, setEditingTestimonial] = useState<Testimonial | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState<number | null>(null);
+
+  // Form state
+  const [formData, setFormData] = useState({
+    name: '',
+    designation: '',
+    comment: '',
+    image: '',
+    rating: 5,
+    status: 'active',
+  });
+
+  useEffect(() => {
+    fetchTestimonials();
+  }, [currentPage]);
+
+  const fetchTestimonials = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: '10',
+      });
+
+      const res = await fetch(`/api/admin/testimonials?${params}`);
+      const data = await res.json();
+
+      if (data.success) {
+        setTestimonials(data.data);
+        setTotalPages(data.pagination.totalPages);
+        setTotalItems(data.pagination.total);
+      }
+    } catch (error) {
+      console.error('Error fetching testimonials:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAdd = () => {
+    setEditingTestimonial(null);
+    setFormData({
+      name: '',
+      designation: '',
+      comment: '',
+      image: '',
+      rating: 5,
+      status: 'active',
+    });
+    setShowModal(true);
+  };
+
+  const handleEdit = (testimonial: Testimonial) => {
+    setEditingTestimonial(testimonial);
+    setFormData({
+      name: testimonial.name || '',
+      designation: testimonial.designation || '',
+      comment: testimonial.comment || '',
+      image: testimonial.image || '',
+      rating: testimonial.rating || 5,
+      status: testimonial.status || 'active',
+    });
+    setShowModal(true);
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+
+    try {
+      const method = editingTestimonial ? 'PUT' : 'POST';
+      const payload = editingTestimonial 
+        ? { ...formData, id: editingTestimonial.id }
+        : formData;
+
+      const res = await fetch('/api/admin/testimonials', {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setShowModal(false);
+        fetchTestimonials();
+      } else {
+        alert(data.error || 'Failed to save testimonial');
+      }
+    } catch (error) {
+      alert('An error occurred while saving');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this testimonial?')) return;
+
+    setDeleting(id);
+    try {
+      const res = await fetch(`/api/admin/testimonials?id=${id}`, {
+        method: 'DELETE',
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        fetchTestimonials();
+      } else {
+        alert(data.error || 'Failed to delete testimonial');
+      }
+    } catch (error) {
+      alert('An error occurred while deleting');
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  const toggleStatus = async (testimonial: Testimonial) => {
+    const newStatus = testimonial.status === 'active' ? 'inactive' : 'active';
+    
+    try {
+      const res = await fetch('/api/admin/testimonials', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: testimonial.id, status: newStatus }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setTestimonials(testimonials.map(t =>
+          t.id === testimonial.id ? { ...t, status: newStatus } : t
+        ));
+      }
+    } catch (error) {
+      console.error('Error toggling status:', error);
+    }
+  };
+
+  const renderStars = (rating: number, interactive = false) => {
+    return Array.from({ length: 5 }, (_, i) => (
+      <span 
+        key={i} 
+        className={`star ${i < rating ? 'filled' : ''} ${interactive ? 'interactive' : ''}`}
+        onClick={interactive ? () => setFormData(prev => ({ ...prev, rating: i + 1 })) : undefined}
+      >
+        ★
+      </span>
+    ));
+  };
+
+  const getStatusStyle = (status: string) => {
+    const found = STATUS_OPTIONS.find(s => s.value === status);
+    return found || { color: '#6b7280', bg: '#f3f4f6' };
+  };
+
+  return (
+    <AdminLayoutWrapper pageTitle="Testimonials">
+      <div className="testimonials-page">
+        {/* Header */}
+        <div className="page-header">
+          <div className="header-info">
+            <p className="subtitle">{totalItems} total testimonials</p>
+          </div>
+          <button className="add-btn" onClick={handleAdd}>
+            <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
+              <path d="M12 5V19" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              <path d="M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+            Add Testimonial
+          </button>
+        </div>
+
+        {/* Testimonials Grid */}
+        <div className="testimonials-grid">
+          {loading ? (
+            <div className="loading">
+              <div className="spinner"></div>
+              <p>Loading testimonials...</p>
+            </div>
+          ) : testimonials.length === 0 ? (
+            <div className="empty-state">
+              <svg viewBox="0 0 24 24" fill="none" width="48" height="48">
+                <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2v10z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <p>No testimonials found</p>
+              <button className="add-btn-secondary" onClick={handleAdd}>Add Your First Testimonial</button>
+            </div>
+          ) : (
+            testimonials.map((testimonial) => {
+              const statusStyle = getStatusStyle(testimonial.status || 'active');
+
+              return (
+                <div key={testimonial.id} className="testimonial-card">
+                  <div className="card-header">
+                    <div className="rating">
+                      {renderStars(testimonial.rating || 5)}
+                    </div>
+                    <div className="status-toggle">
+                      <label className="toggle">
+                        <input
+                          type="checkbox"
+                          checked={testimonial.status === 'active'}
+                          onChange={() => toggleStatus(testimonial)}
+                        />
+                        <span className="slider"></span>
+                      </label>
+                      <span 
+                        className="status-label"
+                        style={{ color: statusStyle.color }}
+                      >
+                        {testimonial.status === 'active' ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="testimonial-content">
+                    <p className="quote">&ldquo;{testimonial.comment}&rdquo;</p>
+                  </div>
+
+                  <div className="author-info">
+                    <div className="avatar">
+                      {testimonial.image ? (
+                        <img src={testimonial.image} alt={testimonial.name} />
+                      ) : (
+                        <span>{testimonial.name?.charAt(0).toUpperCase() || 'U'}</span>
+                      )}
+                    </div>
+                    <div className="info">
+                      <span className="name">{testimonial.name}</span>
+                      <span className="designation">{testimonial.designation}</span>
+                    </div>
+                  </div>
+
+                  <div className="card-actions">
+                    <button className="action-btn edit" onClick={() => handleEdit(testimonial)}>
+                      <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
+                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" strokeWidth="2"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2"/>
+                      </svg>
+                      Edit
+                    </button>
+                    <button 
+                      className="action-btn delete" 
+                      onClick={() => handleDelete(testimonial.id as number)}
+                      disabled={deleting === testimonial.id}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
+                        <polyline points="3,6 5,6 21,6" stroke="currentColor" strokeWidth="2"/>
+                        <path d="M19,6V20a2,2,0,0,1-2,2H7a2,2,0,0,1-2-2V6M8,6V4a2,2,0,0,1,2-2h4a2,2,0,0,1,2,2V6" stroke="currentColor" strokeWidth="2"/>
+                      </svg>
+                      {deleting === testimonial.id ? 'Deleting...' : 'Delete'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="pagination">
+            <button 
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(p => p - 1)}
+              className="page-btn"
+            >
+              Previous
+            </button>
+            <span className="page-info">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button 
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(p => p + 1)}
+              className="page-btn"
+            >
+              Next
+            </button>
+          </div>
+        )}
+
+        {/* Add/Edit Modal */}
+        {showModal && (
+          <div className="modal-overlay" onClick={() => setShowModal(false)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>{editingTestimonial ? 'Edit Testimonial' : 'Add Testimonial'}</h2>
+                <button className="close-btn" onClick={() => setShowModal(false)}>
+                  <svg viewBox="0 0 24 24" fill="none" width="24" height="24">
+                    <path d="M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    <path d="M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                </button>
+              </div>
+
+              <form onSubmit={handleSave} className="modal-form">
+                <div className="form-group">
+                  <label>Name *</label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    required
+                    placeholder="Customer name"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Designation</label>
+                  <input
+                    type="text"
+                    value={formData.designation}
+                    onChange={(e) => setFormData(prev => ({ ...prev, designation: e.target.value }))}
+                    placeholder="e.g., CEO, Happy Customer"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Testimonial *</label>
+                  <textarea
+                    value={formData.comment}
+                    onChange={(e) => setFormData(prev => ({ ...prev, comment: e.target.value }))}
+                    required
+                    rows={4}
+                    placeholder="Customer's testimonial text..."
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Image URL</label>
+                  <input
+                    type="text"
+                    value={formData.image}
+                    onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.value }))}
+                    placeholder="https://example.com/image.jpg"
+                  />
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Rating</label>
+                    <div className="star-input">
+                      {renderStars(formData.rating, true)}
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Status</label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
+                    >
+                      {STATUS_OPTIONS.map((status) => (
+                        <option key={status.value} value={status.value}>{status.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-actions">
+                  <button type="button" className="cancel-btn" onClick={() => setShowModal(false)}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="submit-btn" disabled={saving}>
+                    {saving ? 'Saving...' : (editingTestimonial ? 'Update' : 'Create')}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        <style jsx>{`
+          .testimonials-page {
+            max-width: 1400px;
+            margin: 0 auto;
+          }
+
+          .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+          }
+
+          .subtitle {
+            color: #6b7280;
+            font-size: 14px;
+            margin: 0;
+          }
+
+          .add-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+          }
+
+          .add-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+          }
+
+          .testimonials-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 20px;
+          }
+
+          .loading, .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+            color: #6b7280;
+            gap: 16px;
+            grid-column: 1 / -1;
+            background: white;
+            border-radius: 16px;
+          }
+
+          .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #e5e7eb;
+            border-top-color: #10b981;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+          }
+
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+
+          .add-btn-secondary {
+            padding: 10px 20px;
+            background: #f3f4f6;
+            color: #374151;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+          }
+
+          .testimonial-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+          }
+
+          .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+          }
+
+          .rating {
+            display: flex;
+            gap: 2px;
+          }
+
+          .star {
+            font-size: 20px;
+            color: #e5e7eb;
+          }
+
+          .star.filled {
+            color: #f59e0b;
+          }
+
+          .star.interactive {
+            cursor: pointer;
+            transition: transform 0.1s;
+          }
+
+          .star.interactive:hover {
+            transform: scale(1.2);
+          }
+
+          .status-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          }
+
+          .toggle {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 22px;
+          }
+
+          .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+          }
+
+          .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #e5e7eb;
+            transition: 0.3s;
+            border-radius: 22px;
+          }
+
+          .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+          }
+
+          .toggle input:checked + .slider {
+            background-color: #10b981;
+          }
+
+          .toggle input:checked + .slider:before {
+            transform: translateX(18px);
+          }
+
+          .status-label {
+            font-size: 12px;
+            font-weight: 500;
+          }
+
+          .testimonial-content {
+            margin-bottom: 20px;
+          }
+
+          .quote {
+            font-size: 15px;
+            line-height: 1.7;
+            color: #374151;
+            margin: 0;
+            font-style: italic;
+            display: -webkit-box;
+            -webkit-line-clamp: 4;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+          }
+
+          .author-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-top: 16px;
+            border-top: 1px solid #f3f4f6;
+          }
+
+          .avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 18px;
+            overflow: hidden;
+          }
+
+          .avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+          }
+
+          .info {
+            display: flex;
+            flex-direction: column;
+          }
+
+          .name {
+            font-weight: 600;
+            color: #1f2937;
+            font-size: 15px;
+          }
+
+          .designation {
+            font-size: 13px;
+            color: #6b7280;
+          }
+
+          .card-actions {
+            display: flex;
+            gap: 10px;
+          }
+
+          .action-btn {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 10px 16px;
+            border: 1px solid #e5e7eb;
+            background: white;
+            border-radius: 10px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+          }
+
+          .action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+          }
+
+          .action-btn.edit {
+            color: #3b82f6;
+            border-color: #3b82f6;
+          }
+
+          .action-btn.edit:hover {
+            background: #dbeafe;
+          }
+
+          .action-btn.delete {
+            color: #ef4444;
+            border-color: #ef4444;
+          }
+
+          .action-btn.delete:hover:not(:disabled) {
+            background: #fee2e2;
+          }
+
+          .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            margin-top: 24px;
+          }
+
+          .page-btn {
+            padding: 10px 20px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+          }
+
+          .page-btn:hover:not(:disabled) {
+            background: #f9fafb;
+          }
+
+          .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+          }
+
+          .page-info {
+            font-size: 14px;
+            color: #6b7280;
+          }
+
+          .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+          }
+
+          .modal {
+            background: white;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 550px;
+            max-height: 90vh;
+            overflow-y: auto;
+          }
+
+          .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            border-bottom: 1px solid #e5e7eb;
+          }
+
+          .modal-header h2 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+          }
+
+          .close-btn {
+            background: none;
+            border: none;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 4px;
+          }
+
+          .modal-form {
+            padding: 24px;
+          }
+
+          .form-group {
+            margin-bottom: 20px;
+          }
+
+          .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 8px;
+          }
+
+          .form-group input,
+          .form-group textarea,
+          .form-group select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+          }
+
+          .form-group input:focus,
+          .form-group textarea:focus,
+          .form-group select:focus {
+            border-color: #10b981;
+          }
+
+          .form-group textarea {
+            resize: vertical;
+          }
+
+          .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+          }
+
+          .star-input {
+            display: flex;
+            gap: 4px;
+            padding: 12px 0;
+          }
+
+          .star-input .star {
+            font-size: 28px;
+          }
+
+          .form-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+          }
+
+          .cancel-btn {
+            flex: 1;
+            padding: 14px 20px;
+            background: #f3f4f6;
+            color: #374151;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+          }
+
+          .submit-btn {
+            flex: 2;
+            padding: 14px 20px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+          }
+
+          .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+          }
+        `}</style>
+      </div>
+    </AdminLayoutWrapper>
+  );
+}
