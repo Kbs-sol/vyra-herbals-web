@@ -4,8 +4,23 @@ import React from "react";
 import { useState, useEffect } from "react";
 import { API_PATH } from "../../constants";
 import ProductCard from "../Shared/ProductCard";
-import Loader from "../Loader";
 import Link from "next/link";
+
+// Inline lightweight loader instead of full-screen loader
+const InlineLoader = () => (
+  <div style={{ padding: '2rem', textAlign: 'center' }}>
+    <div style={{ 
+      width: '40px', 
+      height: '40px', 
+      border: '3px solid #f3f3f3',
+      borderTop: '3px solid var(--primary, #064d35)',
+      borderRadius: '50%',
+      animation: 'spin 1s linear infinite',
+      margin: '0 auto'
+    }} />
+    <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+  </div>
+);
 
 const Our1 = () => {
   const [handpickedProducts, setHandpickedProducts] = useState([]);
@@ -57,11 +72,11 @@ const Our1 = () => {
         <div className="row row-cols-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-4">
           {isLoading ? (
             <div className="col-12 text-center">
-              <Loader />
+              <InlineLoader />
             </div>
           ) : handpickedProducts.length > 0 ? (
-            handpickedProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
+            handpickedProducts.map((product, index) => (
+              <ProductCard key={product.id ?? `product-${index}`} product={product} />
             ))
           ) : (
             <div className="col-12 text-center">

@@ -1,91 +1,53 @@
 'use client';
 
-import React, { useEffect } from "react";
-import dynamic from "next/dynamic";
+import React, { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 import Utility from "../utils/UtilityFunctions";
-import Loader from "../Components/Loader";
 import ErrorBoundary from "../Components/ErrorBoundary";
 
-// Dynamic imports for code splitting with error handling and loading states
-const Banner = dynamic(() => import("../Components/Home/Banner"), {
-  loading: () => <Loader />,
-  ssr: true,
-});
+// Import all components directly for faster hydration (no dynamic imports)
+import Banner from "../Components/Home/Banner";
+import Category from "../Components/Home/Category";
+import OurProducts from "../Components/Home/OurProducts";
+import Stories from "../Components/Reviews/Stories";
+import Testimonial from "../Components/Reviews/Testimonial";
+import ShipingImage from "../Components/Home/ShipingImage";
+import OurPromise from "../Components/Home/OurPromise";
+import Features from "../Components/Home/Features";
+import Founder from "../Components/Home/Founder";
+import Follow from "../Components/Home/Follow";
+import Certificate from "../Components/Home/Certificate";
+import BestSeller from "../Components/Home/BestSeller";
+import Video from "../Components/Home/Video";
+import OurJourney from "../Components/Home/OurJourney";
 
-const Category = dynamic(() => import("../Components/Home/Category"), {
-  loading: () => <Loader />,
-  ssr: true,
-});
-
-const OurProducts = dynamic(() => import("../Components/Home/OurProducts"), {
-  loading: () => <Loader />,
-  ssr: true,
-});
-
-const Stories = dynamic(() => import("../Components/Reviews/Stories"), {
-  loading: () => <Loader />,
-  ssr: true,
-});
-
-const Testimonial = dynamic(() => import("../Components/Reviews/Testimonial"), {
-  loading: () => <Loader />,
-  ssr: true,
-});
-
-const ShipingImage = dynamic(() => import("../Components/Home/ShipingImage"), {
-  loading: () => <Loader />,
-  ssr: true,
-});
-
-const OurPromise = dynamic(() => import("../Components/Home/OurPromise"), {
-  loading: () => <Loader />,
-  ssr: true,
-});
-
-const Features = dynamic(() => import("../Components/Home/Features"), {
-  loading: () => <Loader />,
-  ssr: true,
-});
-
-const Founder = dynamic(() => import("../Components/Home/Founder"), {
-  loading: () => <Loader />,
-  ssr: true,
-});
-
-const Follow = dynamic(() => import("../Components/Home/Follow"), {
-  loading: () => <Loader />,
-  ssr: true,
-});
-
-const Certificate = dynamic(() => import("../Components/Home/Certificate"), {
-  loading: () => <Loader />,
-  ssr: true,
-});
-
-const Blogs = dynamic(() => import("../Components/Home/Blogs"), {
-  loading: () => <Loader />,
-  ssr: true,
-});
-
-const BestSeller = dynamic(() => import("../Components/Home/BestSeller"), {
-  loading: () => <Loader />,
-  ssr: true,
-});
-
-const Video = dynamic(() => import("../Components/Home/Video"), {
-  loading: () => <Loader />,
-  ssr: true,
-});
-
-const OurJourney = dynamic(() => import("../Components/Home/OurJourney"), {
-  loading: () => <Loader />,
-  ssr: true,
-});
+// Smooth fade-out loader
+const PageLoader = ({ isVisible }: { isVisible: boolean }) => (
+  <div 
+    className="loader_out" 
+    style={{ 
+      opacity: isVisible ? 1 : 0,
+      pointerEvents: isVisible ? 'auto' : 'none',
+      transition: 'opacity 0.3s ease-out'
+    }}
+  >
+    <img src="/assets/images/logo-final.png" alt="logo" />
+  </div>
+);
 
 const Home = () => {
   const pathname = usePathname();
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Wait for next paint to ensure content is rendered, then fade out loader
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setIsLoading(false);
+      });
+    });
+  }, []);
 
   useEffect(() => {
     const hash = window.location.hash;
@@ -97,54 +59,57 @@ const Home = () => {
   }, [pathname]);
 
   return (
-    <ErrorBoundary>
-      <Banner />
+    <>
+      <PageLoader isVisible={isLoading} />
       <ErrorBoundary>
-        <Category />
+        <Banner />
+        <ErrorBoundary>
+          <Category />
+        </ErrorBoundary>
+        <ErrorBoundary>
+          <OurProducts />
+        </ErrorBoundary>
+        <ErrorBoundary>
+          <section id="customerStoriesSection">
+            <Stories />
+          </section>
+        </ErrorBoundary>
+        <ErrorBoundary>
+          <ShipingImage />
+        </ErrorBoundary>
+        <ErrorBoundary>
+          <section id="bestSellers">
+            <BestSeller />
+          </section>
+        </ErrorBoundary>
+        <ErrorBoundary>
+          <Video />
+        </ErrorBoundary>
+        <ErrorBoundary>
+          <Certificate />
+        </ErrorBoundary>
+        <ErrorBoundary>
+          <OurPromise />
+        </ErrorBoundary>
+        <ErrorBoundary>
+          <Founder />
+        </ErrorBoundary>
+        <ErrorBoundary>
+          <OurJourney />
+        </ErrorBoundary>
+        <ErrorBoundary>
+          <section id="customerTestimonials">
+            <Testimonial />
+          </section>
+        </ErrorBoundary>
+        <ErrorBoundary>
+          <Follow />
+        </ErrorBoundary>
+        <ErrorBoundary>
+          <Features />
+        </ErrorBoundary>
       </ErrorBoundary>
-      <ErrorBoundary>
-        <OurProducts />
-      </ErrorBoundary>
-      <ErrorBoundary>
-        <section id="customerStoriesSection">
-          <Stories />
-        </section>
-      </ErrorBoundary>
-      <ErrorBoundary>
-        <ShipingImage />
-      </ErrorBoundary>
-      <ErrorBoundary>
-        <section id="bestSellers">
-          <BestSeller />
-        </section>
-      </ErrorBoundary>
-      <ErrorBoundary>
-        <Video />
-      </ErrorBoundary>
-      <ErrorBoundary>
-        <Certificate />
-      </ErrorBoundary>
-      <ErrorBoundary>
-        <OurPromise />
-      </ErrorBoundary>
-      <ErrorBoundary>
-        <Founder />
-      </ErrorBoundary>
-      <ErrorBoundary>
-        <OurJourney />
-      </ErrorBoundary>
-      <ErrorBoundary>
-        <section id="customerTestimonials">
-          <Testimonial />
-        </section>
-      </ErrorBoundary>
-      <ErrorBoundary>
-        <Follow />
-      </ErrorBoundary>
-      <ErrorBoundary>
-        <Features />
-      </ErrorBoundary>
-    </ErrorBoundary>
+    </>
   );
 };
 
