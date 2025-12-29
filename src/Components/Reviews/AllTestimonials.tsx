@@ -68,7 +68,6 @@ const AllTestimonials = () => {
     setIsLoading(true);
     const postData = {
       tbl_name: "reviews",
-      status: 1,
     };
 
     // Define the fetch options
@@ -90,6 +89,7 @@ const AllTestimonials = () => {
       })
       .then((data) => {
         // Update the state with the fetched handpicked products data
+        console.log("All Testimonials data:", data);
         setTestimonials(data);
       })
       .catch((error) => {

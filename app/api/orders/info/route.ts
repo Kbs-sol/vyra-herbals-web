@@ -8,7 +8,11 @@ export async function GET(req: Request) {
     if (!order_id) return NextResponse.json({ error: 'order_id required' }, { status: 400 });
 
     const supabase = createServerSupabase();
-    const { data, error } = await supabase.from('orders').select('*').eq('id', order_id).limit(1);
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', order_id)
+      .limit(1);
     if (error) {
       console.error('Order info error:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });

@@ -196,40 +196,43 @@ const Singleproducts = () => {
   }, [productHandle, user]);
 
   const [handpickedProducts, setHandpickedProducts] = useState([]);
-  // Fetch handpicked products data from your API
+  // Fetch related products (optimized - only fetch when product is loaded)
   useEffect(() => {
+    if (!product) return; // Only fetch when we have the product
+    
     const postData = {
       tbl_name: "products",
-      extra_condition: " ORDER BY id DESC LIMIT 8", // Assuming productId is already defined in your component
-      // Add other data properties as needed
+      extra_condition: " ORDER BY id ASC LIMIT 8",
+      // Only fetch fields needed for product cards
+      fields: 'id, handle, title, price, regular_price, image_url, category',
     };
 
-    // Define the fetch options
     const requestOptions = {
       method: "POST",
       headers: {
-        "Content-Type": "application/json", // Specify the content type as JSON
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(postData), // Convert the data to JSON format
+      body: JSON.stringify(postData),
     };
 
-    // Replace the placeholder URL with your actual API endpoint
     fetch(`${API_PATH}/data`, requestOptions)
       .then((response) => {
         if (!response.ok) {
-          throw new Error("Failed to fetch handpicked products");
+          throw new Error("Failed to fetch related products");
         }
         return response.json();
       })
       .then((data) => {
-        // Update the state with the fetched handpicked products data
-        setHandpickedProducts(data);
+        // Filter out the current product from related products
+        const filtered = data.filter((p: any) => p.id !== product.id);
+        setHandpickedProducts(filtered);
         setIsPageLoaded(true);
       })
       .catch((error) => {
-        console.error("Error fetching handpicked products:", error);
+        console.error("Error fetching related products:", error);
+        setIsPageLoaded(true);
       });
-  }, []);
+  }, [product]);
 
   // const handleAddToCart = async () => {
   //   if (!product) return;
@@ -579,7 +582,7 @@ const Singleproducts = () => {
                                 </ul>
 
                                 <ul>
-                                  {product.directions
+                                  {(product.directions || '')
                                     .split(/\.\s+|\n/) // Split on full stops and new lines
                                     .filter((line) => line.trim() !== "") // Remove empty lines
                                     .map((line, index) => (
@@ -600,7 +603,7 @@ const Singleproducts = () => {
                                         <li>● Avoid brushing your hair when it’s wet or after an oil application.</li>
                                 </ul> */}
                                 <ul>
-                                  {product.benefits
+                                  {(product.benefits || '')
                                     .split(/\.\s+|\n/) // Split on full stops and new lines
                                     .filter((line) => line.trim() !== "") // Remove empty lines
                                     .map((line, index) => (
@@ -622,7 +625,7 @@ const Singleproducts = () => {
                                         <li>● Avoid brushing your hair when it’s wet or after an oil application.</li>
                                 </ul> */}
                                 <ul>
-                                  {product.ingredients
+                                  {(product.ingredients || '')
                                     .split(/\.\s+|\n/) // Split on full stops and new lines
                                     .filter((line) => line.trim() !== "") // Remove empty lines
                                     .map((line, index) => (
@@ -644,7 +647,7 @@ const Singleproducts = () => {
                                         <li>● Avoid brushing your hair when it’s wet or after an oil application.</li>
                                 </ul> */}
                                 <ul>
-                                  {product.note
+                                  {(product.note || '')
                                     .split(/\.\s+|\n/) // Split on full stops and new lines
                                     .filter((line) => line.trim() !== "") // Remove empty lines
                                     .map((line, index) => (

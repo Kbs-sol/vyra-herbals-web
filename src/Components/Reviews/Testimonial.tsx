@@ -101,22 +101,20 @@ const Testimonial = () => {
 
   useEffect(() => {
     setIsLoading(true);
+    // Fetch reviews for testimonials - use * to avoid column mismatch issues
     const postData = {
       tbl_name: "reviews",
       extra_condition: " ORDER BY rating DESC LIMIT 9",
-      status: 1,
     };
 
-    // Define the fetch options
     const requestOptions = {
       method: "POST",
       headers: {
-        "Content-Type": "application/json", // Specify the content type as JSON
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(postData), // Convert the data to JSON format
+      body: JSON.stringify(postData),
     };
 
-    // Replace the placeholder URL with your actual API endpoint
     fetch(`${API_PATH}/data`, requestOptions)
       .then((response) => {
         if (!response.ok) {
@@ -125,7 +123,7 @@ const Testimonial = () => {
         return response.json();
       })
       .then((data) => {
-        // Update the state with the fetched handpicked products data
+        console.log("Testimonials data:", data);
         setTestimonials(data);
       })
       .catch((error) => {

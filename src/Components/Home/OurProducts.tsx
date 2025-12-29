@@ -10,40 +10,35 @@ import Link from "next/link";
 const Our1 = () => {
   const [handpickedProducts, setHandpickedProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  // Fetch handpicked products data from your API
+  // Fetch first 8 products ordered by ID
   useEffect(() => {
     setIsLoading(true);
     const postData = {
-      tbl_name: "products",
-      extra_condition: " ORDER BY id DESC LIMIT 8", // Assuming productId is already defined in your component
-      // Add other data properties as needed
-      ids: [2, 1, 18, 13, 16, 15, 3, 17],
+      extra_condition: " ORDER BY id ASC LIMIT 8",
+      // Don't filter by specific IDs - fetch first 8 products
     };
 
-    // Define the fetch options
     const requestOptions = {
       method: "POST",
       headers: {
-        "Content-Type": "application/json", // Specify the content type as JSON
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(postData), // Convert the data to JSON format
+      body: JSON.stringify(postData),
     };
 
-    // Replace the placeholder URL with your actual API endpoint
     fetch(`${API_PATH}/products/with-reviews`, requestOptions)
       .then((response) => {
         if (!response.ok) {
-          throw new Error("Failed to fetch handpicked products");
+          throw new Error("Failed to fetch featured products");
         }
         return response.json();
       })
       .then((data) => {
-        // Update the state with the fetched handpicked products data
         setHandpickedProducts(data || []);
         setIsLoading(false);
       })
       .catch((error) => {
-        console.error("Error fetching handpicked products:", error);
+        console.error("Error fetching featured products:", error);
         setIsLoading(false);
       });
   }, []);

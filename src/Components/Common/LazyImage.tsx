@@ -18,12 +18,29 @@ const LazyImage = ({
   });
   const [isError, setIsError] = useState(false);
 
+  // Helper to get proper image URL
+  const getImageUrl = (imageUrl: string | undefined | null) => {
+    if (!imageUrl) return placeholder;
+    // If it's already a full URL, use it directly
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      return imageUrl;
+    }
+    // If it's a local path starting with /, use it directly
+    if (imageUrl.startsWith('/')) {
+      return imageUrl;
+    }
+    // Otherwise, assume it's a filename and use the uploads API
+    return `/api/uploads/${imageUrl}`;
+  };
+
+  const imageSrc = isError ? placeholder : getImageUrl(src);
+
   return (
     <StyledImage $isAltText={isError} className="lazy-image">
       {isLazy ? (
         <img
           ref={ref} // Assigning ref to the image element to observe
-          src={inView && src ? src : placeholder} // Load actual image only when in view
+          src={inView ? imageSrc : placeholder} // Load actual image only when in view
           alt={alt || "image"}
           {...props}
           className={inView ? "loaded" : ""}
@@ -31,7 +48,7 @@ const LazyImage = ({
         />
       ) : (
         <img
-          src={src}
+          src={imageSrc}
           alt={alt || "image"}
           {...props}
           className={"loaded"}

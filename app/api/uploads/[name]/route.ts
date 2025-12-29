@@ -8,16 +8,16 @@ export async function GET(req: Request) {
     if (!name) return NextResponse.json({ error: 'file name required' }, { status: 400 });
 
     // If SUPABASE_PUBLIC_URL and bucket provided, redirect to storage
-    const supaPublic = process.env.SUPABASE_PUBLIC_URL;
-    const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'public';
+    const supaPublic = process.env.SUPABASE_PUBLIC_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'images';
     if (supaPublic) {
       const redirectUrl = `${supaPublic}/storage/v1/object/public/${bucket}/${name}`;
       return NextResponse.redirect(redirectUrl);
     }
 
-    // Fallback to public assets directory
-    const localPath = `/assets/images/${name}`;
-    return NextResponse.redirect(localPath);
+    // Fallback to public assets directory placeholder
+    const baseUrl = url.origin;
+    return NextResponse.redirect(`${baseUrl}/assets/images/vyra_placeholder.png`);
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }

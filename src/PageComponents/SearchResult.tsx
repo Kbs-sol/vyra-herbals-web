@@ -17,18 +17,15 @@ const SearchResult = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   // Call search API with the search term
-  // Replace 'https://example.com/api/search' with your actual search API endpoint
-  // Fetch handpicked products data from your API
+  // Fetch products data optimized for search
 
   useEffect(() => {
+    // Optimized: fetch only fields needed for product cards
     let postData: any = {
       tbl_name: "products",
+      fields: 'id, handle, title, description, price, regular_price, image_url, category',
     };
-
-    // For search with a specific word, we'll filter client-side since Supabase doesn't support LIKE easily via REST
-    // For "all", just fetch all products
     
-    // Define the fetch options
     const requestOptions = {
       method: "POST",
       headers: {
@@ -38,7 +35,7 @@ const SearchResult = () => {
     };
 
     setIsLoading(true);
-    // Fetch all products from API
+    // Fetch products with optimized fields
     fetch(`${API_PATH}/data`, requestOptions)
       .then((response) => {
         if (!response.ok) {
@@ -47,7 +44,6 @@ const SearchResult = () => {
         return response.json();
       })
       .then((data) => {
-        console.log(data);
         let filteredData = data;
         
         // Filter by search word if not "all"

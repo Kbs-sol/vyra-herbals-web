@@ -1,15 +1,25 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '../../../src/utils/supabaseClient';
 
+// Default to selecting all fields (*) to avoid column mismatch errors
+// The frontend will only use what it needs
+const DEFAULT_FIELDS: Record<string, string> = {
+  products: '*',
+  categories: '*',
+  reviews: '*',
+  testimonials: '*',
+  cart: '*',
+  orders: '*',
+  users: '*'
+};
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    console.log('DEBUG /api/data body:', JSON.stringify(body));
-    const { tbl_name, extra_condition, new_query, ...rest } = body || {};
+    const { tbl_name, extra_condition, fields, select_all, ...rest } = body || {};
 
     if (!tbl_name) return NextResponse.json({ error: 'tbl_name required' }, { status: 400 });
 
-    console.log('DEBUG: SUPABASE_URL set?', !!process.env.SUPABASE_URL, 'SERVICE_ROLE_KEY set?', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
     let supabase;
     try {
       supabase = createServerSupabase();
@@ -24,15 +34,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'table not allowed' }, { status: 400 });
     }
 
+    // Use custom fields, or default optimized fields, or all fields if explicitly requested
+    const selectFields = fields || (select_all ? '*' : DEFAULT_FIELDS[tbl_name] || '*');
+    
     let query;
     try {
-      query = supabase.from(tbl_name).select('*');
+      query = supabase.from(tbl_name).select(selectFields);
     } catch (qe) {
       console.error('Supabase query build error', qe);
       return NextResponse.json({ error: 'Supabase query build error' }, { status: 500 });
     }
 
-    // crude parsing of ORDER BY / LIMIT from extra_condition (e.g. " ORDER BY id DESC LIMIT 8")
+    // Parse ORDER BY / LIMIT from extra_condition
     if (typeof extra_condition === 'string') {
       const limitMatch = extra_condition.match(/LIMIT\s+(\d+)/i);
       const orderMatch = extra_condition.match(/ORDER\s+BY\s+(\w+)\s+(ASC|DESC)/i);
@@ -44,28 +57,25 @@ export async function POST(req: Request) {
       if (limitMatch) query = query.limit(parseInt(limitMatch[1], 10));
     }
 
-    // If additional match filters provided, apply them
-    // But handle status filter specially for tables that might not have it
+    // Apply filters if provided
     const filterKeys = Object.keys(rest);
     if (filterKeys.length) {
-      // Try to apply all filters
       try {
         query = query.match(rest as Record<string, any>);
       } catch (e) {
-        console.log('Match filter failed, trying without status');
+        console.log('Match filter failed');
       }
     }
 
     try {
       let { data, error } = await query;
       
-      // If query failed and we were filtering by status, retry without status filter
-      if (error && rest.status !== undefined) {
-        console.log('Query with status filter failed, retrying without status');
+      // If query failed or returned empty results and we were filtering by status, retry without status filter
+      // This handles cases where status column doesn't exist or no approved items exist yet
+      if ((error || (data && data.length === 0)) && rest.status !== undefined) {
         const { status, ...restWithoutStatus } = rest;
-        let retryQuery = supabase.from(tbl_name).select('*');
+        let retryQuery = supabase.from(tbl_name).select(selectFields);
         
-        // Re-apply extra_condition parsing
         if (typeof extra_condition === 'string') {
           const limitMatch = extra_condition.match(/LIMIT\s+(\d+)/i);
           const orderMatch = extra_condition.match(/ORDER\s+BY\s+(\w+)\s+(ASC|DESC)/i);
@@ -88,7 +98,6 @@ export async function POST(req: Request) {
       
       if (error) {
         console.error('Supabase returned error', error);
-        // Return empty data to avoid breaking frontend when Supabase has transient errors
         return NextResponse.json([]);
       }
       return NextResponse.json(data || []);

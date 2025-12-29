@@ -7,38 +7,35 @@ import ProductCard2 from "../Shared/ProductCard2";
 
 const BestSeller = () => {
   const [handpickedProducts, setHandpickedProducts] = useState([]);
-  // Fetch handpicked products data from your API
+  // Fetch first 4 best seller products
   useEffect(() => {
     const postData = {
-      tbl_name: "products",
-      extra_condition: " ORDER BY id DESC LIMIT 4", // Assuming productId is already defined in your component
-      // Add other data properties as needed
-      ids: [4, 6, 7, 2],
+      extra_condition: " ORDER BY id ASC LIMIT 4",
+      // Fetch first 4 products - don't filter by specific IDs
     };
 
     // Define the fetch options
     const requestOptions = {
       method: "POST",
       headers: {
-        "Content-Type": "application/json", // Specify the content type as JSON
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(postData), // Convert the data to JSON format
+      body: JSON.stringify(postData),
     };
 
-    // Replace the placeholder URL with your actual API endpoint
+    // Fetch products with reviews
     fetch(`${API_PATH}/products/with-reviews`, requestOptions)
       .then((response) => {
         if (!response.ok) {
-          throw new Error("Failed to fetch handpicked products");
+          throw new Error("Failed to fetch best seller products");
         }
         return response.json();
       })
       .then((data) => {
-        // Update the state with the fetched handpicked products data
         setHandpickedProducts(data);
       })
       .catch((error) => {
-        console.error("Error fetching handpicked products:", error);
+        console.error("Error fetching best seller products:", error);
       });
   }, []);
 
