@@ -40,7 +40,7 @@ export default function AdminNavbar({ toggleSidebar, pageTitle = 'Dashboard' }: 
       <div className="navbar-right">
         {/* Notifications */}
         <button className="nav-btn notification-btn" aria-label="Notifications">
-          <svg viewBox="0 0 24 24" fill="none" width="22" height="22">
+          <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
             <path d="M18 8C18 6.4087 17.3679 4.88258 16.2426 3.75736C15.1174 2.63214 13.5913 2 12 2C10.4087 2 8.88258 2.63214 7.75736 3.75736C6.63214 4.88258 6 6.4087 6 8C6 15 3 17 3 17H21C21 17 18 15 18 8Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             <path d="M13.73 21C13.5542 21.3031 13.3019 21.5547 12.9982 21.7295C12.6946 21.9044 12.3504 21.9965 12 21.9965C11.6496 21.9965 11.3054 21.9044 11.0018 21.7295C10.6982 21.5547 10.4458 21.3031 10.27 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
@@ -55,7 +55,7 @@ export default function AdminNavbar({ toggleSidebar, pageTitle = 'Dashboard' }: 
             aria-label="User menu"
           >
             <div className="avatar">
-              <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
+              <svg viewBox="0 0 24 24" fill="none" width="18" height="18">
                 <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 <path d="M12 11C14.2091 11 16 9.20914 16 7C16 4.79086 14.2091 3 12 3C9.79086 3 8 4.79086 8 7C8 9.20914 9.79086 11 12 11Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
@@ -106,15 +106,18 @@ export default function AdminNavbar({ toggleSidebar, pageTitle = 'Dashboard' }: 
           position: fixed;
           top: 0;
           right: 0;
-          left: 260px;
-          height: 70px;
-          background: white;
+          left: 280px;
+          height: 72px;
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 0 24px;
-          border-bottom: 1px solid #e5e7eb;
-          z-index: 997;
+          padding: 0 32px;
+          border-bottom: 1px solid rgba(229, 231, 235, 0.8);
+          z-index: 100;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         @media (max-width: 1024px) {
@@ -126,22 +129,22 @@ export default function AdminNavbar({ toggleSidebar, pageTitle = 'Dashboard' }: 
         .navbar-left {
           display: flex;
           align-items: center;
-          gap: 16px;
+          gap: 20px;
         }
 
         .menu-toggle {
           display: none;
           background: none;
           border: none;
-          color: #4b5563;
+          color: #6b7280;
           cursor: pointer;
-          padding: 8px;
-          border-radius: 8px;
+          padding: 10px;
+          border-radius: 10px;
           transition: all 0.2s;
         }
 
         .menu-toggle:hover {
-          background: #f3f4f6;
+          background: #f9fafb;
           color: #1f2937;
         }
 
@@ -152,10 +155,11 @@ export default function AdminNavbar({ toggleSidebar, pageTitle = 'Dashboard' }: 
         }
 
         .page-title {
-          font-size: 20px;
-          font-weight: 600;
+          font-size: 22px;
+          font-weight: 700;
           color: #1f2937;
           margin: 0;
+          letter-spacing: -0.5px;
         }
 
         .navbar-right {
@@ -170,30 +174,31 @@ export default function AdminNavbar({ toggleSidebar, pageTitle = 'Dashboard' }: 
           border: none;
           color: #6b7280;
           cursor: pointer;
-          padding: 8px;
-          border-radius: 8px;
+          padding: 10px;
+          border-radius: 10px;
           transition: all 0.2s;
         }
 
         .nav-btn:hover {
-          background: #f3f4f6;
+          background: #f9fafb;
           color: #1f2937;
         }
 
         .notification-badge {
           position: absolute;
-          top: 4px;
-          right: 4px;
-          width: 18px;
-          height: 18px;
-          background: #ef4444;
+          top: 6px;
+          right: 6px;
+          background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
           color: white;
           font-size: 10px;
-          font-weight: 600;
+          font-weight: 700;
+          width: 18px;
+          height: 18px;
           border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
+          border: 2px solid white;
         }
 
         .profile-dropdown {
@@ -203,39 +208,44 @@ export default function AdminNavbar({ toggleSidebar, pageTitle = 'Dashboard' }: 
         .profile-btn {
           display: flex;
           align-items: center;
-          gap: 10px;
-          background: #f9fafb;
-          border: 1px solid #e5e7eb;
-          padding: 6px 12px 6px 6px;
-          border-radius: 50px;
+          gap: 12px;
+          background: none;
+          border: none;
           cursor: pointer;
+          padding: 8px 14px;
+          border-radius: 12px;
           transition: all 0.2s;
         }
 
         .profile-btn:hover {
-          background: #f3f4f6;
-          border-color: #d1d5db;
+          background: #f9fafb;
         }
 
         .avatar {
-          width: 36px;
-          height: 36px;
+          width: 38px;
+          height: 38px;
           background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-          border-radius: 50%;
+          border-radius: 10px;
           display: flex;
           align-items: center;
           justify-content: center;
           color: white;
+          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
         }
 
         .user-name {
           font-size: 14px;
-          font-weight: 500;
+          font-weight: 600;
           color: #374151;
         }
 
         .chevron {
           color: #9ca3af;
+          transition: transform 0.2s;
+        }
+
+        .profile-btn:hover .chevron {
+          transform: translateY(2px);
         }
 
         .dropdown-menu {
@@ -244,17 +254,18 @@ export default function AdminNavbar({ toggleSidebar, pageTitle = 'Dashboard' }: 
           right: 0;
           width: 240px;
           background: white;
-          border-radius: 12px;
-          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-          border: 1px solid #e5e7eb;
+          border-radius: 14px;
+          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+          border: 1px solid #f3f4f6;
           overflow: hidden;
-          animation: dropdown 0.2s ease;
+          animation: slideDown 0.2s ease;
+          z-index: 1000;
         }
 
-        @keyframes dropdown {
+        @keyframes slideDown {
           from {
             opacity: 0;
-            transform: translateY(-10px);
+            transform: translateY(-8px);
           }
           to {
             opacity: 1;
@@ -264,14 +275,17 @@ export default function AdminNavbar({ toggleSidebar, pageTitle = 'Dashboard' }: 
 
         .dropdown-header {
           padding: 16px;
-          background: #f9fafb;
+          background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%);
         }
 
         .user-email {
-          font-size: 14px;
-          font-weight: 500;
+          font-size: 13px;
+          font-weight: 600;
           color: #1f2937;
-          margin: 0 0 4px;
+          margin: 0 0 4px 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
 
         .user-role {
@@ -282,7 +296,8 @@ export default function AdminNavbar({ toggleSidebar, pageTitle = 'Dashboard' }: 
 
         .dropdown-divider {
           height: 1px;
-          background: #e5e7eb;
+          background: #f3f4f6;
+          margin: 0;
         }
 
         .dropdown-item {
@@ -293,17 +308,26 @@ export default function AdminNavbar({ toggleSidebar, pageTitle = 'Dashboard' }: 
           padding: 12px 16px;
           background: none;
           border: none;
+          text-align: left;
+          text-decoration: none;
           color: #4b5563;
           font-size: 14px;
-          text-decoration: none;
+          font-weight: 500;
           cursor: pointer;
           transition: all 0.2s;
-          text-align: left;
         }
 
         .dropdown-item:hover {
           background: #f9fafb;
           color: #1f2937;
+        }
+
+        .dropdown-item svg {
+          color: #9ca3af;
+        }
+
+        .dropdown-item:hover svg {
+          color: #10b981;
         }
 
         .dropdown-item.logout {
@@ -315,15 +339,26 @@ export default function AdminNavbar({ toggleSidebar, pageTitle = 'Dashboard' }: 
           color: #dc2626;
         }
 
+        .dropdown-item.logout svg {
+          color: #dc2626;
+        }
+
         @media (max-width: 640px) {
+          .admin-navbar {
+            padding: 0 16px;
+            height: 64px;
+          }
+
+          .page-title {
+            font-size: 18px;
+          }
+
           .user-name {
             display: none;
           }
 
-          .profile-btn {
-            padding: 4px;
-            background: none;
-            border: none;
+          .dropdown-menu {
+            right: -8px;
           }
         }
       `}</style>

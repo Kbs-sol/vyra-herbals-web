@@ -85,12 +85,12 @@ export default function AdminLayoutWrapper({ children, pageTitle = 'Dashboard' }
       <style jsx>{`
         .admin-layout {
           min-height: 100vh;
-          background: #f3f4f6;
+          background: #f8f9fa;
         }
 
         .admin-main {
-          margin-left: 260px;
-          padding: 94px 24px 24px;
+          margin-left: 280px;
+          padding: 88px 32px 32px;
           min-height: 100vh;
         }
 
@@ -102,7 +102,7 @@ export default function AdminLayoutWrapper({ children, pageTitle = 'Dashboard' }
 
         @media (max-width: 640px) {
           .admin-main {
-            padding: 86px 16px 16px;
+            padding: 80px 16px 16px;
           }
         }
       `}</style>

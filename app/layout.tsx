@@ -6,6 +6,7 @@ import { AuthProvider } from '@/Components/Contexts/AuthContext';
 import { CartProvider } from '@/Components/Contexts/CartContext';
 import Header from '@/Components/Common/Header';
 import Footer from '@/Components/Common/Footer';
+import ConditionalLayout from '@/Components/Common/ConditionalLayout';
 import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -104,11 +105,9 @@ export default function RootLayout({
 
         <AuthProvider>
           <CartProvider>
-            <Suspense fallback={<div />}>
-              <Header />
-            </Suspense>
-            {children}
-            <Footer />
+            <ConditionalLayout>
+              {children}
+            </ConditionalLayout>
           </CartProvider>
         </AuthProvider>
       </body>

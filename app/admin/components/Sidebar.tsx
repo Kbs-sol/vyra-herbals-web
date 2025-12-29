@@ -110,20 +110,18 @@ export default function AdminSidebar({ isOpen, onClose }: SidebarProps) {
         <div className="sidebar-header">
           <Link href="/admin" className="brand">
             <div className="brand-icon">
-              <svg viewBox="0 0 24 24" fill="none" width="24" height="24">
-                <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <svg viewBox="0 0 24 24" fill="none" width="28" height="28">
+                <rect x="3" y="3" width="7" height="7" rx="1.5" fill="currentColor" opacity="0.3"/>
+                <rect x="14" y="3" width="7" height="7" rx="1.5" fill="currentColor"/>
+                <rect x="3" y="14" width="7" height="7" rx="1.5" fill="currentColor"/>
+                <rect x="14" y="14" width="7" height="7" rx="1.5" fill="currentColor" opacity="0.6"/>
               </svg>
             </div>
-            <span className="brand-name">Vyra Admin</span>
+            <div className="brand-text">
+              <span className="brand-name">Vyra</span>
+              <span className="brand-subtitle">Admin</span>
+            </div>
           </Link>
-          <button className="close-btn" onClick={onClose}>
-            <svg viewBox="0 0 24 24" fill="none" width="24" height="24">
-              <path d="M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
         </div>
 
         <nav className="sidebar-nav">
@@ -139,8 +137,9 @@ export default function AdminSidebar({ isOpen, onClose }: SidebarProps) {
                     className={`nav-link ${isActive ? 'active' : ''}`}
                     onClick={() => window.innerWidth <= 1024 && onClose()}
                   >
-                    {item.icon}
-                    <span>{item.name}</span>
+                    <div className="nav-icon">{item.icon}</div>
+                    <span className="nav-text">{item.name}</span>
+                    {isActive && <div className="active-indicator" />}
                   </Link>
                 </li>
               );
@@ -148,165 +147,199 @@ export default function AdminSidebar({ isOpen, onClose }: SidebarProps) {
           </ul>
         </nav>
 
-        <div className="sidebar-footer">
-          <Link href="/" className="view-store" target="_blank">
-            <svg viewBox="0 0 24 24" fill="none" width="18" height="18">
-              <path d="M18 13V19C18 19.5304 17.7893 20.0391 17.4142 20.4142C17.0391 20.7893 16.5304 21 16 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V8C3 7.46957 3.21071 6.96086 3.58579 6.58579C3.96086 6.21071 4.46957 6 5 6H11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M15 3H21V9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M10 14L21 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            <span>View Store</span>
-          </Link>
-        </div>
-      </aside>
-
-      <style jsx>{`
-        .sidebar-overlay {
-          position: fixed;
-          inset: 0;
-          background: rgba(0, 0, 0, 0.5);
-          z-index: 998;
-          display: none;
-        }
-
-        @media (max-width: 1024px) {
+        <style jsx>{`
           .sidebar-overlay {
-            display: block;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(4px);
+            z-index: 40;
+            display: none;
+            animation: fadeIn 0.2s ease;
           }
-        }
 
-        .admin-sidebar {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 260px;
-          height: 100vh;
-          background: #1f2937;
-          display: flex;
-          flex-direction: column;
-          z-index: 999;
-          transition: transform 0.3s ease;
-        }
+          @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
 
-        @media (max-width: 1024px) {
           .admin-sidebar {
-            transform: translateX(-100%);
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 280px;
+            background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+            border-right: 1px solid #e5e7eb;
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           }
 
-          .admin-sidebar.open {
-            transform: translateX(0);
+          .sidebar-header {
+            padding: 24px 20px;
+            border-bottom: 1px solid #f3f4f6;
           }
-        }
 
-        .sidebar-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 16px 20px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .brand {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          text-decoration: none;
-        }
-
-        .brand-icon {
-          width: 40px;
-          height: 40px;
-          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-          border-radius: 10px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-        }
-
-        .brand-name {
-          font-size: 18px;
-          font-weight: 700;
-          color: white;
-        }
-
-        .close-btn {
-          display: none;
-          background: none;
-          border: none;
-          color: #9ca3af;
-          cursor: pointer;
-          padding: 4px;
-        }
-
-        @media (max-width: 1024px) {
-          .close-btn {
-            display: block;
+          .brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            text-decoration: none;
+            color: inherit;
+            transition: transform 0.2s;
           }
-        }
 
-        .sidebar-nav {
-          flex: 1;
-          overflow-y: auto;
-          padding: 16px 12px;
-        }
+          .brand:hover {
+            transform: translateX(2px);
+          }
 
-        .sidebar-nav ul {
-          list-style: none;
-          padding: 0;
-          margin: 0;
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
+          .brand-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+          }
 
-        .nav-link {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 12px 16px;
-          color: #9ca3af;
-          text-decoration: none;
-          border-radius: 10px;
-          transition: all 0.2s ease;
-          font-size: 14px;
-          font-weight: 500;
-        }
+          .brand-text {
+            display: flex;
+            flex-direction: column;
+          }
 
-        .nav-link:hover {
-          background: rgba(255, 255, 255, 0.05);
-          color: white;
-        }
+          .brand-name {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1f2937;
+            line-height: 1;
+            letter-spacing: -0.5px;
+          }
 
-        .nav-link.active {
-          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-          color: white;
-        }
+          .brand-subtitle {
+            font-size: 12px;
+            font-weight: 500;
+            color: #6b7280;
+            letter-spacing: 0.5px;
+          }
 
-        .sidebar-footer {
-          padding: 16px 12px;
-          border-top: 1px solid rgba(255, 255, 255, 0.1);
-        }
+          .sidebar-nav {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+          }
 
-        .view-store {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          padding: 12px;
-          background: rgba(255, 255, 255, 0.05);
-          color: #9ca3af;
-          text-decoration: none;
-          border-radius: 10px;
-          font-size: 14px;
-          transition: all 0.2s ease;
-        }
+          .sidebar-nav::-webkit-scrollbar {
+            width: 6px;
+          }
 
-        .view-store:hover {
-          background: rgba(255, 255, 255, 0.1);
-          color: white;
-        }
-      `}</style>
+          .sidebar-nav::-webkit-scrollbar-track {
+            background: transparent;
+          }
+
+          .sidebar-nav::-webkit-scrollbar-thumb {
+            background: #e5e7eb;
+            border-radius: 10px;
+          }
+
+          .sidebar-nav ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+          }
+
+          .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 13px 16px;
+            border-radius: 12px;
+            text-decoration: none;
+            color: #6b7280;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+          }
+
+          .nav-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1;
+          }
+
+          .nav-text {
+            z-index: 1;
+          }
+
+          .nav-link:hover {
+            background: #f9fafb;
+            color: #374151;
+            transform: translateX(4px);
+          }
+
+          .nav-link.active {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+          }
+
+          .nav-link.active:hover {
+            transform: translateX(4px);
+            box-shadow: 0 6px 16px rgba(16, 185, 129, 0.35);
+          }
+
+          .active-indicator {
+            position: absolute;
+            right: 12px;
+            width: 6px;
+            height: 6px;
+            background: white;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+          }
+
+          @keyframes pulse {
+            0%, 100% {
+              opacity: 1;
+              transform: scale(1);
+            }
+            50% {
+              opacity: 0.5;
+              transform: scale(0.8);
+            }
+          }
+
+          @media (max-width: 1024px) {
+            .sidebar-overlay {
+              display: block;
+            }
+
+            .admin-sidebar {
+              transform: translateX(-100%);
+            }
+
+            .admin-sidebar.open {
+              transform: translateX(0);
+              box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+            }
+
+            .sidebar-overlay {
+              display: block;
+            }
+          }
+        `}</style>
+      </aside>
     </>
   );
 }
