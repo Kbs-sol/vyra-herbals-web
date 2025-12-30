@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = createServerSupabase();
     const body = await request.json();
+    const images = Array.isArray(body.images) ? body.images.filter((img: string) => !!img) : [];
 
     // Generate handle from title if not provided
     if (!body.handle && body.title) {
@@ -73,6 +74,12 @@ export async function POST(request: NextRequest) {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '');
     }
+
+    if (!body.image_url && images.length) {
+      body.image_url = images[0];
+    }
+
+    body.images = images;
 
     const { data, error } = await supabase
       .from('products')
@@ -102,6 +109,9 @@ export async function PUT(request: NextRequest) {
     const supabase = createServerSupabase();
     const body = await request.json();
     const { id, ...updateData } = body;
+    const images = Array.isArray(updateData.images)
+      ? updateData.images.filter((img: string) => !!img)
+      : [];
 
     if (!id) {
       return NextResponse.json(
@@ -109,6 +119,19 @@ export async function PUT(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    if (!updateData.handle && updateData.title) {
+      updateData.handle = updateData.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+    }
+
+    if (!updateData.image_url && images.length) {
+      updateData.image_url = images[0];
+    }
+
+    updateData.images = images;
 
     const { data, error } = await supabase
       .from('products')

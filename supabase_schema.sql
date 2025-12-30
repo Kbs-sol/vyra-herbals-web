@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS products (
   price NUMERIC NOT NULL,                     -- Current selling price
   regular_price NUMERIC,                      -- Original/MRP price (for discount calculation)
   image_url TEXT,                             -- Main product image filename
+  images TEXT[],                              -- Additional gallery images (public URLs)
   category TEXT,                              -- Product category (hair-oil, combs, shampoo, etc.)
   view_count INTEGER DEFAULT 0,               -- Track product views
   created_at TIMESTAMPTZ DEFAULT NOW()

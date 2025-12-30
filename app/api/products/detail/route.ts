@@ -61,7 +61,18 @@ export async function POST(req: Request) {
       if (cartRows && cartRows.length > 0) is_in_cart = '1';
     }
 
-    return NextResponse.json({ ...product, reviews, is_in_cart });
+    const images = Array.isArray((product as any).images)
+      ? (product as any).images.filter((img: string) => !!img)
+      : [];
+    const mainImage = product.image_url || images[0] || null;
+
+    return NextResponse.json({
+      ...product,
+      image_url: mainImage,
+      images,
+      reviews,
+      is_in_cart
+    });
   } catch (err) {
     console.error('Product detail error:', err);
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });

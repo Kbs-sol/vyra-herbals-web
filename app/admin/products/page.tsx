@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import AdminLayoutWrapper from '../components/AdminLayoutWrapper';
 import { Product } from '@/types';
+import { supabase } from '@/utils/supabaseClient';
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -17,6 +18,8 @@ export default function ProductsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
+  const [uploadingMainImage, setUploadingMainImage] = useState(false);
+  const [uploadingGallery, setUploadingGallery] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -26,6 +29,7 @@ export default function ProductsPage() {
     regular_price: '',
     image_url: '',
     category: '',
+    images: [] as string[],
   });
 
   useEffect(() => {
@@ -70,6 +74,88 @@ export default function ProductsPage() {
     }
   };
 
+  const bucketName =
+    process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET ||
+    process.env.SUPABASE_STORAGE_BUCKET ||
+    'images';
+
+  const slugify = (text: string) =>
+    (text || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '') || 'product';
+
+  const uploadToStorage = async (file: File) => {
+    const safeHandle = formData.handle || slugify(formData.title || 'product');
+    const extension = file.name.split('.').pop() || 'jpg';
+    const path = `products/${safeHandle}/${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2)}.${extension}`;
+
+    const { error } = await supabase.storage
+      .from(bucketName)
+      .upload(path, file, {
+        cacheControl: '3600',
+        upsert: true,
+        contentType: file.type,
+      });
+
+    if (error) throw error;
+
+    const { data } = supabase.storage.from(bucketName).getPublicUrl(path);
+    return data.publicUrl;
+  };
+
+  const handleMainImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingMainImage(true);
+    try {
+      const publicUrl = await uploadToStorage(file);
+      setFormData((prev) => ({
+        ...prev,
+        image_url: publicUrl,
+        images: [publicUrl, ...(prev.images || []).filter((img) => img !== publicUrl)],
+      }));
+    } catch (err) {
+      console.error('Main image upload failed', err);
+      alert('Failed to upload main image. Please try again.');
+    } finally {
+      setUploadingMainImage(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    if (!files.length) return;
+    setUploadingGallery(true);
+    try {
+      const uploaded: string[] = [];
+      for (const file of files) {
+        const url = await uploadToStorage(file);
+        uploaded.push(url);
+      }
+      setFormData((prev) => ({
+        ...prev,
+        images: [...(prev.images || []), ...uploaded],
+      }));
+    } catch (err) {
+      console.error('Gallery upload failed', err);
+      alert('Failed to upload gallery images.');
+    } finally {
+      setUploadingGallery(false);
+      e.target.value = '';
+    }
+  };
+
+  const removeGalleryImage = (url: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      images: (prev.images || []).filter((img) => img !== url),
+    }));
+  };
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setCurrentPage(1);
@@ -86,6 +172,7 @@ export default function ProductsPage() {
       regular_price: '',
       image_url: '',
       category: '',
+      images: [],
     });
     setShowModal(true);
   };
@@ -98,8 +185,9 @@ export default function ProductsPage() {
       description: product.description || '',
       price: product.price?.toString() || '',
       regular_price: product.regular_price?.toString() || '',
-      image_url: product.image_url || '',
+      image_url: product.image_url || product.images?.[0] || '',
       category: product.category || '',
+      images: (product.images as string[]) || [],
     });
     setShowModal(true);
   };
@@ -109,8 +197,16 @@ export default function ProductsPage() {
     setSaving(true);
 
     try {
+      const sanitizedImages = (formData.images || []).filter((img) => !!img);
+      const mergedImages =
+        formData.image_url && !sanitizedImages.includes(formData.image_url)
+          ? [formData.image_url, ...sanitizedImages]
+          : sanitizedImages;
       const payload = {
         ...formData,
+        handle: formData.handle || slugify(formData.title),
+        images: mergedImages,
+        image_url: formData.image_url || mergedImages[0] || null,
         price: parseFloat(formData.price),
         regular_price: formData.regular_price ? parseFloat(formData.regular_price) : null,
         ...(editingProduct ? { id: editingProduct.id } : {}),
@@ -246,8 +342,11 @@ export default function ProductsPage() {
                     <td>
                       <div className="product-cell">
                         <div className="product-image">
-                          {product.image_url ? (
-                            <img src={product.image_url} alt={product.title} />
+                          {product.image_url || product.images?.[0] ? (
+                            <img
+                              src={(product.image_url as string) || (product.images?.[0] as string)}
+                              alt={product.title}
+                            />
                           ) : (
                             <div className="no-image">
                               <svg viewBox="0 0 24 24" fill="none" width="24" height="24">
@@ -420,6 +519,75 @@ export default function ProductsPage() {
                         onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
                         placeholder="/assets/images/products/image.jpg"
                       />
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Upload Main Image</label>
+                      <div className="upload-control">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleMainImageUpload}
+                          disabled={uploadingMainImage}
+                        />
+                        <span className="help-text">
+                          Stored in Supabase Storage ({bucketName})
+                        </span>
+                        {uploadingMainImage && <span className="uploading">Uploading...</span>}
+                      </div>
+                      {formData.image_url && (
+                        <div className="image-preview">
+                          <img src={formData.image_url} alt="Main preview" />
+                          <button
+                            type="button"
+                            className="remove-btn"
+                            onClick={() =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                image_url: '',
+                                images: (prev.images || []).filter((img) => img !== prev.image_url),
+                              }))
+                            }
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="form-group">
+                      <label>Gallery Images</label>
+                      <div className="upload-control">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={handleGalleryUpload}
+                          disabled={uploadingGallery}
+                        />
+                        <span className="help-text">Add additional angles or lifestyle shots</span>
+                        {uploadingGallery && <span className="uploading">Uploading...</span>}
+                      </div>
+                      <div className="gallery-preview">
+                        {formData.images?.length ? (
+                          formData.images.map((img) => (
+                            <div className="thumb" key={img}>
+                              <img src={img} alt="Gallery" />
+                              <button
+                                type="button"
+                                className="remove-btn"
+                                onClick={() => removeGalleryImage(img)}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="muted">No gallery images yet.</p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -840,6 +1008,82 @@ export default function ProductsPage() {
 
           .form-group textarea {
             resize: vertical;
+          }
+
+          .upload-control {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+          }
+
+          .help-text {
+            font-size: 12px;
+            color: #6b7280;
+          }
+
+          .uploading {
+            font-size: 13px;
+            color: #2563eb;
+          }
+
+          .image-preview {
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+          }
+
+          .image-preview img {
+            width: 96px;
+            height: 96px;
+            object-fit: cover;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+          }
+
+          .remove-btn {
+            border: none;
+            background: #fee2e2;
+            color: #b91c1c;
+            padding: 6px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+          }
+
+          .gallery-preview {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 12px;
+            margin-top: 10px;
+          }
+
+          .gallery-preview .thumb {
+            position: relative;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #f9fafb;
+          }
+
+          .gallery-preview img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            display: block;
+          }
+
+          .gallery-preview .remove-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            padding: 4px 8px;
+          }
+
+          .muted {
+            color: #6b7280;
+            font-size: 13px;
+            margin: 0;
           }
 
           .modal-footer {

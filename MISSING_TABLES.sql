@@ -14,6 +14,38 @@
 -- First, check if the foreign key already exists and add it if not
 DO $$ 
 BEGIN 
+  -- Ensure products.id exists and is uniquely constrained before adding FK
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'products' AND column_name = 'id'
+  ) THEN
+    ALTER TABLE products ADD COLUMN id BIGSERIAL;
+  END IF;
+
+  -- Ensure a sequence exists and backfill any NULL ids
+  PERFORM 1 FROM pg_class WHERE relname = 'products_id_seq';
+  IF NOT FOUND THEN
+    CREATE SEQUENCE products_id_seq;
+  END IF;
+
+  -- Set default to sequence (id must be integer-like already)
+  ALTER TABLE products ALTER COLUMN id SET DEFAULT nextval('products_id_seq');
+
+  -- Backfill NULL ids using the sequence
+  UPDATE products SET id = nextval('products_id_seq') WHERE id IS NULL;
+
+  -- Align sequence with current max id
+  PERFORM setval('products_id_seq', (SELECT COALESCE(MAX(id), 0) FROM products));
+
+  -- Add a primary key on products.id if missing
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints 
+    WHERE table_name = 'products' AND constraint_type = 'PRIMARY KEY'
+  ) THEN
+    -- NOTE: This will fail if products.id has nulls or duplicates; clean data first if needed
+    ALTER TABLE products ADD PRIMARY KEY (id);
+  END IF;
+
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.table_constraints 
     WHERE constraint_name = 'reviews_product_id_fkey' 
@@ -151,6 +183,12 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
                  WHERE table_name = 'products' AND column_name = 'image_url') THEN
     ALTER TABLE products ADD COLUMN image_url TEXT;
+  END IF;
+
+  -- Add images array column for gallery support if missing
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_name = 'products' AND column_name = 'images') THEN
+    ALTER TABLE products ADD COLUMN images TEXT[] DEFAULT '{}';
   END IF;
   
   -- Add regular_price column if missing

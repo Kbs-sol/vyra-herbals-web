@@ -73,10 +73,19 @@ export async function POST(req: Request) {
     }
     
     // Merge reviews into products
-    const productsWithReviews = products.map((product: any) => ({
-      ...product,
-      reviews: (reviews || []).filter((review: any) => review.product_id === product.id)
-    }));
+    const productsWithReviews = products.map((product: any) => {
+      const productImages = Array.isArray(product.images)
+        ? product.images.filter((img: string) => !!img)
+        : [];
+      const imageUrl = product.image_url || productImages[0] || null;
+
+      return {
+        ...product,
+        image_url: imageUrl,
+        images: productImages,
+        reviews: (reviews || []).filter((review: any) => review.product_id === product.id)
+      };
+    });
     
     return NextResponse.json(productsWithReviews);
   } catch (err) {

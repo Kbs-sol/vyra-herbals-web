@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { FaEye, FaShoppingCart } from "react-icons/fa";
 // import { FaHeart } from "react-icons/fa";
 import { FaStar } from "react-icons/fa";
@@ -147,6 +147,18 @@ const Singleproducts = () => {
   //     fetchData();
   //   }, [productHandle]);
 
+  const buildGallery = useCallback((prod: any) => {
+    const gallery = Array.isArray(prod?.images)
+      ? prod.images.filter((img) => !!img)
+      : [];
+    if (prod?.image_url && !gallery.includes(prod.image_url)) {
+      gallery.unshift(prod.image_url);
+    }
+    return Array.from(new Set(gallery));
+  }, []);
+
+  const galleryImages = useMemo(() => buildGallery(product), [product, buildGallery]);
+
   useEffect(() => {
     if (!productHandle) return;
 
@@ -173,7 +185,6 @@ const Singleproducts = () => {
 
         const data = await response.json();
         setProduct(data);
-        setMainImage(data.image_url);
 
         // Check product-added-to-cart status
         if (user) {
@@ -182,10 +193,7 @@ const Singleproducts = () => {
           // Check from localStorage if user is not logged in
           const cartItems =
             JSON.parse(localStorage.getItem(`${APP_NAME}_cart`)) || [];
-          // console.log("cartItems : ", cartItems);
-          // console.log(cartItems, data.id, cartItems.some(item => item === data.id));
           setIsInCart(cartItems.some((item) => item.id === data.id));
-          // setIsInCart(cartItems.includes(data.id));
         }
       } catch (error) {
         console.error("Error fetching product details:", error);
@@ -194,6 +202,14 @@ const Singleproducts = () => {
 
     fetchData();
   }, [productHandle, user]);
+
+  useEffect(() => {
+    if (!product) return;
+    const gallery = buildGallery(product);
+    if (!mainImage || (gallery.length && !gallery.includes(mainImage))) {
+      setMainImage(gallery[0] || null);
+    }
+  }, [product, mainImage, buildGallery]);
 
   const [handpickedProducts, setHandpickedProducts] = useState([]);
   // Fetch handpicked products data from your API
@@ -414,54 +430,35 @@ const Singleproducts = () => {
                     </div> */}
                     <ul className="details-preview">
                       <li>
-                        <img src={mainImage} alt="product" />
+                        <img
+                          src={
+                            mainImage ||
+                            galleryImages[0] ||
+                            '/assets/images/vyra_placeholder.png'
+                          }
+                          alt={product.title || "product"}
+                        />
                       </li>
                     </ul>
-                    {/* <ul className="details-thumb">
-                      <li>
-                        <img
-                          src={product.image_url}
-                          alt="product"
-                          onClick={() => setMainImage(product.image_url)}
-                        />
-                      </li>
-                      <li>
-                        <img
-                          src="/assets/images/products/2.jpg"
-                          alt="product"
-                          onClick={() =>
-                            setMainImage("/assets/images/products/2.jpg")
-                          }
-                        />
-                      </li>
-                      <li>
-                        <img
-                          src="/assets/images/products/2.jpg"
-                          alt="product"
-                          onClick={() =>
-                            setMainImage("/assets/images/products/2.jpg")
-                          }
-                        />
-                      </li>
-                      <li>
-                        <img
-                          src="/assets/images/products/2.jpg"
-                          alt="product"
-                          onClick={() =>
-                            setMainImage("/assets/images/products/2.jpg")
-                          }
-                        />
-                      </li>
-                      <li>
-                        <img
-                          src="/assets/images/products/2.jpg"
-                          alt="product"
-                          onClick={() =>
-                            setMainImage("/assets/images/products/2.jpg")
-                          }
-                        />
-                      </li>
-                    </ul> */}
+                    {galleryImages.length > 1 && (
+                      <ul className="details-thumb">
+                        {galleryImages.map((img, index) => (
+                          <li
+                            key={`${img}-${index}`}
+                            className={img === mainImage ? "active" : ""}
+                          >
+                            <button type="button" onClick={() => setMainImage(img)}>
+                              <img
+                                src={img}
+                                alt={`${product.title || "product"} ${
+                                  index + 1
+                                }`}
+                              />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 </div>
                 <div className="col-lg-6">
@@ -783,6 +780,57 @@ const Singleproducts = () => {
 export default Singleproducts;
 
 const StyledSingleProduct = styled.section`
+  .details-gallery {
+    .details-preview {
+      list-style: none;
+      margin: 0 0 12px 0;
+      padding: 0;
+      li {
+        img {
+          width: 100%;
+          border-radius: 12px;
+          object-fit: cover;
+          background: #f7f7f7;
+          min-height: 360px;
+        }
+      }
+    }
+
+    .details-thumb {
+      list-style: none;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+      gap: 10px;
+      padding: 0;
+      margin: 0;
+
+      li {
+        button {
+          border: 2px solid transparent;
+          border-radius: 10px;
+          padding: 0;
+          background: none;
+          width: 100%;
+          cursor: pointer;
+          transition: border-color 0.2s ease, transform 0.2s ease;
+        }
+
+        img {
+          width: 100%;
+          height: 70px;
+          object-fit: cover;
+          border-radius: 8px;
+          display: block;
+        }
+
+        &.active button {
+          border-color: #0f5132;
+          transform: translateY(-2px);
+        }
+      }
+    }
+  }
+
   .inner-section {
     .review-list-container {
       .review-list {
