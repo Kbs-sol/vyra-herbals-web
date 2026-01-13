@@ -316,7 +316,7 @@ export default function ReviewsPage() {
         {selectedReview && (
           <div className="modal-overlay" onClick={() => setSelectedReview(null)}>
             <div className="review-modal" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
+              <div className="review-modal-header">
                 <h2>Review Details</h2>
                 <button className="close-btn" onClick={() => setSelectedReview(null)}>
                   <svg viewBox="0 0 24 24" fill="none" width="24" height="24">
@@ -326,7 +326,7 @@ export default function ReviewsPage() {
                 </button>
               </div>
 
-              <div className="modal-body">
+              <div className="review-modal-body">
                 {/* Status Update */}
                 <div className="detail-section">
                   <h3>Status</h3>
@@ -737,7 +737,7 @@ export default function ReviewsPage() {
             overflow-y: auto;
           }
 
-          .modal-header {
+          .review-modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -748,7 +748,7 @@ export default function ReviewsPage() {
             background: white;
           }
 
-          .modal-header h2 {
+          .review-modal-header h2 {
             margin: 0;
             font-size: 18px;
             font-weight: 600;
@@ -762,7 +762,7 @@ export default function ReviewsPage() {
             padding: 4px;
           }
 
-          .modal-body {
+          .review-modal-body {
             padding: 24px;
           }
 

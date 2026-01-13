@@ -306,8 +306,8 @@ export default function TestimonialsPage() {
         {/* Add/Edit Modal */}
         {showModal && (
           <div className="modal-overlay" onClick={() => setShowModal(false)}>
-            <div className="modal" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
+            <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="admin-modal-header">
                 <h2>{editingTestimonial ? 'Edit Testimonial' : 'Add Testimonial'}</h2>
                 <button className="close-btn" onClick={() => setShowModal(false)}>
                   <svg viewBox="0 0 24 24" fill="none" width="24" height="24">
@@ -715,7 +715,8 @@ export default function TestimonialsPage() {
             padding: 20px;
           }
 
-          .modal {
+          .admin-modal {
+            display: block; /* ensure visible despite any global .modal rules */
             background: white;
             border-radius: 16px;
             width: 100%;
@@ -724,7 +725,7 @@ export default function TestimonialsPage() {
             overflow-y: auto;
           }
 
-          .modal-header {
+          .admin-modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -732,7 +733,7 @@ export default function TestimonialsPage() {
             border-bottom: 1px solid #e5e7eb;
           }
 
-          .modal-header h2 {
+          .admin-modal-header h2 {
             margin: 0;
             font-size: 18px;
             font-weight: 600;

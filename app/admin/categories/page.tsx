@@ -138,6 +138,11 @@ export default function CategoriesPage() {
     }
   };
 
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleSave(e);
+  };
+
   return (
     <AdminLayoutWrapper pageTitle="Categories">
       <div className="categories-page">
@@ -233,9 +238,9 @@ export default function CategoriesPage() {
         {/* Add/Edit Modal */}
         {showModal && (
           <div className="modal-overlay" onClick={() => setShowModal(false)}>
-            <div className="modal" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <h2>{editingCategory ? 'Edit Category' : 'Add Category'}</h2>
+            <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="admin-modal-header">
+                <h2>{editingCategory ? 'Edit Category' : 'New Category'}</h2>
                 <button className="close-btn" onClick={() => setShowModal(false)}>
                   <svg viewBox="0 0 24 24" fill="none" width="24" height="24">
                     <path d="M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
@@ -244,7 +249,7 @@ export default function CategoriesPage() {
                 </button>
               </div>
 
-              <form onSubmit={handleSave} className="modal-form">
+              <form onSubmit={handleFormSubmit} className="modal-form">
                 <div className="form-group">
                   <label>Category Name *</label>
                   <input
@@ -513,7 +518,8 @@ export default function CategoriesPage() {
             padding: 20px;
           }
 
-          .modal {
+          .admin-modal {
+            display: block;
             background: white;
             border-radius: 16px;
             width: 100%;
@@ -522,7 +528,7 @@ export default function CategoriesPage() {
             overflow-y: auto;
           }
 
-          .modal-header {
+          .admin-modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -530,7 +536,7 @@ export default function CategoriesPage() {
             border-bottom: 1px solid #e5e7eb;
           }
 
-          .modal-header h2 {
+          .admin-modal-header h2 {
             margin: 0;
             font-size: 18px;
             font-weight: 600;

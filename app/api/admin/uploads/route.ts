@@ -1,0 +1,74 @@
+export const runtime = 'nodejs';
+
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
+import { jwtVerify } from 'jose';
+
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || 'vyra-herbals-admin-secret-key-2024'
+);
+
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET || 'products';
+
+export async function POST(request: NextRequest) {
+  try {
+    // Verify admin cookie token
+    const cookieStore = await cookies();
+    const token = cookieStore.get('admin_token')?.value;
+    if (!token) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    try {
+      await jwtVerify(token, JWT_SECRET);
+    } catch (err) {
+      return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 401 });
+    }
+
+    const formData = await request.formData();
+    const uploadFile = formData.get('file') as File | null;
+    const handle = (formData.get('handle') as string) || 'product';
+
+    if (!uploadFile) {
+      return NextResponse.json({ success: false, error: 'No file provided' }, { status: 400 });
+    }
+
+    const extension = uploadFile.name.split('.').pop() || 'jpg';
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 9);
+    const path = `${handle}/${timestamp}-${random}.${extension}`;
+
+    const arrayBuffer = await uploadFile.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json({ success: false, error: 'Supabase credentials missing (SUPABASE_URL / SERVICE_ROLE_KEY)' }, { status: 500 });
+    }
+
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false },
+    });
+
+    const { data: uploadData, error } = await supabaseAdmin.storage
+      .from(STORAGE_BUCKET)
+      .upload(path, buffer, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: uploadFile.type,
+      });
+
+    if (error) {
+      console.error('Server upload error:', error);
+      return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+    }
+
+    const { data } = supabaseAdmin.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+    return NextResponse.json({ success: true, publicUrl: data.publicUrl });
+  } catch (err) {
+    console.error('Upload API error', err);
+    return NextResponse.json({ success: false, error: 'Server error' }, { status: 500 });
+  }
+}

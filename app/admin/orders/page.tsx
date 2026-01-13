@@ -295,7 +295,7 @@ export default function OrdersPage() {
         {selectedOrder && (
           <div className="modal-overlay" onClick={() => setSelectedOrder(null)}>
             <div className="order-modal" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
+              <div className="order-modal-header">
                 <h2>Order #{selectedOrder.id}</h2>
                 <button className="close-btn" onClick={() => setSelectedOrder(null)}>
                   <svg viewBox="0 0 24 24" fill="none" width="24" height="24">
@@ -305,7 +305,7 @@ export default function OrdersPage() {
                 </button>
               </div>
 
-              <div className="modal-body">
+              <div className="order-modal-body">
                 {/* Status Section */}
                 <div className="detail-section">
                   <h3>Order Status</h3>
@@ -669,7 +669,7 @@ export default function OrdersPage() {
             overflow-y: auto;
           }
 
-          .modal-header {
+          .order-modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -680,7 +680,7 @@ export default function OrdersPage() {
             background: white;
           }
 
-          .modal-header h2 {
+          .order-modal-header h2 {
             margin: 0;
             font-size: 18px;
             font-weight: 600;
@@ -694,7 +694,7 @@ export default function OrdersPage() {
             padding: 4px;
           }
 
-          .modal-body {
+          .order-modal-body {
             padding: 24px;
           }
 
