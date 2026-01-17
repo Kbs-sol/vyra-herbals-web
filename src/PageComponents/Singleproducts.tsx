@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { FaEye, FaShoppingCart } from "react-icons/fa";
 // import { FaHeart } from "react-icons/fa";
 import { FaStar } from "react-icons/fa";
@@ -96,6 +96,20 @@ const Singleproducts = () => {
     }
     return {};
   }, [filteredReviews]);
+
+
+
+  const buildGallery = useCallback((prod: any) => {
+    const gallery = Array.isArray(prod?.images)
+      ? prod.images.filter((img: any) => !!img)
+      : [];
+    if (prod?.image_url && !gallery.includes(prod.image_url)) {
+      gallery.unshift(prod.image_url);
+    }
+    return Array.from(new Set(gallery));
+  }, []);
+
+  const galleryImages = useMemo(() => buildGallery(product), [product, buildGallery]);
 
   const notify = () =>
     toast.success("Added to cart !", {
@@ -199,7 +213,7 @@ const Singleproducts = () => {
   // Fetch related products (optimized - only fetch when product is loaded)
   useEffect(() => {
     if (!product) return; // Only fetch when we have the product
-    
+
     const postData = {
       tbl_name: "products",
       extra_condition: " ORDER BY id ASC LIMIT 8",
@@ -346,7 +360,24 @@ const Singleproducts = () => {
     swipeToSlide: true,
     autoplay: true,
     nextArrow: <SampleNextArrow />,
+    nextArrow: <SampleNextArrow />,
     prevArrow: <SamplePrevArrow />,
+  };
+
+  const gallerySettings = {
+    infinite: false,
+    slidesToShow: 4,
+    slidesToScroll: 1,
+    focusOnSelect: false,
+    arrows: true,
+    responsive: [
+      {
+        breakpoint: 480,
+        settings: {
+          slidesToShow: 3,
+        }
+      }
+    ]
   };
 
   const pathname = usePathname();
@@ -420,51 +451,22 @@ const Singleproducts = () => {
                         <img src={mainImage} alt="product" />
                       </li>
                     </ul>
-                    {/* <ul className="details-thumb">
-                      <li>
-                        <img
-                          src={product.image_url}
-                          alt="product"
-                          onClick={() => setMainImage(product.image_url)}
-                        />
-                      </li>
-                      <li>
-                        <img
-                          src="/assets/images/products/2.jpg"
-                          alt="product"
-                          onClick={() =>
-                            setMainImage("/assets/images/products/2.jpg")
-                          }
-                        />
-                      </li>
-                      <li>
-                        <img
-                          src="/assets/images/products/2.jpg"
-                          alt="product"
-                          onClick={() =>
-                            setMainImage("/assets/images/products/2.jpg")
-                          }
-                        />
-                      </li>
-                      <li>
-                        <img
-                          src="/assets/images/products/2.jpg"
-                          alt="product"
-                          onClick={() =>
-                            setMainImage("/assets/images/products/2.jpg")
-                          }
-                        />
-                      </li>
-                      <li>
-                        <img
-                          src="/assets/images/products/2.jpg"
-                          alt="product"
-                          onClick={() =>
-                            setMainImage("/assets/images/products/2.jpg")
-                          }
-                        />
-                      </li>
-                    </ul> */}
+                    {galleryImages.length > 1 && (
+                      <div className="details-thumb-slider">
+                        <Slider {...gallerySettings}>
+                          {galleryImages.map((img: any, index: number) => (
+                            <div key={`${img}-${index}`} className={`slide-item ${img === mainImage ? "active" : ""}`}>
+                              <div className="img-wrapper" onClick={() => setMainImage(img)}>
+                                <img
+                                  src={img}
+                                  alt={`${product.title || "product"} ${index + 1}`}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </Slider>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="col-lg-6">
@@ -669,12 +671,12 @@ const Singleproducts = () => {
                 <AddReview
                   reviewProductId={product.id}
                   ratingDetails={ratingDetails}
-                  // onAddSuccess={(review) =>
-                  //   setProduct((prev) => ({
-                  //     ...prev,
-                  //     reviews: [...(product?.reviews || []), review],
-                  //   }))
-                  // }
+                // onAddSuccess={(review) =>
+                //   setProduct((prev) => ({
+                //     ...prev,
+                //     reviews: [...(product?.reviews || []), review],
+                //   }))
+                // }
                 />
               </section>
               {!!ratingDetails.stats && (
@@ -766,12 +768,12 @@ const Singleproducts = () => {
                 <Slider {...settings}>
                   {handpickedProducts.length > 0
                     ? handpickedProducts.map((product) => (
-                        <ProductCard
-                          key={product.id}
-                          product={product}
-                          isImageLazy={false}
-                        />
-                      ))
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        isImageLazy={false}
+                      />
+                    ))
                     : null}
                 </Slider>
               </div>
@@ -950,4 +952,48 @@ const StyledSingleProduct = styled.section`
       }
     }
   }
+
+  .details-thumb-slider {
+      margin-top: 15px;
+      padding: 0 10px;
+      
+      .slick-prev, .slick-next {
+        width: 25px;
+        height: 25px;
+        z-index: 1;
+        &:before {
+            color: #333;
+            opacity: 1;
+            font-size: 24px;
+        }
+      }
+      
+      .slick-prev { left: -15px; }
+      .slick-next { right: -15px; }
+
+      .slick-slide {
+        padding: 0 6px;
+      }
+
+      .slide-item {
+        .img-wrapper {
+          border: 2px solid transparent;
+          border-radius: 8px;
+          overflow: hidden;
+          cursor: pointer;
+          transition: all 0.2s;
+          
+          img {
+            width: 100%;
+            height: 80px;
+            object-fit: cover;
+            display: block;
+          }
+        }
+
+        &.active .img-wrapper {
+          border-color: #0f5132;
+        }
+      }
+    }
 `;

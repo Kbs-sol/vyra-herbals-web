@@ -158,6 +158,9 @@ const Singleproducts = () => {
   }, []);
 
   const galleryImages = useMemo(() => buildGallery(product), [product, buildGallery]);
+  console.log("DEBUG: product", product);
+  console.log("DEBUG: galleryImages", galleryImages);
+
 
   useEffect(() => {
     if (!productHandle) return;
@@ -362,6 +365,22 @@ const Singleproducts = () => {
     prevArrow: <SamplePrevArrow />,
   };
 
+  const gallerySettings = {
+    infinite: false,
+    slidesToShow: 4,
+    slidesToScroll: 1,
+    focusOnSelect: false,
+    arrows: true,
+    responsive: [
+      {
+        breakpoint: 480,
+        settings: {
+          slidesToShow: 3,
+        }
+      }
+    ]
+  };
+
   const pathname = usePathname();
   useEffect(() => {
     const hash = window.location.hash;
@@ -428,7 +447,9 @@ const Singleproducts = () => {
                       <label className="details-label new">new</label>
                       <label className="details-label off">-10%</label>
                     </div> */}
+
                     <ul className="details-preview">
+
                       <li>
                         <img
                           src={
@@ -441,23 +462,20 @@ const Singleproducts = () => {
                       </li>
                     </ul>
                     {galleryImages.length > 1 && (
-                      <ul className="details-thumb">
-                        {galleryImages.map((img, index) => (
-                          <li
-                            key={`${img}-${index}`}
-                            className={img === mainImage ? "active" : ""}
-                          >
-                            <button type="button" onClick={() => setMainImage(img)}>
-                              <img
-                                src={img}
-                                alt={`${product.title || "product"} ${
-                                  index + 1
-                                }`}
-                              />
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
+                      <div className="details-thumb-slider">
+                        <Slider {...gallerySettings}>
+                          {galleryImages.map((img, index) => (
+                            <div key={`${img}-${index}`} className={`slide-item ${img === mainImage ? "active" : ""}`}>
+                              <div className="img-wrapper" onClick={() => setMainImage(img)}>
+                                <img
+                                  src={img}
+                                  alt={`${product.title || "product"} ${index + 1}`}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </Slider>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -663,12 +681,12 @@ const Singleproducts = () => {
                 <AddReview
                   reviewProductId={product.id}
                   ratingDetails={ratingDetails}
-                  // onAddSuccess={(review) =>
-                  //   setProduct((prev) => ({
-                  //     ...prev,
-                  //     reviews: [...(product?.reviews || []), review],
-                  //   }))
-                  // }
+                // onAddSuccess={(review) =>
+                //   setProduct((prev) => ({
+                //     ...prev,
+                //     reviews: [...(product?.reviews || []), review],
+                //   }))
+                // }
                 />
               </section>
               {!!ratingDetails.stats && (
@@ -760,12 +778,12 @@ const Singleproducts = () => {
                 <Slider {...settings}>
                   {handpickedProducts.length > 0
                     ? handpickedProducts.map((product) => (
-                        <ProductCard
-                          key={product.id}
-                          product={product}
-                          isImageLazy={false}
-                        />
-                      ))
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        isImageLazy={false}
+                      />
+                    ))
                     : null}
                 </Slider>
               </div>
@@ -796,36 +814,46 @@ const StyledSingleProduct = styled.section`
       }
     }
 
-    .details-thumb {
-      list-style: none;
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
-      gap: 10px;
-      padding: 0;
-      margin: 0;
+    .details-thumb-slider {
+      margin-top: 15px;
+      padding: 0 10px;
+      
+      .slick-prev, .slick-next {
+        width: 25px;
+        height: 25px;
+        z-index: 1;
+        &:before {
+            color: #333;
+            opacity: 1;
+            font-size: 24px;
+        }
+      }
+      
+      .slick-prev { left: -15px; }
+      .slick-next { right: -15px; }
 
-      li {
-        button {
+      .slick-slide {
+        padding: 0 6px;
+      }
+
+      .slide-item {
+        .img-wrapper {
           border: 2px solid transparent;
-          border-radius: 10px;
-          padding: 0;
-          background: none;
-          width: 100%;
-          cursor: pointer;
-          transition: border-color 0.2s ease, transform 0.2s ease;
-        }
-
-        img {
-          width: 100%;
-          height: 70px;
-          object-fit: cover;
           border-radius: 8px;
-          display: block;
+          overflow: hidden;
+          cursor: pointer;
+          transition: all 0.2s;
+          
+          img {
+            width: 100%;
+            height: 80px;
+            object-fit: cover;
+            display: block;
+          }
         }
 
-        &.active button {
+        &.active .img-wrapper {
           border-color: #0f5132;
-          transform: translateY(-2px);
         }
       }
     }

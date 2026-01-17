@@ -1,4 +1,4 @@
-'use client';
+
 
 import Singleproducts from '@/Pages/Singleproducts';
 
