@@ -267,130 +267,123 @@ const Header = () => {
         </div>
       </StyledHeader>
 
-      <StyledOffCanvas
-        show={showMenu}
-        onHide={hideMobileCanvas}
-        placement="end"
-      >
-        <Offcanvas.Header closeButton></Offcanvas.Header>
-        <Offcanvas.Body>
-          <div className="mobile-menu">
-            <ul className="header-top-list">
-              <li>
-                <Link href="/" onClick={hideMobileCanvas}>
-                  Home
-                </Link>
-              </li>
-              <StyledAccordion>
-                <Accordion.Item eventKey="0">
-                  <Accordion.Header>Shop</Accordion.Header>
-                  <Accordion.Body>
-                    <Link href="/search?searchtext=all" onClick={hideMobileCanvas}>
-                      All Products
-                    </Link>
-
-                    <Link href="/category/hair-oil" onClick={hideMobileCanvas}>
-                      Hair Oil
-                    </Link>
-                    <Link href="/category/shampoo" onClick={hideMobileCanvas}>
-                      Shampoo
-                    </Link>
-                    <Link href="/category/combs" onClick={hideMobileCanvas}>
-                      Neem Combs
-                    </Link>
-                    <Link
-                      href="/category/scalp-massager"
-                      onClick={hideMobileCanvas}
-                    >
-                      Scalp Massager
-                    </Link>
-                    <Link href="/category/kits" onClick={hideMobileCanvas}>
-                      Combos & Kits
-                    </Link>
-                  </Accordion.Body>
-                </Accordion.Item>
-                <Accordion.Item eventKey="1">
-                  <Accordion.Header>Reviews</Accordion.Header>
-                  <Accordion.Body>
-                    <Link
-                      href="/#customerStoriesSection"
-                      onClick={hideMobileCanvas}
-                    >
-                      Customer Stories
-                    </Link>
-                    <Link
-                      href="/#customerTestimonials"
-                      onClick={hideMobileCanvas}
-                    >
-                      Customer Testimonials
-                    </Link>
-                    <Link href="/testimonials#images" onClick={hideMobileCanvas}>
-                      Before & After Images
-                    </Link>
-                  </Accordion.Body>
-                </Accordion.Item>
-                {/* <li>
+      <OffCanvasWrapper>
+        <Offcanvas className="styled-offcanvas" show={showMenu} onHide={hideMobileCanvas} placement="end">
+          <Offcanvas.Header closeButton></Offcanvas.Header>
+          <Offcanvas.Body>
+            <div className="mobile-menu">
+              <ul className="header-top-list">
+                <li>
                   <Link href="/" onClick={hideMobileCanvas}>
-                    Blog
-                  </Link>
-                </li> */}
-                <li>
-                  <Link href="/about" onClick={hideMobileCanvas}>
-                    About Us
+                    Home
                   </Link>
                 </li>
-                <li>
-                  <Link href="/blogs" onClick={hideMobileCanvas}>
-                    Blog
-                  </Link>
-                </li>
-                <Accordion.Item eventKey="2">
-                  <Accordion.Header>Help</Accordion.Header>
-                  <Accordion.Body>
-                    <Link href="/contact" onClick={hideMobileCanvas}>
-                      Contact Us
+                <StyledAccordion>
+                  <Accordion.Item eventKey="0">
+                    <Accordion.Header>Shop</Accordion.Header>
+                    <Accordion.Body>
+                      <Link href="/search?searchtext=all" onClick={hideMobileCanvas}>
+                        All Products
+                      </Link>
+
+                      <Link href="/category/hair-oil" onClick={hideMobileCanvas}>
+                        Hair Oil
+                      </Link>
+                      <Link href="/category/shampoo" onClick={hideMobileCanvas}>
+                        Shampoo
+                      </Link>
+                      <Link href="/category/combs" onClick={hideMobileCanvas}>
+                        Neem Combs
+                      </Link>
+                      <Link
+                        href="/category/scalp-massager"
+                        onClick={hideMobileCanvas}
+                      >
+                        Scalp Massager
+                      </Link>
+                      <Link href="/category/kits" onClick={hideMobileCanvas}>
+                        Combos & Kits
+                      </Link>
+                    </Accordion.Body>
+                  </Accordion.Item>
+                  <Accordion.Item eventKey="1">
+                    <Accordion.Header>Reviews</Accordion.Header>
+                    <Accordion.Body>
+                      <Link
+                        href="/#customerStoriesSection"
+                        onClick={hideMobileCanvas}
+                      >
+                        Customer Stories
+                      </Link>
+                      <Link
+                        href="/#customerTestimonials"
+                        onClick={hideMobileCanvas}
+                      >
+                        Customer Testimonials
+                      </Link>
+                      <Link href="/testimonials#images" onClick={hideMobileCanvas}>
+                        Before & After Images
+                      </Link>
+                    </Accordion.Body>
+                  </Accordion.Item>
+                  <li>
+                    <Link href="/about" onClick={hideMobileCanvas}>
+                      About Us
                     </Link>
-                    <Link href="/faqs" onClick={hideMobileCanvas}>
-                      FAQs
+                  </li>
+                  <li>
+                    <Link href="/blogs" onClick={hideMobileCanvas}>
+                      Blog
                     </Link>
-                  </Accordion.Body>
-                </Accordion.Item>
+                  </li>
+                  <Accordion.Item eventKey="2">
+                    <Accordion.Header>Help</Accordion.Header>
+                    <Accordion.Body>
+                      <Link href="/contact" onClick={hideMobileCanvas}>
+                        Contact Us
+                      </Link>
+                      <Link href="/faqs" onClick={hideMobileCanvas}>
+                        FAQs
+                      </Link>
+                    </Accordion.Body>
+                  </Accordion.Item>
+                  <li>
+                    <Link href="/track-order" onClick={hideMobileCanvas}>
+                      Track Order
+                    </Link>
+                  </li>
+                </StyledAccordion>
+              </ul>
+              <ul className="social-container">
                 <li>
-                  <Link href="/track-order" onClick={hideMobileCanvas}>
-                    Track Order
-                  </Link>
+                  <a
+                    target="_blank"
+                    rel="noopener"
+                    href="https://www.facebook.com/vyraherbals"
+                    className="icofont-facebook"
+                  ></a>
                 </li>
-              </StyledAccordion>
-            </ul>
-            <ul className="social-container">
-              <li>
-                <a
-                  target="_blank"
-                  rel="noopener"
-                  href="https://www.facebook.com/vyraherbals"
-                  className="icofont-facebook"
-                ></a>
-              </li>
-              <li>
-                <a
-                  target="_blank"
-                  rel="noopener"
-                  href="https://www.instagram.com/vyraherbals"
-                  className="icofont-instagram"
-                ></a>
-              </li>
-              <li>
-                <a
-                  target="_blank"
-                  rel="noopener"
-                  href="https://www.youtube.com/@vyraherbals"
-                  className="fab fa-youtube"
-                />
-              </li>
-            </ul>
-          </div>
-        </Offcanvas.Body>
-      </StyledOffCanvas>
+                <li>
+                  <a
+                    target="_blank"
+                    rel="noopener"
+                    href="https://www.instagram.com/vyraherbals"
+                    className="icofont-instagram"
+                  ></a>
+                </li>
+                <li>
+                  <a
+                    target="_blank"
+                    rel="noopener"
+                    href="https://www.youtube.com/@vyraherbals"
+                    className="fab fa-youtube"
+                  />
+                </li>
+              </ul>
+            </div>
+          </Offcanvas.Body>
+        </Offcanvas>
+      </OffCanvasWrapper>
     </>
   );
 };
@@ -572,66 +565,68 @@ const StyledHeader = styled.section`
   }
 `;
 
-// Simple wrapper to style Offcanvas without ref issues in React 19
-// React 19 treats ref as a regular prop, so we just pass it through
-const StyledOffCanvas = styled(Offcanvas)`
-  .mobile-menu {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-
-    .social-container {
+// Use a wrapper to style Offcanvas via a class to avoid ref access issues in React 19
+const OffCanvasWrapper = styled.div`
+  .styled-offcanvas {
+    .mobile-menu {
+      height: 100%;
       display: flex;
-      justify-content: end;
-      gap: 0.5rem;
-      border-top: 1px solid var(--primary);
-    }
-    .header-top-list {
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
+      flex-direction: column;
+      justify-content: space-between;
 
-      li {
-        margin-left: 20px;
-        a {
-          font-size: 1rem;
-          color: var(--white);
-          letter-spacing: 0.3px;
-          white-space: nowrap;
-          text-transform: capitalize;
-          transition: all linear 0.3s;
-          -webkit-transition: all linear 0.3s;
-          -moz-transition: all linear 0.3s;
-          -ms-transition: all linear 0.3s;
-          -o-transition: all linear 0.3s;
-          &:hover {
-            color: var(--green-chalk);
+      .social-container {
+        display: flex;
+        justify-content: end;
+        gap: 0.5rem;
+        border-top: 1px solid var(--primary);
+      }
+      .header-top-list {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+
+        li {
+          margin-left: 20px;
+          a {
+            font-size: 1rem;
+            color: var(--white);
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+            text-transform: capitalize;
+            transition: all linear 0.3s;
+            -webkit-transition: all linear 0.3s;
+            -moz-transition: all linear 0.3s;
+            -ms-transition: all linear 0.3s;
+            -o-transition: all linear 0.3s;
+            &:hover {
+              color: var(--green-chalk);
+            }
           }
         }
       }
     }
-  }
-  @media (max-width: 991px) {
-    ul.header-top-list li {
-      a {
-        font-size: 1rem;
-        padding: 10px 15px;
-        border-bottom: 1px solid rgb(130 85 62);
-        width: 100%;
-        color: #000 !important;
-      }
-      &:last-child {
-        a:last-child {
-          border-bottom: none;
+
+    @media (max-width: 991px) {
+      ul.header-top-list li {
+        a {
+          font-size: 1rem;
+          padding: 10px 15px;
+          border-bottom: 1px solid rgb(130 85 62);
+          width: 100%;
+          color: #000 !important;
+        }
+        &:last-child {
+          a:last-child {
+            border-bottom: none;
+          }
         }
       }
-    }
-    .header-top-list li {
-      margin-left: 0px !important;
-    }
-    .offcanvas-body {
-      padding-top: 0px !important;
+      .header-top-list li {
+        margin-left: 0px !important;
+      }
+      .offcanvas-body {
+        padding-top: 0px !important;
+      }
     }
   }
 `;
