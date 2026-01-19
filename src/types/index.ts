@@ -74,3 +74,18 @@ export interface Category {
   created_at?: string;
   [key: string]: any;
 }
+
+export interface Blog {
+  id: number | string;
+  title: string;
+  handle?: string;               // slug for URL
+  excerpt?: string;
+  content?: string;             // markdown or HTML
+  author?: string;
+  status?: number;              // 0 = draft/hidden, 1 = published
+  image_url?: string;
+  images?: string[];
+  created_at?: string;
+  updated_at?: string;
+  [key: string]: any;
+}

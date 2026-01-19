@@ -86,3 +86,17 @@ NEXT_PUBLIC_SUPABASE_URL=https://obbohecegyagnqufelpx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
 NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET=products
 ```
+
+### Blogs Storage Bucket (new)
+
+If you're adding the Blogs feature, create a `blogs` public bucket in Supabase as well. The admin upload endpoint supports an explicit `bucket` form field (`bucket = 'blogs'`) so uploaded blog images are stored under the `blogs` bucket. Use the same public read policies as for `products` but replace `products` with `blogs` in the SQL examples above.
+
+Example policy (replace `products` with `blogs`):
+```sql
+-- Allow public read access for blog images
+CREATE POLICY "Public read access for blog images"
+ON storage.objects FOR SELECT
+TO public
+USING (bucket_id = 'blogs');
+```
+

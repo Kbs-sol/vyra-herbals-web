@@ -11,7 +11,7 @@ const JWT_SECRET = new TextEncoder().encode(
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET || 'products';
+const DEFAULT_STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET || 'products';
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const uploadFile = formData.get('file') as File | null;
     const handle = (formData.get('handle') as string) || 'product';
+    const bucket = (formData.get('bucket') as string) || DEFAULT_STORAGE_BUCKET; // allow overriding bucket for different content (e.g., 'blogs')
 
     if (!uploadFile) {
       return NextResponse.json({ success: false, error: 'No file provided' }, { status: 400 });
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
     });
 
     const { data: uploadData, error } = await supabaseAdmin.storage
-      .from(STORAGE_BUCKET)
+      .from(bucket)
       .upload(path, buffer, {
         cacheControl: '3600',
         upsert: false,
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
 
-    const { data } = supabaseAdmin.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+    const { data } = supabaseAdmin.storage.from(bucket).getPublicUrl(path);
     return NextResponse.json({ success: true, publicUrl: data.publicUrl });
   } catch (err) {
     console.error('Upload API error', err);

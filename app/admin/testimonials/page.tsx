@@ -30,6 +30,9 @@ export default function TestimonialsPage() {
     status: 'active',
   });
 
+  // hoverRating is used to preview stars on hover (does not persist)
+  
+
   useEffect(() => {
     fetchTestimonials();
   }, [currentPage]);
@@ -46,7 +49,17 @@ export default function TestimonialsPage() {
       const data = await res.json();
 
       if (data.success) {
-        setTestimonials(data.data);
+        // normalize api fields to the UI shape used in this component
+        const normalized = (data.data || []).map((t: any) => ({
+          ...t,
+          designation: t.designation || '',
+          comment: t.content || '',
+          image: t.image_url || t.image || '',
+          rating: typeof t.rating === 'number' ? t.rating : (t.rating ? Number(t.rating) : 5),
+          status: t.status === 1 || t.status === '1' ? 'active' : (t.status === 0 || t.status === '0' ? 'inactive' : (t.status || 'active')),
+        }));
+
+        setTestimonials(normalized);
         setTotalPages(data.pagination.totalPages);
         setTotalItems(data.pagination.total);
       }
@@ -89,9 +102,23 @@ export default function TestimonialsPage() {
 
     try {
       const method = editingTestimonial ? 'PUT' : 'POST';
+      // Map UI form fields to API / DB column names
       const payload = editingTestimonial 
-        ? { ...formData, id: editingTestimonial.id }
-        : formData;
+        ? {
+            id: editingTestimonial.id,
+            name: formData.name,
+            content: formData.comment,
+            image_url: formData.image || null,
+            rating: Number(formData.rating) || 5,
+            status: formData.status === 'active' ? 1 : 0,
+          }
+        : {
+            name: formData.name,
+            content: formData.comment,
+            image_url: formData.image || null,
+            rating: Number(formData.rating) || 5,
+            status: formData.status === 'active' ? 1 : 0,
+          };
 
       const res = await fetch('/api/admin/testimonials', {
         method,
@@ -138,8 +165,9 @@ export default function TestimonialsPage() {
   };
 
   const toggleStatus = async (testimonial: Testimonial) => {
-    const newStatus = testimonial.status === 'active' ? 'inactive' : 'active';
-    
+    const newStatusStr = testimonial.status === 'active' ? 'inactive' : 'active';
+    const newStatus = newStatusStr === 'active' ? 1 : 0;
+
     try {
       const res = await fetch('/api/admin/testimonials', {
         method: 'PUT',
@@ -151,7 +179,7 @@ export default function TestimonialsPage() {
 
       if (data.success) {
         setTestimonials(testimonials.map(t =>
-          t.id === testimonial.id ? { ...t, status: newStatus } : t
+          t.id === testimonial.id ? { ...t, status: newStatusStr } : t
         ));
       }
     } catch (error) {
@@ -159,16 +187,16 @@ export default function TestimonialsPage() {
     }
   };
 
-  const renderStars = (rating: number, interactive = false) => {
-    return Array.from({ length: 5 }, (_, i) => (
-      <span 
-        key={i} 
-        className={`star ${i < rating ? 'filled' : ''} ${interactive ? 'interactive' : ''}`}
-        onClick={interactive ? () => setFormData(prev => ({ ...prev, rating: i + 1 })) : undefined}
-      >
-        ★
-      </span>
-    ));
+  const handleStarKey = (i: number) => (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+      e.preventDefault();
+      setFormData(prev => ({ ...prev, rating: i + 1 }));
+    }
+  };
+
+  // Stars removed — using numeric rating input/display instead
+  const renderRatingNumber = (rating: number) => {
+    return <span className="rating-number">{rating ?? 5} / 5</span>;
   };
 
   const getStatusStyle = (status: string) => {
@@ -216,7 +244,7 @@ export default function TestimonialsPage() {
                 <div key={testimonial.id} className="testimonial-card">
                   <div className="card-header">
                     <div className="rating">
-                      {renderStars(testimonial.rating || 5)}
+                      {renderRatingNumber(testimonial.rating || 5)}
                     </div>
                     <div className="status-toggle">
                       <label className="toggle">
@@ -360,11 +388,18 @@ export default function TestimonialsPage() {
                   />
                 </div>
 
-                <div className="form-row">
+                  <div className="form-row">
                   <div className="form-group">
                     <label>Rating</label>
                     <div className="star-input">
-                      {renderStars(formData.rating, true)}
+                      <input
+                        type="number"
+                        min={1}
+                        max={5}
+                        value={formData.rating}
+                        onChange={(e) => setFormData(prev => ({ ...prev, rating: Number(e.target.value) }))}
+                        className="rating-input"
+                      />
                     </div>
                   </div>
 
@@ -497,19 +532,60 @@ export default function TestimonialsPage() {
           .star {
             font-size: 20px;
             color: #e5e7eb;
+            transition: transform 0.12s ease, color 0.12s ease, font-size 0.12s ease;
+            display: inline-block;
+            line-height: 1;
+            background: none;
+            border: none;
+            padding: 0;
+            margin: 0;
+            cursor: default;
           }
 
           .star.filled {
             color: #f59e0b;
+            transform: scale(1.25);
           }
 
           .star.interactive {
             cursor: pointer;
-            transition: transform 0.1s;
+            pointer-events: auto; /* ensure clicks register */
+            position: relative;
+            z-index: 10003; /* above neighbors to avoid accidental overlap */
+            background: transparent;
+            border: none;
           }
 
           .star.interactive:hover {
-            transform: scale(1.2);
+            transform: scale(1.35);
+          }
+
+          .star.interactive:focus {
+            outline: 2px solid #10b981;
+            outline-offset: 3px;
+          }
+
+          /* Ensure the glyph inside the button inherits the color and size */
+          .star span {
+            display: inline-block;
+            color: inherit;
+            font-size: inherit;
+            line-height: 1;
+          }
+
+          /* Force filled glyph color as a fallback if other rules override */
+          .star.filled span {
+            color: #f59e0b !important;
+          }
+
+          /* Larger filled size in modal/star-input area */
+          .star-input .star {
+            font-size: 28px;
+          }
+
+          .star-input .star.filled {
+            transform: scale(1.4);
+            font-size: 34px;
           }
 
           .status-toggle {
@@ -523,40 +599,6 @@ export default function TestimonialsPage() {
             display: inline-block;
             width: 40px;
             height: 22px;
-          }
-
-          .toggle input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-          }
-
-          .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #e5e7eb;
-            transition: 0.3s;
-            border-radius: 22px;
-          }
-
-          .slider:before {
-            position: absolute;
-            content: "";
-            height: 16px;
-            width: 16px;
-            left: 3px;
-            bottom: 3px;
-            background-color: white;
-            transition: 0.3s;
-            border-radius: 50%;
-          }
-
-          .toggle input:checked + .slider {
-            background-color: #10b981;
           }
 
           .toggle input:checked + .slider:before {
@@ -711,7 +753,7 @@ export default function TestimonialsPage() {
             display: flex;
             align-items: center;
             justify-content: center;
-            z-index: 1000;
+            z-index: 10000;
             padding: 20px;
           }
 
@@ -723,6 +765,8 @@ export default function TestimonialsPage() {
             max-width: 550px;
             max-height: 90vh;
             overflow-y: auto;
+            position: relative; /* ensure it sits above overlay and captures events */
+            z-index: 10001;
           }
 
           .admin-modal-header {
@@ -795,6 +839,26 @@ export default function TestimonialsPage() {
             display: flex;
             gap: 4px;
             padding: 12px 0;
+          }
+
+          .rating-input {
+            width: 90px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            font-size: 16px;
+            outline: none;
+          }
+
+          .rating-input:focus {
+            border-color: #10b981;
+            box-shadow: 0 0 0 3px rgba(16,185,129,0.08);
+          }
+
+          .rating-number {
+            font-weight: 600;
+            color: #f59e0b;
+            font-size: 16px;
           }
 
           .star-input .star {

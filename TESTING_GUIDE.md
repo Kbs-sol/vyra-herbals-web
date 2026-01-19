@@ -341,6 +341,14 @@ This document provides step-by-step instructions for manually testing all critic
 - [ ] Can edit category
 - [ ] Can delete category
 
+**Test 9.7: Blogs Management** (`/admin/blogs`)
+- [ ] Blogs list displays
+- [ ] Can create new blog with title, excerpt, content
+- [ ] Can upload blog image (stored in `blogs` bucket)
+- [ ] Can edit blog and change status (draft/published)
+- [ ] Published blog visible on public `/blogs` page
+- [ ] Blog detail page loads at `/blogs/:slug`
+
 **Test 9.7: Admin Logout**
 - [ ] Logout button works
 - [ ] Session cleared

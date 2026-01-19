@@ -69,7 +69,32 @@ CREATE TABLE IF NOT EXISTS testimonials (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 6. CART TABLE
+-- 6. BLOGS TABLE
+-- Blog posts for site content
+CREATE TABLE IF NOT EXISTS blogs (
+  id BIGSERIAL PRIMARY KEY,
+  title TEXT NOT NULL,
+  handle TEXT UNIQUE NOT NULL,
+  excerpt TEXT,
+  content TEXT,
+  author TEXT,
+  image_url TEXT,
+  images TEXT[], -- array of image URLs
+  status INTEGER DEFAULT 1, -- 0 = draft/hidden, 1 = published
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes for Blogs
+CREATE INDEX IF NOT EXISTS idx_blogs_handle ON blogs(handle);
+CREATE INDEX IF NOT EXISTS idx_blogs_created_at ON blogs(created_at DESC);
+
+-- Add optional SEO and tags columns if missing
+ALTER TABLE blogs ADD COLUMN IF NOT EXISTS tags TEXT[];
+ALTER TABLE blogs ADD COLUMN IF NOT EXISTS meta_title TEXT;
+ALTER TABLE blogs ADD COLUMN IF NOT EXISTS meta_description TEXT;
+
+-- 7. CART TABLE
 -- Shopping cart items for logged-in users
 CREATE TABLE IF NOT EXISTS cart (
   id BIGSERIAL PRIMARY KEY,
@@ -147,6 +172,7 @@ CREATE INDEX IF NOT EXISTS idx_cart_product_id ON cart(product_id);
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
 ALTER TABLE testimonials ENABLE ROW LEVEL SECURITY;
+ALTER TABLE blogs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cart ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
@@ -167,6 +193,21 @@ CREATE POLICY "Anyone can insert reviews" ON reviews
 -- Testimonials: Public can read approved testimonials
 CREATE POLICY "Public approved testimonials read" ON testimonials 
   FOR SELECT USING (status = 1);
+
+-- Blogs: Public can read published blogs (idempotent)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_policy p
+    JOIN pg_catalog.pg_class c ON p.polrelid = c.oid
+    WHERE c.relname = 'blogs' AND p.polname = 'Public published blogs read'
+  ) THEN
+    CREATE POLICY "Public published blogs read" ON blogs
+      FOR SELECT USING (status = 1);
+  END IF;
+END
+$$;
 
 -- Categories: Public read access
 CREATE POLICY "Public categories read" ON categories 

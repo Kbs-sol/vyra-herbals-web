@@ -196,11 +196,11 @@ const Header = () => {
                     </li>
                   </ul>
                 </li>
-                {/* <li className="navbar-item">
-                  <Link className="navbar-link" href="/category">
+                <li className="navbar-item">
+                  <Link className="navbar-link" href="/blogs">
                     Blog
                   </Link>
-                </li> */}
+                </li>
                 <li className="navbar-item">
                   <Link className="navbar-link" href="/about">
                     About Us
@@ -339,13 +339,11 @@ const Header = () => {
                     About Us
                   </Link>
                 </li>
-                {/* Uncomment and fix Blog link if needed
                 <li>
-                  <Link href="/blog" onClick={hideMobileCanvas}>
+                  <Link href="/blogs" onClick={hideMobileCanvas}>
                     Blog
                   </Link>
                 </li>
-                */}
                 <Accordion.Item eventKey="2">
                   <Accordion.Header>Help</Accordion.Header>
                   <Accordion.Body>

@@ -52,6 +52,18 @@ const menuItems = [
     ),
   },
   {
+    name: 'Blogs',
+    href: '/admin/blogs',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
+        <path d="M4 19V5C4 4.44772 4.44772 4 5 4H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M19 20H5C4.44772 20 4 19.5523 4 19V8C4 7.44772 4.44772 7 5 7H19C19.5523 7 20 7.44772 20 8V19C20 19.5523 19.5523 20 19 20Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M8 12H16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M8 16H13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+  },
+  {
     name: 'Testimonials',
     href: '/admin/testimonials',
     icon: (

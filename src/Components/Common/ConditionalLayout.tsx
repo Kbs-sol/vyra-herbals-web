@@ -9,8 +9,10 @@ export default function ConditionalLayout({ children }: { children: React.ReactN
   const pathname = usePathname();
   const isAdminRoute = pathname?.startsWith('/admin');
 
-  if (isAdminRoute) {
-    // Admin routes - no customer header/footer
+  // Avoid rendering header/footer until pathname is available on the client
+  // Also suppress header/footer for admin routes
+  if (isAdminRoute || !pathname) {
+    // Admin routes or unknown pathname - no customer header/footer
     return <>{children}</>;
   }
 
