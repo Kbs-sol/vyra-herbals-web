@@ -13,9 +13,9 @@ interface ReviewWithProduct extends Review {
 }
 
 const STATUS_OPTIONS = [
-  { value: 'pending', label: 'Pending', color: '#f59e0b', bg: '#fef3c7' },
-  { value: 'approved', label: 'Approved', color: '#10b981', bg: '#d1fae5' },
-  { value: 'rejected', label: 'Rejected', color: '#ef4444', bg: '#fee2e2' },
+  { value: 0, label: 'Pending', color: '#f59e0b', bg: '#fef3c7' },
+  { value: 1, label: 'Approved', color: '#10b981', bg: '#d1fae5' },
+  { value: 2, label: 'Rejected', color: '#ef4444', bg: '#fee2e2' },
 ];
 
 export default function ReviewsPage() {
@@ -58,70 +58,162 @@ export default function ReviewsPage() {
     }
   };
 
-  const updateReviewStatus = async (reviewId: number, newStatus: string) => {
+  const updateReviewStatus = async (reviewId: number | string | undefined, newStatus: number) => {
+    if (reviewId === undefined || reviewId === null) {
+      alert('Review ID is required');
+      return;
+    }
+
+    const idToSend = Number(reviewId);
+    if (!Number.isFinite(idToSend) || idToSend <= 0) {
+      alert('Invalid Review ID');
+      return;
+    }
+
     try {
       const res = await fetch('/api/admin/reviews', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: reviewId, status: newStatus }),
+        body: JSON.stringify({ id: idToSend, status: Number(newStatus) }),
       });
 
       const data = await res.json();
 
       if (data.success) {
         setReviews(reviews.map(r => 
-          r.id === reviewId ? { ...r, status: newStatus } : r
+          (Number(r.id) === idToSend) ? { ...r, status: Number(newStatus) } : r
         ));
-        if (selectedReview?.id === reviewId) {
-          setSelectedReview({ ...selectedReview, status: newStatus });
+        if (Number(selectedReview?.id ?? 0) === idToSend) {
+          setSelectedReview({ ...selectedReview, status: Number(newStatus) });
         }
+        // Refresh list to ensure server and client stay in sync
+        fetchReviews();
       } else {
         alert(data.error || 'Failed to update status');
       }
     } catch (error) {
+      console.error('Update review status failed:', error);
       alert('An error occurred while updating');
     }
   };
 
-  const deleteReview = async (reviewId: number) => {
+  // Fallback update by product_id + created_at when id is missing
+  const updateReviewStatusByFallback = async (productId: number | string | undefined, createdAt: string | undefined, newStatus: number) => {
+    if (!productId || !createdAt) {
+      alert('Cannot update: missing identifiers');
+      return;
+    }
+
+    if (!confirm('ID missing for this review. Update by product and timestamp? This may update multiple rows.')) return;
+
+    try {
+      const res = await fetch('/api/admin/reviews', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product_id: productId, created_at: createdAt, status: newStatus }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        fetchReviews();
+      } else {
+        alert(data.error || 'Failed to update review (fallback)');
+      }
+    } catch (error) {
+      console.error('Fallback update failed:', error);
+      alert('An error occurred while updating (fallback)');
+    }
+  };
+
+  const deleteReview = async (reviewId: number | string | undefined) => {
+    if (reviewId === undefined || reviewId === null) {
+      alert('Review ID is required');
+      return;
+    }
+
     if (!confirm('Are you sure you want to delete this review?')) return;
 
-    setDeleting(reviewId);
+    const idToSend = Number(reviewId);
+    if (!Number.isFinite(idToSend) || idToSend <= 0) {
+      alert('Invalid Review ID');
+      return;
+    }
+
+    setDeleting(idToSend);
     try {
-      const res = await fetch(`/api/admin/reviews?id=${reviewId}`, {
+      const res = await fetch(`/api/admin/reviews?id=${encodeURIComponent(idToSend)}`, {
         method: 'DELETE',
       });
 
       const data = await res.json();
 
       if (data.success) {
-        setReviews(reviews.filter(r => r.id !== reviewId));
-        setTotalItems(prev => prev - 1);
-        if (selectedReview?.id === reviewId) {
+        // remove from UI and update counts
+        setReviews(reviews.filter(r => Number(r.id) !== idToSend));
+        setTotalItems(prev => Math.max(0, prev - 1));
+        if (Number(selectedReview?.id ?? 0) === idToSend) {
           setSelectedReview(null);
         }
+        // Refresh list after delete
+        fetchReviews();
       } else {
         alert(data.error || 'Failed to delete review');
       }
     } catch (error) {
+      console.error('Delete review failed:', error);
       alert('An error occurred while deleting');
     } finally {
       setDeleting(null);
     }
   };
 
+  // Fallback delete by product_id + created_at when id is missing
+  const deleteReviewByFallback = async (productId: number | string | undefined, createdAt: string | undefined) => {
+    if (!productId || !createdAt) {
+      alert('Cannot delete: missing identifiers');
+      return;
+    }
+
+    if (!confirm('ID missing for this review. Delete by product and timestamp? This may delete multiple rows.')) return;
+
+    try {
+      const url = `/api/admin/reviews?productId=${encodeURIComponent(String(productId))}&createdAt=${encodeURIComponent(String(createdAt))}`;
+      const res = await fetch(url, { method: 'DELETE' });
+      const data = await res.json();
+
+      if (data.success) {
+        // Refresh list after delete
+        fetchReviews();
+        setTotalItems(prev => Math.max(0, prev - 1));
+        if (Number(selectedReview?.id ?? 0) === 0) {
+          setSelectedReview(null);
+        }
+      } else {
+        alert(data.error || 'Failed to delete review (fallback)');
+      }
+    } catch (error) {
+      console.error('Fallback delete failed:', error);
+      alert('An error occurred while deleting (fallback)');
+    }
+  };
+
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
+    if (!dateString) return '';
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('en-IN', {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
     });
   };
 
-  const getStatusStyle = (status: string) => {
-    const found = STATUS_OPTIONS.find(s => s.value === status);
-    return found || { color: '#6b7280', bg: '#f3f4f6' };
-  };
+  const getStatusStyle = (status: number | string | undefined) => {
+    const statusNum = typeof status === 'string' ? parseInt(status, 10) : status;
+    const found = STATUS_OPTIONS.find(s => s.value === statusNum);
+    return found || { color: '#6b7280', bg: '#f3f4f6', label: 'Pending' };
+  }; 
 
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
@@ -174,13 +266,13 @@ export default function ReviewsPage() {
           {/* Quick Filter Buttons */}
           <div className="quick-filters">
             <button
-              className={`quick-btn ${statusFilter === 'pending' ? 'active' : ''}`}
+              className={`quick-btn ${statusFilter === '0' ? 'active' : ''}`}
               onClick={() => {
-                setStatusFilter('pending');
+                setStatusFilter('0');
                 setCurrentPage(1);
               }}
             >
-              Pending ({reviews.filter(r => r.status === 'pending').length})
+              Pending ({reviews.filter(r => (r.status ?? 0) === 0).length})
             </button>
           </div>
         </div>
@@ -200,11 +292,17 @@ export default function ReviewsPage() {
               <p>No reviews found</p>
             </div>
           ) : (
-            reviews.map((review) => {
-              const statusStyle = getStatusStyle(review.status || 'pending');
+            reviews.map((review, idx) => {
+              const statusStyle = getStatusStyle(review.status ?? 0);
+              const statusLabel = STATUS_OPTIONS.find(s => s.value === (review.status ?? 0))?.label || 'Pending';
+
+              const idVal = review.id ?? null;
+              const idNum = Number(idVal);
+              const hasValidId = Number.isFinite(idNum) && idNum > 0;
+              const keyVal = hasValidId ? idVal : `review-fallback-${review.product_id ?? 'p'}-${idx}`;
 
               return (
-                <div key={review.id} className="review-card">
+                <div key={keyVal} className="review-card">
                   <div className="card-header">
                     <div className="rating">
                       {renderStars(review.rating)}
@@ -213,20 +311,23 @@ export default function ReviewsPage() {
                       className="status-badge"
                       style={{ backgroundColor: statusStyle.bg, color: statusStyle.color }}
                     >
-                      {review.status?.charAt(0).toUpperCase() + review.status?.slice(1)}
+                      {statusLabel}
                     </span>
+                    {!hasValidId && (
+                      <span className="status-badge missing">Missing ID</span>
+                    )}
                   </div>
 
                   <div className="review-content">
-                    <p className="comment">{review.comment}</p>
+                    <p className="comment">{review.review_text}</p>
                   </div>
 
                   <div className="reviewer-info">
                     <div className="avatar">
-                      {review.name?.charAt(0).toUpperCase() || 'U'}
+                      {review.reviewer_name?.charAt(0).toUpperCase() || 'U'}
                     </div>
                     <div className="info">
-                      <span className="name">{review.name || 'Anonymous'}</span>
+                      <span className="name">{review.reviewer_name || 'Anonymous'}</span>
                       <span className="date">{formatDate(review.created_at || '')}</span>
                     </div>
                   </div>
@@ -241,8 +342,16 @@ export default function ReviewsPage() {
                   <div className="card-actions">
                     <button
                       className="action-btn approve"
-                      onClick={() => updateReviewStatus(review.id as number, 'approved')}
-                      disabled={review.status === 'approved'}
+                      onClick={() => {
+                        if (!hasValidId) {
+                          if (confirm('ID missing for this review. Attempt update via product + timestamp?')) {
+                            updateReviewStatusByFallback(review.product_id, review.created_at, 1);
+                          }
+                          return;
+                        }
+                        updateReviewStatus(idNum, 1);
+                      }}
+                      disabled={!hasValidId || (review.status ?? 0) === 1}
                     >
                       <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
                         <polyline points="20,6 9,17 4,12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -251,8 +360,16 @@ export default function ReviewsPage() {
                     </button>
                     <button
                       className="action-btn reject"
-                      onClick={() => updateReviewStatus(review.id as number, 'rejected')}
-                      disabled={review.status === 'rejected'}
+                      onClick={() => {
+                        if (!hasValidId) {
+                          if (confirm('ID missing for this review. Attempt update via product + timestamp?')) {
+                            updateReviewStatusByFallback(review.product_id, review.created_at, 2);
+                          }
+                          return;
+                        }
+                        updateReviewStatus(idNum, 2);
+                      }}
+                      disabled={!hasValidId || (review.status ?? 0) === 2}
                     >
                       <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
                         <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
@@ -273,8 +390,16 @@ export default function ReviewsPage() {
                     </button>
                     <button
                       className="action-btn delete"
-                      onClick={() => deleteReview(review.id as number)}
-                      disabled={deleting === review.id}
+                      onClick={() => {
+                        if (!hasValidId) {
+                          if (confirm('ID missing for this review. Attempt delete via product + timestamp? This may delete multiple rows.')) {
+                            deleteReviewByFallback(review.product_id, review.created_at);
+                          }
+                          return;
+                        }
+                        deleteReview(idNum);
+                      }}
+                      disabled={!hasValidId || deleting === idNum}
                     >
                       <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
                         <polyline points="3,6 5,6 21,6" stroke="currentColor" strokeWidth="2"/>
@@ -334,12 +459,22 @@ export default function ReviewsPage() {
                     {STATUS_OPTIONS.map((status) => (
                       <button
                         key={status.value}
-                        className={`status-option ${selectedReview.status === status.value ? 'active' : ''}`}
+                        className={`status-option ${Number(selectedReview.status ?? 0) === status.value ? 'active' : ''}`}
                         style={{ 
                           '--active-color': status.color,
                           '--active-bg': status.bg 
                         } as React.CSSProperties}
-                        onClick={() => updateReviewStatus(selectedReview.id as number, status.value)}
+                        onClick={() => {
+                          const idNum = Number(selectedReview.id);
+                          const hasValidId = Number.isFinite(idNum) && idNum > 0;
+                          if (!hasValidId) {
+                            if (confirm('ID missing for this review. Attempt update via product + timestamp?')) {
+                              updateReviewStatusByFallback(selectedReview.product_id, selectedReview.created_at, status.value);
+                            }
+                            return;
+                          }
+                          updateReviewStatus(idNum, status.value);
+                        }}
                       >
                         {status.label}
                       </button>
@@ -360,7 +495,7 @@ export default function ReviewsPage() {
                 <div className="detail-section">
                   <h3>Review</h3>
                   <div className="review-text">
-                    {selectedReview.comment}
+                    {selectedReview.review_text}
                   </div>
                 </div>
 
@@ -369,10 +504,10 @@ export default function ReviewsPage() {
                   <h3>Reviewer</h3>
                   <div className="reviewer-detail">
                     <div className="avatar large">
-                      {selectedReview.name?.charAt(0).toUpperCase() || 'U'}
+                      {selectedReview.reviewer_name?.charAt(0).toUpperCase() || 'U'}
                     </div>
                     <div className="details">
-                      <span className="name">{selectedReview.name || 'Anonymous'}</span>
+                      <span className="name">{selectedReview.reviewer_name || 'Anonymous'}</span>
                       <span className="email">{selectedReview.email || 'No email provided'}</span>
                       <span className="date">Submitted on {formatDate(selectedReview.created_at || '')}</span>
                     </div>
@@ -400,22 +535,50 @@ export default function ReviewsPage() {
                 <div className="modal-actions">
                   <button
                     className="btn approve-btn"
-                    onClick={() => updateReviewStatus(selectedReview.id as number, 'approved')}
-                    disabled={selectedReview.status === 'approved'}
+                    onClick={() => {
+                      const idNum = Number(selectedReview.id);
+                      const hasValidId = Number.isFinite(idNum) && idNum > 0;
+                      if (!hasValidId) {
+                        if (confirm('ID missing for this review. Attempt update via product + timestamp?')) {
+                          updateReviewStatusByFallback(selectedReview.product_id, selectedReview.created_at, 1);
+                        }
+                        return;
+                      }
+                      updateReviewStatus(idNum, 1);
+                    }}
+                    disabled={(selectedReview.status ?? 0) === 1}
                   >
                     Approve Review
                   </button>
                   <button
                     className="btn reject-btn"
-                    onClick={() => updateReviewStatus(selectedReview.id as number, 'rejected')}
-                    disabled={selectedReview.status === 'rejected'}
+                    onClick={() => {
+                      const idNum = Number(selectedReview.id);
+                      const hasValidId = Number.isFinite(idNum) && idNum > 0;
+                      if (!hasValidId) {
+                        if (confirm('ID missing for this review. Attempt update via product + timestamp?')) {
+                          updateReviewStatusByFallback(selectedReview.product_id, selectedReview.created_at, 2);
+                        }
+                        return;
+                      }
+                      updateReviewStatus(idNum, 2);
+                    }}
+                    disabled={(selectedReview.status ?? 0) === 2}
                   >
                     Reject Review
                   </button>
                   <button
                     className="btn delete-btn"
                     onClick={() => {
-                      deleteReview(selectedReview.id as number);
+                      const idNum = Number(selectedReview.id);
+                      const hasValidId = Number.isFinite(idNum) && idNum > 0;
+                      if (!hasValidId) {
+                        if (confirm('ID missing. Delete by product + timestamp? This may delete multiple rows.')) {
+                          deleteReviewByFallback(selectedReview.product_id, selectedReview.created_at);
+                        }
+                        return;
+                      }
+                      deleteReview(idNum);
                     }}
                   >
                     Delete Review
@@ -549,6 +712,14 @@ export default function ReviewsPage() {
             border-radius: 20px;
             font-size: 12px;
             font-weight: 500;
+          }
+
+          .status-badge.missing {
+            background: #fee2e2;
+            color: #ef4444;
+            margin-left: 8px;
+            font-size: 11px;
+            padding: 4px 8px;
           }
 
           .review-content {

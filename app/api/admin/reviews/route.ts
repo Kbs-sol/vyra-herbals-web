@@ -17,11 +17,18 @@ export async function GET(request: NextRequest) {
 
     const offset = (page - 1) * limit;
 
-    // Build query
+    // Build query - explicitly select id and all columns
     let query = supabase
       .from('reviews')
       .select(`
-        *,
+        id,
+        product_id,
+        rating,
+        reviewer_name,
+        review_text,
+        status,
+        created_at,
+        date,
         products:product_id (id, title, handle, image_url)
       `, { count: 'exact' });
 
@@ -107,26 +114,63 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { id, ...updateData } = body;
 
-    if (!id) {
+    // If id provided, update by id
+    if (id) {
+      const { data, error } = await supabase
+        .from('reviews')
+        .update(updateData)
+        .eq('id', id)
+        .select(`
+          id,
+          product_id,
+          rating,
+          reviewer_name,
+          review_text,
+          status,
+          created_at,
+          date
+        `)
+        .single();
+
+      if (error) throw error;
+
+      return NextResponse.json({
+        success: true,
+        data,
+        message: 'Review updated successfully'
+      });
+    }
+
+    // Fallback: allow update by product_id + created_at when id is not available
+    const { product_id, created_at } = body as any;
+    if (!product_id || !created_at) {
       return NextResponse.json(
-        { success: false, error: 'Review ID is required' },
+        { success: false, error: 'Review ID is required or provide product_id and created_at' },
         { status: 400 }
       );
     }
 
-    const { data, error } = await supabase
+    const { data: updatedRows, error: fallbackError } = await supabase
       .from('reviews')
       .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
+      .match({ product_id, created_at })
+      .select(`
+        id,
+        product_id,
+        rating,
+        reviewer_name,
+        review_text,
+        status,
+        created_at,
+        date
+      `);
 
-    if (error) throw error;
+    if (fallbackError) throw fallbackError;
 
     return NextResponse.json({
       success: true,
-      data,
-      message: 'Review updated successfully'
+      data: updatedRows || [],
+      message: 'Review(s) updated successfully (fallback)'
     });
   } catch (error: any) {
     console.error('Review update error:', error);
@@ -143,25 +187,42 @@ export async function DELETE(request: NextRequest) {
     const supabase = createServerSupabase();
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
+    const productId = searchParams.get('productId');
+    const createdAt = searchParams.get('createdAt');
 
-    if (!id) {
-      return NextResponse.json(
-        { success: false, error: 'Review ID is required' },
-        { status: 400 }
-      );
+    if (id) {
+      const { error } = await supabase
+        .from('reviews')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      return NextResponse.json({
+        success: true,
+        message: 'Review deleted successfully'
+      });
     }
 
-    const { error } = await supabase
-      .from('reviews')
-      .delete()
-      .eq('id', id);
+    // Fallback deletion by product_id + created_at
+    if (productId && createdAt) {
+      const { error } = await supabase
+        .from('reviews')
+        .delete()
+        .match({ product_id: productId, created_at: createdAt });
 
-    if (error) throw error;
+      if (error) throw error;
 
-    return NextResponse.json({
-      success: true,
-      message: 'Review deleted successfully'
-    });
+      return NextResponse.json({
+        success: true,
+        message: 'Review(s) deleted successfully (fallback)'
+      });
+    }
+
+    return NextResponse.json(
+      { success: false, error: 'Review ID is required or provide productId and createdAt' },
+      { status: 400 }
+    );
   } catch (error: any) {
     console.error('Review delete error:', error);
     return NextResponse.json(

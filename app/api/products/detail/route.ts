@@ -48,6 +48,18 @@ export async function POST(req: Request) {
       } else {
         reviews = approvedReviews || [];
       }
+
+      // Normalize review fields for frontend
+      reviews = reviews.map((r: any) => ({
+        id: r.id ?? null,
+        product_id: r.product_id,
+        rating: r.rating,
+        reviewer_name: r.reviewer_name || r.reviewer || 'Anonymous',
+        review_text: r.review_text || r.comment || '',
+        status: typeof r.status === 'string' ? Number(r.status) : r.status ?? 0,
+        created_at: r.created_at || r.date || null,
+        review_date: r.created_at || r.date || null,
+      }));
     }
 
     // is_in_cart check

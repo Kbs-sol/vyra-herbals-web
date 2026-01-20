@@ -269,7 +269,10 @@ const Header = () => {
 
       <OffCanvasWrapper>
         <Offcanvas className="styled-offcanvas" show={showMenu} onHide={hideMobileCanvas} placement="end">
-          <Offcanvas.Header closeButton></Offcanvas.Header>
+          {/* Replace Offcanvas.Header to avoid React 19 "element.ref" access inside library components */}
+          <div className="offcanvas-header" style={{ display: 'flex', justifyContent: 'flex-end', padding: '0.75rem 1rem' }}>
+            <button type="button" className="btn-close" aria-label="Close" onClick={hideMobileCanvas}></button>
+          </div>
           <Offcanvas.Body>
             <div className="mobile-menu">
               <ul className="header-top-list">

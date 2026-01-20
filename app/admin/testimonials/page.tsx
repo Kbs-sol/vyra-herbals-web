@@ -30,6 +30,9 @@ export default function TestimonialsPage() {
     status: 'active',
   });
 
+  // Selected file for direct image upload (optional)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
   // hoverRating is used to preview stars on hover (does not persist)
   
 
@@ -101,6 +104,26 @@ export default function TestimonialsPage() {
     setSaving(true);
 
     try {
+      let imageUrl = formData.image || null;
+
+      // If admin selected a local file, upload it first using admin upload endpoint
+      if (selectedFile) {
+        const uploadForm = new FormData();
+        uploadForm.append('file', selectedFile);
+        uploadForm.append('handle', 'testimonials');
+
+        const uploadRes = await fetch('/api/admin/uploads', {
+          method: 'POST',
+          body: uploadForm,
+        });
+        const uploadData = await uploadRes.json();
+        if (!uploadRes.ok || !uploadData.success) {
+          throw new Error(uploadData.error || 'File upload failed');
+        }
+        // Prefer signedUrl if returned, otherwise publicUrl
+        imageUrl = uploadData.signedUrl || uploadData.publicUrl || null;
+      }
+
       const method = editingTestimonial ? 'PUT' : 'POST';
       // Map UI form fields to API / DB column names
       const payload = editingTestimonial 
@@ -108,14 +131,14 @@ export default function TestimonialsPage() {
             id: editingTestimonial.id,
             name: formData.name,
             content: formData.comment,
-            image_url: formData.image || null,
+            image_url: imageUrl || null,
             rating: Number(formData.rating) || 5,
             status: formData.status === 'active' ? 1 : 0,
           }
         : {
             name: formData.name,
             content: formData.comment,
-            image_url: formData.image || null,
+            image_url: imageUrl || null,
             rating: Number(formData.rating) || 5,
             status: formData.status === 'active' ? 1 : 0,
           };
@@ -130,12 +153,14 @@ export default function TestimonialsPage() {
 
       if (data.success) {
         setShowModal(false);
+        setSelectedFile(null);
         fetchTestimonials();
       } else {
         alert(data.error || 'Failed to save testimonial');
       }
     } catch (error) {
-      alert('An error occurred while saving');
+      console.error(error);
+      alert((error as any)?.message || 'An error occurred while saving');
     } finally {
       setSaving(false);
     }
@@ -379,13 +404,43 @@ export default function TestimonialsPage() {
                 </div>
 
                 <div className="form-group">
-                  <label>Image URL</label>
-                  <input
-                    type="text"
-                    value={formData.image}
-                    onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.value }))}
-                    placeholder="https://example.com/image.jpg"
-                  />
+                  <label>Image</label>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = (e.target as HTMLInputElement).files?.[0] || null;
+                        setSelectedFile(file);
+                        // clear URL if a new file selected
+                        if (file) setFormData(prev => ({ ...prev, image: '' }));
+                      }}
+                    />
+
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        value={formData.image}
+                        onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.value }))}
+                        placeholder="Or paste an image URL (optional)"
+                        style={{ minWidth: 240 }}
+                      />
+                      { (selectedFile || formData.image) && (
+                        <div style={{ width: 64, height: 64, borderRadius: 6, overflow: 'hidden', border: '1px solid #e5e7eb' }}>
+                          <img
+                            src={selectedFile ? URL.createObjectURL(selectedFile) : formData.image}
+                            alt="preview"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        </div>
+                      ) }
+                      { selectedFile && (
+                        <button type="button" className="cancel-btn" onClick={() => setSelectedFile(null)}>
+                          Remove
+                        </button>
+                      ) }
+                    </div>
+                  </div>
                 </div>
 
                   <div className="form-row">

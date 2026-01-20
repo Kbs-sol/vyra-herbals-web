@@ -17,12 +17,22 @@ const ReviewCard = ({ review, className }) => {
     <>
       <StyledReviewCard className={className} key={"review" + review.id}>
         <div className="card-body">
-          <div className="card-title">
-            {review.reviewer_name || "Anonymous"}
-            <span className="review-date">
-              {Utility.formatDate(review.created_at)}
-            </span>
+          <div className="card-head">
+            <div className="avatar">
+              {review.image ? (
+                <img src={review.image} alt={review.reviewer_name || 'Avatar'} />
+              ) : (
+                <span>{(review.reviewer_name || 'A').charAt(0)}</span>
+              )}
+            </div>
+            <div className="card-title">
+              {review.reviewer_name || "Anonymous"}
+              <span className="review-date">
+                {Utility.formatDate(review.created_at)}
+              </span>
+            </div>
           </div>
+
           <StarRatings rating={review.rating} className={"rating"} />
 
           <div className="reviewer-text">
@@ -62,6 +72,28 @@ const ReviewCard = ({ review, className }) => {
 export default ReviewCard;
 
 const StyledReviewCard = styled.section`
+  .card-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+  .avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #f3f4f6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+  }
+  .avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
   .rating {
     display: inline-block;
     margin-right: 1rem;
@@ -73,6 +105,7 @@ const StyledReviewCard = styled.section`
     display: flex;
     justify-content: space-between;
     line-height: 1;
+    width: 100%;
   }
 `;
 

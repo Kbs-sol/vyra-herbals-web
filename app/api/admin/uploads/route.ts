@@ -66,8 +66,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
 
-    const { data } = supabaseAdmin.storage.from(bucket).getPublicUrl(path);
-    return NextResponse.json({ success: true, publicUrl: data.publicUrl });
+    // Get public URL and also generate a long-lived signed URL as a fallback
+    const { data: publicData } = supabaseAdmin.storage.from(bucket).getPublicUrl(path);
+
+    // Try to create a signed URL (expires in 1 year = 31536000 seconds)
+    let signedUrl: string | null = null;
+    try {
+      const { data: signedData, error: signErr } = await supabaseAdmin.storage
+        .from(bucket)
+        .createSignedUrl(path, 31536000);
+      if (!signErr && signedData?.signedUrl) signedUrl = signedData.signedUrl;
+    } catch (e) {
+      // ignore signing error, public url will be returned
+      console.warn('Signed URL creation failed', e);
+    }
+
+    return NextResponse.json({ success: true, publicUrl: publicData.publicUrl, signedUrl });
   } catch (err) {
     console.error('Upload API error', err);
     return NextResponse.json({ success: false, error: 'Server error' }, { status: 500 });

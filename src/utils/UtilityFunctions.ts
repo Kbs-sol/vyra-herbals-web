@@ -44,7 +44,9 @@ class Utility {
    * formatDate('2024-09-15');
    */
   static formatDate = (dateString) => {
+    if (!dateString) return '';
     const date = new Date(dateString);
+    if (!date || isNaN(date.getTime())) return '';
 
     const options = { day: "2-digit", year: "numeric", month: "long" };
     return date.toLocaleDateString("en-US", options);

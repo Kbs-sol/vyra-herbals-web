@@ -55,12 +55,12 @@ const AddReview = ({ reviewProductId, ratingDetails, onAddSuccess }) => {
         }
         const result = await response.json();
         console.log("Response from server:", result);
+        if (result && result.success) {
+          // Prefer returned inserted row
+          const inserted = Array.isArray(result.data) ? result.data[0] : (result.data && result.data[0]) || result.data;
+          onAddSuccess?.(inserted);
+        }
         setSubmitted(true);
-        // onAddSuccess?.({
-        //   rating: rating,
-        //   reviewer_name: reviewerName,
-        //   review_text: reviewBody,
-        // });
         cleanUp();
       } catch (error) {
         console.error("Failed to submit the review:", error);

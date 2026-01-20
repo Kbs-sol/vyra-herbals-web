@@ -671,12 +671,21 @@ const Singleproducts = () => {
                 <AddReview
                   reviewProductId={product.id}
                   ratingDetails={ratingDetails}
-                // onAddSuccess={(review) =>
-                //   setProduct((prev) => ({
-                //     ...prev,
-                //     reviews: [...(product?.reviews || []), review],
-                //   }))
-                // }
+                  onAddSuccess={(review) =>
+                    setProduct((prev) => ({
+                      ...prev,
+                      reviews: [...(prev?.reviews || []), {
+                        id: review.id ?? null,
+                        product_id: review.product_id ?? product.id,
+                        rating: review.rating,
+                        reviewer_name: review.reviewer_name || review.reviewer || 'Anonymous',
+                        review_text: review.review_text || review.comment || '',
+                        status: typeof review.status === 'string' ? Number(review.status) : review.status ?? 0,
+                        created_at: review.created_at || review.date || new Date().toISOString(),
+                        review_date: review.created_at || review.date || new Date().toISOString(),
+                      }]
+                    }))
+                  }
                 />
               </section>
               {!!ratingDetails.stats && (
@@ -684,24 +693,7 @@ const Singleproducts = () => {
                   <h3 className="frame-title">
                     Reviews ({ratingDetails.count})
                   </h3>
-                  <div
-                    className="sort-dropdown dropdown"
-                    data-bs-toggle="dropdown"
-                  >
-                    <span className="dropdown-arrow">{reviewSortBy.label}</span>
-                    <ul className="dropdown-menu">
-                      {sortOptions.map((option) => (
-                        <li
-                          className="dropdown-item"
-                          value={option.value}
-                          onClick={() => handleSortChange(option)}
-                          key={option.value}
-                        >
-                          {option.label}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+
                   <ul className="review-list">
                     {paginatedReviews.map((review, index) => {
                       return (
@@ -718,9 +710,11 @@ const Singleproducts = () => {
                               <span className="reviewer-name">
                                 {review.reviewer_name || "Anonymous"}
                               </span>
-                              <span className="review-date">
-                                {Utility.formatDate(review.review_date)}
-                              </span>
+                              {review.review_date && (
+                                <span className="review-date">
+                                  {Utility.formatDate(review.review_date)}
+                                </span>
+                              )}
                             </div>
                           </div>
                           <p className="review-desc mb-0">

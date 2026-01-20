@@ -72,18 +72,32 @@ export async function POST(req: Request) {
       reviews = approvedReviews || [];
     }
     
-    // Merge reviews into products
+    // Merge reviews into products and normalize review fields (add review_date, ensure id is numeric)
     const productsWithReviews = products.map((product: any) => {
       const productImages = Array.isArray(product.images)
         ? product.images.filter((img: string) => !!img)
         : [];
       const imageUrl = product.image_url || productImages[0] || null;
 
+      const productReviews = (reviews || [])
+        .filter((review: any) => review.product_id === product.id)
+        .map((r: any) => ({
+          // normalize fields expected by frontend
+          id: r.id ?? null,
+          product_id: r.product_id,
+          rating: r.rating,
+          reviewer_name: r.reviewer_name || r.reviewer || 'Anonymous',
+          review_text: r.review_text || r.comment || '',
+          status: typeof r.status === 'string' ? Number(r.status) : r.status ?? 0,
+          created_at: r.created_at || r.date || null,
+          review_date: r.created_at || r.date || null,
+        }));
+
       return {
         ...product,
         image_url: imageUrl,
         images: productImages,
-        reviews: (reviews || []).filter((review: any) => review.product_id === product.id)
+        reviews: productReviews
       };
     });
     

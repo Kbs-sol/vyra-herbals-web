@@ -119,16 +119,8 @@ export default function AdminSidebar({ isOpen, onClose }: SidebarProps) {
       )}
       
       <aside className={`admin-sidebar ${isOpen ? 'open' : ''}`}>
-        <div className="sidebar-header">
-          <Link href="/admin" className="brand">
-            <div className="brand-icon">
-              <svg viewBox="0 0 24 24" fill="none" width="28" height="28">
-                <rect x="3" y="3" width="7" height="7" rx="1.5" fill="currentColor" opacity="0.3"/>
-                <rect x="14" y="3" width="7" height="7" rx="1.5" fill="currentColor"/>
-                <rect x="3" y="14" width="7" height="7" rx="1.5" fill="currentColor"/>
-                <rect x="14" y="14" width="7" height="7" rx="1.5" fill="currentColor" opacity="0.6"/>
-              </svg>
-            </div>
+        <div className="sidebar-header flex items-center justify-between">
+          <Link href="/admin" className="brand flex items-center gap-3 flex-ro">
             <div className="brand-text">
               <span className="brand-name">Vyra</span>
               <span className="brand-subtitle">Admin</span>
@@ -190,53 +182,51 @@ export default function AdminSidebar({ isOpen, onClose }: SidebarProps) {
           }
 
           .sidebar-header {
-            padding: 24px 20px;
-            border-bottom: 1px solid #f3f4f6;
+            padding: 18px 20px; /* tighter, cleaner */
+            border-bottom: 1px solid rgba(243, 244, 246, 0.95);
           }
 
           .brand {
             display: flex;
             align-items: center;
-            gap: 14px;
+            gap: 8px;
             text-decoration: none;
             color: inherit;
-            transition: transform 0.2s;
+            transition: transform 0.12s ease;
+            padding: 4px 0;
           }
 
           .brand:hover {
             transform: translateX(2px);
           }
 
-          .brand-icon {
-            width: 44px;
-            height: 44px;
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-          }
+
 
           .brand-text {
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
+            align-items: center;
+            gap: 8px;
+            line-height: 1;
           }
 
           .brand-name {
-            font-size: 20px;
+            display: block;
+            margin: 0;
+            font-size: 18px;
             font-weight: 700;
-            color: #1f2937;
+            color: #0f172a; /* cleaner, crisper */
             line-height: 1;
-            letter-spacing: -0.5px;
+            letter-spacing: -0.4px;
           }
 
           .brand-subtitle {
             font-size: 12px;
             font-weight: 500;
-            color: #6b7280;
-            letter-spacing: 0.5px;
+            color: #9ca3af; /* muted */
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-left: 2px;
           }
 
           .sidebar-nav {
