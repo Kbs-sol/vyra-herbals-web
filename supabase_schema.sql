@@ -31,6 +31,10 @@ CREATE TABLE IF NOT EXISTS products (
   images TEXT[],                              -- Additional gallery images (public URLs)
   category TEXT,                              -- Product category (hair-oil, combs, shampoo, etc.)
   view_count INTEGER DEFAULT 0,               -- Track product views
+  directions TEXT,                            -- Product usage directions / how-to
+  benefits TEXT,                              -- Key benefits / highlights
+  ingredients TEXT,                           -- Ingredients list
+  note TEXT,                                  -- Any short note or caution
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

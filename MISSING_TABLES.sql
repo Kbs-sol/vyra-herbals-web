@@ -285,6 +285,26 @@ END $$;
 -- 4. CREATE INDEXES FOR PERFORMANCE
 -- ========================================
 
+-- Add product detail columns if missing
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'directions') THEN
+    ALTER TABLE products ADD COLUMN directions TEXT;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'benefits') THEN
+    ALTER TABLE products ADD COLUMN benefits TEXT;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'ingredients') THEN
+    ALTER TABLE products ADD COLUMN ingredients TEXT;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'note') THEN
+    ALTER TABLE products ADD COLUMN note TEXT;
+  END IF;
+END $$;
+
 -- Product indexes
 CREATE INDEX IF NOT EXISTS idx_products_handle ON products(handle);
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);

@@ -146,7 +146,7 @@ POST                 /api/admin/uploads
 ### Managing Products
 1. Go to `/admin/products`
 2. Click "Add Product"
-3. Enter product details
+3. Enter product details (now includes additional product info fields: Directions, Benefits, Ingredients, Note)
 4. Upload images
 5. Select category
 6. Click "Add Product"

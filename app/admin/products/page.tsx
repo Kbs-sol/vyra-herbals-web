@@ -33,6 +33,10 @@ export default function ProductsPage() {
     image_url: '',
     category: '',
     images: [] as string[],
+    directions: '',
+    benefits: '',
+    ingredients: '',
+    note: '',
   });
 
   useEffect(() => {
@@ -234,6 +238,10 @@ export default function ProductsPage() {
       image_url: product.image_url || product.images?.[0] || '',
       category: product.category || '',
       images: (product.images as string[]) || [],
+      directions: product.directions || '',
+      benefits: product.benefits || '',
+      ingredients: product.ingredients || '',
+      note: product.note || '',
     });
     setShowModal(true);
   };
@@ -521,6 +529,51 @@ export default function ProductsPage() {
                       rows={4}
                       placeholder="Enter product description"
                     />
+                  </div>
+
+                  <div className="details-section">
+                    <h3 className="section-title">Product Details</h3>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Directions</label>
+                        <textarea
+                          value={formData.directions}
+                          onChange={(e) => setFormData({ ...formData, directions: e.target.value })}
+                          rows={3}
+                          placeholder="How to use / application directions"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Benefits</label>
+                        <textarea
+                          value={formData.benefits}
+                          onChange={(e) => setFormData({ ...formData, benefits: e.target.value })}
+                          rows={3}
+                          placeholder="Key benefits / highlights"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Ingredients</label>
+                        <textarea
+                          value={formData.ingredients}
+                          onChange={(e) => setFormData({ ...formData, ingredients: e.target.value })}
+                          rows={3}
+                          placeholder="List ingredients separated by commas or new lines"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Note</label>
+                        <textarea
+                          value={formData.note}
+                          onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+                          rows={3}
+                          placeholder="Short note or caution"
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   <div className="form-row">

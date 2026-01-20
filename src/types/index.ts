@@ -17,6 +17,10 @@ export interface Product {
   rating?: number;
   reviews?: Review[];                 // Associated reviews
   view_count?: number;
+  directions?: string;
+  benefits?: string;
+  ingredients?: string;
+  note?: string;
   created_at?: string;
   [key: string]: any;
 }
