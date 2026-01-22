@@ -1,5 +1,6 @@
 'use client';
 
+import { supabase } from "@/utils/supabaseClient";
 import React, { useState } from "react";
 import styled from "styled-components";
 
@@ -10,70 +11,115 @@ const Contact = () => {
     phone: "",
     comment: "",
   });
+  const [submissionStatus, setSubmissionStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Add form submission logic here (API call)
-    console.log("Form data submitted:", formData);
+    setSubmissionStatus('loading');
+
+    try {
+      const { error } = await supabase
+        .from('contact_inquiries')
+        .insert([
+          {
+            name: formData.name,
+            email: formData.email,
+            phone: formData.phone,
+            comment: formData.comment,
+          }
+        ]);
+
+      if (error) throw error;
+
+      setSubmissionStatus('success');
+      setFormData({ name: "", email: "", phone: "", comment: "" });
+    } catch (err) {
+      console.error('Error submitting contact form:', err);
+      setSubmissionStatus('error');
+    }
   };
 
   return (
     <StyledContact className="row">
       <div className="col-md-8 contact-form">
         <h2>Contact Us</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="name">Name</label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              required
-            />
+        {submissionStatus === 'success' ? (
+          <div className="alert alert-success">
+            <h3>Thank you!</h3>
+            <p>Your message has been sent successfully. We will get back to you soon.</p>
+            <button
+              className="btn btn-primary mt-3"
+              onClick={() => setSubmissionStatus('idle')}
+            >
+              Send another message
+            </button>
           </div>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <div className="form-group">
+              <label htmlFor="name">Name</label>
+              <input
+                type="text"
+                id="name"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                required
+                disabled={submissionStatus === 'loading'}
+              />
+            </div>
 
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-            />
-          </div>
+            <div className="form-group">
+              <label htmlFor="email">Email</label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                disabled={submissionStatus === 'loading'}
+              />
+            </div>
 
-          <div className="form-group">
-            <label htmlFor="phone">Phone number</label>
-            <input
-              type="tel"
-              id="phone"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-            />
-          </div>
+            <div className="form-group">
+              <label htmlFor="phone">Phone number</label>
+              <input
+                type="tel"
+                id="phone"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                disabled={submissionStatus === 'loading'}
+              />
+            </div>
 
-          <div className="form-group">
-            <label htmlFor="comment">Comment</label>
-            <textarea
-              id="comment"
-              name="comment"
-              value={formData.comment}
-              onChange={handleChange}
-            />
-          </div>
+            <div className="form-group">
+              <label htmlFor="comment">Comment</label>
+              <textarea
+                id="comment"
+                name="comment"
+                value={formData.comment}
+                onChange={handleChange}
+                required
+                disabled={submissionStatus === 'loading'}
+              />
+            </div>
 
-          <button type="submit">Send message</button>
-        </form>
+            {submissionStatus === 'error' && (
+              <p className="error-message">Failed to send message. Please try again.</p>
+            )}
+
+            <button type="submit" disabled={submissionStatus === 'loading'}>
+              {submissionStatus === 'loading' ? 'Sending...' : 'Send message'}
+            </button>
+          </form>
+        )}
       </div>
       <div className="col-md-3 contact-wrapper">
         <ul className="contact-list">

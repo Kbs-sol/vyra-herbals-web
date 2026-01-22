@@ -648,14 +648,9 @@ const Singleproducts = () => {
                                         <li>● Natural herbal formulations tend to change color over time. However, the product efficiency remains unchanged.</li>
                                         <li>● Avoid brushing your hair when it’s wet or after an oil application.</li>
                                 </ul> */}
-                                <ul>
-                                  {(product.note || '')
-                                    .split(/\.\s+|\n/) // Split on full stops and new lines
-                                    .filter((line) => line.trim() !== "") // Remove empty lines
-                                    .map((line, index) => (
-                                      <li key={index}>● {line.trim()}</li> // Render each line in an <li>
-                                    ))}
-                                </ul>
+                                <p style={{ whiteSpace: "pre-line" }}>
+                                  {product.note}
+                                </p>
                                 {/* <p>*GET VISIBLE RESULTS IN JUST 3 WEEKS & USE THE PRODUCT FOR A MINIMUM OF 3 MONTHS FOR BETTER RESULTS*</p> */}
                               </div>
                             </Accordion.Body>
