@@ -66,6 +66,38 @@ const Header = () => {
     }
   }, [pathname, searchParams]);
 
+  const [isSticky, setIsSticky] = useState(false);
+  const [isHidden, setIsHidden] = useState(false);
+  const [lastScrollY, setLastScrollY] = useState(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+
+      if (currentScrollY > 100) {
+        setIsSticky(true);
+        if (currentScrollY > lastScrollY) {
+          // Scrolling down
+          setIsHidden(true);
+        } else {
+          // Scrolling up
+          setIsHidden(false);
+        }
+      } else {
+        // At the top
+        setIsSticky(false);
+        setIsHidden(false);
+      }
+      setLastScrollY(currentScrollY);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, [lastScrollY]);
+
   return (
     <>
       <div className="backdrop"></div>
@@ -85,7 +117,7 @@ const Header = () => {
           </div>
         </div>
       </section>
-      <StyledHeader className="header-part">
+      <StyledHeader className={`header-part ${isSticky ? 'fixed-header' : ''} ${isHidden ? 'hidden' : ''}`}>
         <div className="container">
           <div className="header-content">
             <div className="header-media-group">
@@ -394,19 +426,27 @@ const Header = () => {
 export default Header;
 
 const StyledHeader = styled.section`
-  &.header-part {
+    &.header-part {
     padding: 0.5rem 0;
     background: var(--white);
-    transition: all linear 0.3s;
-    -webkit-transition: all linear 0.3s;
-    -moz-transition: all linear 0.3s;
-    -ms-transition: all linear 0.3s;
-    -o-transition: all linear 0.3s;
-    box-shadow: 0 9px 10px -8px #0000001f !important;
-    position: sticky;
-    top: 0;
+    transition: transform 0.3s ease-in-out, background 0.3s ease, box-shadow 0.3s ease;
+    width: 100%;
     z-index: 99;
-    margin-top: 1px;
+    /* Default position */
+    position: relative; 
+    
+    &.fixed-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      transform: translateY(0);
+    }
+
+    &.hidden {
+      transform: translateY(-100%);
+    }
 
     .header-logo-and-list {
       display: flex;
@@ -509,29 +549,9 @@ const StyledHeader = styled.section`
       }
     }
 
+    /* Active state for when menu or search is open, keeps header visible */
     &.active {
-      position: sticky;
-      top: 0px;
-      left: 0px;
-      width: 100%;
-      z-index: 3;
-      background: var(--white);
-      box-shadow: 0px 5px 15px 0px rgba(0, 0, 0, 0.15);
-      transition: all linear 0.3s;
-      -webkit-transition: all linear 0.3s;
-      -moz-transition: all linear 0.3s;
-      -ms-transition: all linear 0.3s;
-      -o-transition: all linear 0.3s;
-      .header-widget:hover i {
-        background: var(--primary);
-      }
-      .header-widget sup {
-        border-color: var(--white);
-      }
-      .header-form {
-        background: var(--white);
-        border-color: var(--primary);
-      }
+       background: var(--white);
     }
   }
 

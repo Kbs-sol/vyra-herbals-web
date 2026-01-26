@@ -99,7 +99,8 @@ const Testimonial = () => {
         },
       ],
       swipeToSlide: true,
-      autoplay: count > 1, // only autoplay if more than one slide
+      autoplay: count > 1,
+      autoplaySpeed: 3000,
       nextArrow: <SampleNextArrow />,
       prevArrow: <SamplePrevArrow />,
       pauseOnHover: true,
@@ -209,10 +210,14 @@ const StyledTestimonials = styled.section`
     .card-test {
       max-width: 920px; /* limit width so the card isn't too long */
       margin: 0 auto;   /* center the card */
-      height: 12rem;    /* slightly shorter */
+      height: 14rem;
       padding: 1.6rem;
       border-radius: 14px;
       box-sizing: border-box;
+      overflow: hidden;
+      &:hover {
+        cursor: pointer;
+      }
       &,
       .read-more-btn {
         color: #fff;

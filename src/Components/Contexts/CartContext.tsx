@@ -123,58 +123,115 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     try {
-      if (user) {
+      if (user && user.id) {
         // Handle API call for logged-in users
-        console.log("user found : ", user);
+        const response = await fetch(`${API_PATH}/cart/add`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: user.id, product_id: id, quantity })
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to add item to cart');
+        }
+
+        // Refresh cart to get updated backend state
+        await fetchCart();
       } else {
-        const cart = [...getCartFromLocal(), { id, quantity }];
+        const cart = [...getCartFromLocal()];
+        const existingItemIndex = cart.findIndex(item => item.id === id);
+
+        if (existingItemIndex > -1) {
+          cart[existingItemIndex].quantity = (Number(cart[existingItemIndex].quantity) || 0) + quantity;
+        } else {
+          cart.push({ id, quantity });
+        }
+
         setCartItems(cart);
         localStorage.setItem(`${APP_NAME}_cart`, JSON.stringify(cart));
-        updateCartCount(cartCount + 1);
+        setCartCount(cart.length);
       }
     } catch (error) {
       console.error("Error adding product to cart:", error);
     }
   };
 
-  const removeItemFromCart = (productId: number | string): void => {
+  const removeItemFromCart = async (productId: number | string): Promise<void> => {
     if (!productId) {
       console.log("Invalid productId passed to remove");
       return;
     }
-    // Remove the item with matching ID
-    const filteredCart = cartItems.filter((item) => item.id !== productId);
 
-    // Update local storage with the filtered cart items
-    localStorage.setItem(`${APP_NAME}_cart`, JSON.stringify(filteredCart));
-    setCartItems(filteredCart);
-    setCartCount(filteredCart.length);
+    try {
+      if (user && user.id) {
+        const response = await fetch(`${API_PATH}/cart/remove`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: user.id, product_id: productId })
+        });
 
-    // Update state with the filtered cart items
-    // setCart(filteredCart);
-    // fetchCartProductsFromAPI(filteredCart);
-    // if (cartCount >= 1) {
-    // notify("Removed from cart !");
-    // }
+        if (!response.ok) {
+          throw new Error('Failed to remove item from cart');
+        }
+        await fetchCart();
+      } else {
+        // Remove the item with matching ID
+        const filteredCart = cartItems.filter((item) => item.id !== productId);
+
+        // Update local storage with the filtered cart items
+        localStorage.setItem(`${APP_NAME}_cart`, JSON.stringify(filteredCart));
+        setCartItems(filteredCart);
+        setCartCount(filteredCart.length);
+      }
+    } catch (error) {
+      console.error("Error removing item from cart:", error);
+    }
   };
 
-  const updateItemInCart = (action: 'increment' | 'decrement', productId: number | string): void => {
+  const updateItemInCart = async (action: 'increment' | 'decrement', productId: number | string): Promise<void> => {
     const maxQty = 10;
-    const updatedCart = cartItems.map((item) =>
-      item.id === productId
-        ? {
-          ...item,
-          quantity:
-            action === "decrement"
-              ? item.quantity - 1
-              : item.quantity < maxQty
-                ? Number(item.quantity) + 1
-                : item.quantity,
+
+    // Optimistic update helper
+    const calculateNewQty = (currentQty: number) => {
+      if (action === 'decrement') return currentQty - 1;
+      if (action === 'increment') return currentQty < maxQty ? currentQty + 1 : currentQty;
+      return currentQty;
+    };
+
+    try {
+      if (user && user.id) {
+        const currentItem = cartItems.find(item => item.id === productId);
+        if (!currentItem) return;
+
+        const newQty = calculateNewQty(Number(currentItem.quantity));
+        if (newQty < 1) return; // Prevent reducing below 1 via update, usu. remove is explicit
+
+        const response = await fetch(`${API_PATH}/cart/update`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: user.id, product_id: productId, quantity: newQty })
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to update item quantity');
         }
-        : item
-    );
-    setCartItems(updatedCart);
-    localStorage.setItem(`${APP_NAME}_cart`, JSON.stringify(updatedCart));
+        await fetchCart();
+
+      } else {
+        const updatedCart = cartItems.map((item) =>
+          item.id === productId
+            ? {
+              ...item,
+              quantity: calculateNewQty(Number(item.quantity))
+            }
+            : item
+        );
+        setCartItems(updatedCart);
+        localStorage.setItem(`${APP_NAME}_cart`, JSON.stringify(updatedCart));
+      }
+    } catch (error) {
+      console.error("Error updating item in cart:", error);
+    }
   };
 
   const clearCart = (): void => {

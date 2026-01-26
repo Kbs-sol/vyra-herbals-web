@@ -21,6 +21,7 @@ export interface Product {
   benefits?: string;
   ingredients?: string;
   note?: string;
+  related_products?: number[];
   created_at?: string;
   [key: string]: any;
 }

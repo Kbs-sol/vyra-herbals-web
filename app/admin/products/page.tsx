@@ -37,7 +37,11 @@ export default function ProductsPage() {
     benefits: '',
     ingredients: '',
     note: '',
+    related_products: [] as number[],
   });
+
+  const [allProductsForSelection, setAllProductsForSelection] = useState<Product[]>([]);
+  const [relatedSearchTerm, setRelatedSearchTerm] = useState('');
 
   useEffect(() => {
     fetchProducts();
@@ -54,6 +58,18 @@ export default function ProductsPage() {
     } catch (error) {
       console.error('Error fetching categories:', error);
       setCategories([]);
+    }
+  };
+
+  const fetchAllProductsForSelection = async () => {
+    try {
+      const res = await fetch('/api/admin/products?limit=1000');
+      const data = await res.json();
+      if (data.success) {
+        setAllProductsForSelection(data.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching all products:', error);
     }
   };
 
@@ -86,7 +102,7 @@ export default function ProductsPage() {
 
   const handleAddCategory = async () => {
     if (!newCategoryName.trim()) return;
-    
+
     setAddingCategory(true);
     try {
       const res = await fetch('/api/admin/categories', {
@@ -94,7 +110,7 @@ export default function ProductsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newCategoryName.trim() }),
       });
-      
+
       const data = await res.json();
       if (data.success) {
         await fetchCategories();
@@ -142,14 +158,14 @@ export default function ProductsPage() {
   const handleMainImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       alert('Image size should be less than 5MB');
       e.target.value = '';
       return;
     }
-    
+
     setUploadingMainImage(true);
     try {
       const publicUrl = await uploadToStorage(file);
@@ -170,7 +186,7 @@ export default function ProductsPage() {
   const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files ? Array.from(e.target.files) : [];
     if (!files.length) return;
-    
+
     // Validate total file size
     const totalSize = files.reduce((sum, f) => sum + f.size, 0);
     if (totalSize > 20 * 1024 * 1024) {
@@ -178,7 +194,7 @@ export default function ProductsPage() {
       e.target.value = '';
       return;
     }
-    
+
     setUploadingGallery(true);
     try {
       const uploaded: string[] = [];
@@ -223,7 +239,13 @@ export default function ProductsPage() {
       image_url: '',
       category: '',
       images: [],
+      related_products: [],
+      directions: '',
+      benefits: '',
+      ingredients: '',
+      note: '',
     });
+    fetchAllProductsForSelection();
     setShowModal(true);
   };
 
@@ -242,19 +264,21 @@ export default function ProductsPage() {
       benefits: product.benefits || '',
       ingredients: product.ingredients || '',
       note: product.note || '',
+      related_products: product.related_products || [],
     });
+    fetchAllProductsForSelection();
     setShowModal(true);
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate that at least one image is uploaded
     if (!formData.image_url && (!formData.images || formData.images.length === 0)) {
       alert('Please upload at least one product image');
       return;
     }
-    
+
     setSaving(true);
 
     try {
@@ -331,8 +355,8 @@ export default function ProductsPage() {
           </div>
           <button className="add-btn" onClick={openAddModal}>
             <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
-              <path d="M12 5V19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M12 5V19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             Add Product
           </button>
@@ -343,8 +367,8 @@ export default function ProductsPage() {
           <form onSubmit={handleSearch} className="search-form">
             <div className="search-input">
               <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
-                <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2"/>
-                <path d="M21 21L16.65 16.65" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" />
+                <path d="M21 21L16.65 16.65" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
               </svg>
               <input
                 type="text"
@@ -381,7 +405,7 @@ export default function ProductsPage() {
           ) : products.length === 0 ? (
             <div className="empty-state">
               <svg viewBox="0 0 24 24" fill="none" width="48" height="48">
-                <path d="M21 16V8.00002C20.9996 7.6493 20.9071 7.30483 20.7315 7.00119C20.556 6.69754 20.3037 6.44539 20 6.27002L13 2.27002C12.696 2.09449 12.3511 2.00208 12 2.00208C11.6489 2.00208 11.304 2.09449 11 2.27002L4 6.27002C3.69626 6.44539 3.44398 6.69754 3.26846 7.00119C3.09294 7.30483 3.00036 7.6493 3 8.00002V16C3.00036 16.3508 3.09294 16.6952 3.26846 16.9989C3.44398 17.3025 3.69626 17.5547 4 17.73L11 21.73C11.304 21.9056 11.6489 21.998 12 21.998C12.3511 21.998 12.696 21.9056 13 21.73L20 17.73C20.3037 17.5547 20.556 17.3025 20.7315 16.9989C20.9071 16.6952 20.9996 16.3508 21 16Z" stroke="currentColor" strokeWidth="2"/>
+                <path d="M21 16V8.00002C20.9996 7.6493 20.9071 7.30483 20.7315 7.00119C20.556 6.69754 20.3037 6.44539 20 6.27002L13 2.27002C12.696 2.09449 12.3511 2.00208 12 2.00208C11.6489 2.00208 11.304 2.09449 11 2.27002L4 6.27002C3.69626 6.44539 3.44398 6.69754 3.26846 7.00119C3.09294 7.30483 3.00036 7.6493 3 8.00002V16C3.00036 16.3508 3.09294 16.6952 3.26846 16.9989C3.44398 17.3025 3.69626 17.5547 4 17.73L11 21.73C11.304 21.9056 11.6489 21.998 12 21.998C12.3511 21.998 12.696 21.9056 13 21.73L20 17.73C20.3037 17.5547 20.556 17.3025 20.7315 16.9989C20.9071 16.6952 20.9996 16.3508 21 16Z" stroke="currentColor" strokeWidth="2" />
               </svg>
               <p>No products found</p>
               <button onClick={openAddModal} className="add-btn-small">Add your first product</button>
@@ -411,9 +435,9 @@ export default function ProductsPage() {
                           ) : (
                             <div className="no-image">
                               <svg viewBox="0 0 24 24" fill="none" width="24" height="24">
-                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" strokeWidth="2"/>
-                                <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/>
-                                <path d="M21 15L16 10L5 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" strokeWidth="2" />
+                                <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
+                                <path d="M21 15L16 10L5 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                               </svg>
                             </div>
                           )}
@@ -437,18 +461,18 @@ export default function ProductsPage() {
                       <div className="actions">
                         <button className="action-btn edit" onClick={() => openEditModal(product)} title="Edit">
                           <svg viewBox="0 0 24 24" fill="none" width="18" height="18">
-                            <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            <path d="M18.5 2.5C18.8978 2.10217 19.4374 1.87868 20 1.87868C20.5626 1.87868 21.1022 2.10217 21.5 2.5C21.8978 2.89782 22.1213 3.43739 22.1213 4C22.1213 4.56261 21.8978 5.10217 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M18.5 2.5C18.8978 2.10217 19.4374 1.87868 20 1.87868C20.5626 1.87868 21.1022 2.10217 21.5 2.5C21.8978 2.89782 22.1213 3.43739 22.1213 4C22.1213 4.56261 21.8978 5.10217 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         </button>
-                        <button 
-                          className="action-btn delete" 
+                        <button
+                          className="action-btn delete"
                           onClick={() => setDeleteConfirm(product.id as number)}
                           title="Delete"
                         >
                           <svg viewBox="0 0 24 24" fill="none" width="18" height="18">
-                            <path d="M3 6H5H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M3 6H5H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         </button>
                       </div>
@@ -463,7 +487,7 @@ export default function ProductsPage() {
         {/* Pagination */}
         {totalPages > 1 && (
           <div className="pagination">
-            <button 
+            <button
               disabled={currentPage === 1}
               onClick={() => setCurrentPage(p => p - 1)}
               className="page-btn"
@@ -473,7 +497,7 @@ export default function ProductsPage() {
             <span className="page-info">
               Page {currentPage} of {totalPages}
             </span>
-            <button 
+            <button
               disabled={currentPage === totalPages}
               onClick={() => setCurrentPage(p => p + 1)}
               className="page-btn"
@@ -491,8 +515,8 @@ export default function ProductsPage() {
                 <h2>{editingProduct ? 'Edit Product' : 'Add New Product'}</h2>
                 <button className="close-btn" onClick={() => setShowModal(false)}>
                   <svg viewBox="0 0 24 24" fill="none" width="24" height="24">
-                    <path d="M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                    <path d="M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    <path d="M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    <path d="M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                   </svg>
                 </button>
               </div>
@@ -660,7 +684,7 @@ export default function ProductsPage() {
                   <div className="images-section">
                     <h3 className="section-title">Product Images *</h3>
                     <p className="section-help">Upload at least one image. First image will be the main display image.</p>
-                    
+
                     <div className="form-row">
                       <div className="form-group">
                         <label>Main Image</label>
@@ -678,9 +702,9 @@ export default function ProductsPage() {
                             ) : (
                               <>
                                 <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
-                                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                  <polyline points="17 8 12 3 7 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                  <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                  <polyline points="17 8 12 3 7 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                  <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                                 </svg>
                                 <span>Choose Main Image</span>
                               </>
@@ -724,9 +748,9 @@ export default function ProductsPage() {
                             ) : (
                               <>
                                 <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
-                                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" strokeWidth="2"/>
-                                  <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/>
-                                  <polyline points="21 15 16 10 5 21" stroke="currentColor" strokeWidth="2"/>
+                                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" strokeWidth="2" />
+                                  <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
+                                  <polyline points="21 15 16 10 5 21" stroke="currentColor" strokeWidth="2" />
                                 </svg>
                                 <span>Add Gallery Images</span>
                               </>
@@ -754,6 +778,56 @@ export default function ProductsPage() {
                       </div>
                     </div>
                   </div>
+
+                  <div className="related-selection-section">
+                    <h3 className="section-title">Related Products</h3>
+                    <p className="section-help">Select products to show as related to this product.</p>
+                    <div className="related-selector">
+                      <div className="selector-search">
+                        <input
+                          type="text"
+                          placeholder="Search products to add..."
+                          value={relatedSearchTerm}
+                          onChange={(e) => setRelatedSearchTerm(e.target.value)}
+                          className="search-input-small"
+                        />
+                      </div>
+                      <div className="products-list-scroll">
+                        {allProductsForSelection
+                          .filter(p => p.id !== editingProduct?.id)
+                          .filter(p =>
+                            !relatedSearchTerm ||
+                            p.title.toLowerCase().includes(relatedSearchTerm.toLowerCase()) ||
+                            p.handle?.toLowerCase().includes(relatedSearchTerm.toLowerCase())
+                          )
+                          .map(p => {
+                            const isSelected = formData.related_products?.includes(Number(p.id));
+                            return (
+                              <label key={p.id} className="product-select-item">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={(e) => {
+                                    const id = Number(p.id);
+                                    let current = [...(formData.related_products || [])];
+                                    if (e.target.checked) {
+                                      if (!current.includes(id)) current.push(id);
+                                    } else {
+                                      current = current.filter(cid => cid !== id);
+                                    }
+                                    setFormData({ ...formData, related_products: current });
+                                  }}
+                                />
+                                <span className="p-title">{p.title}</span>
+                              </label>
+                            );
+                          })}
+                      </div>
+                      <div className="selected-count">
+                        {formData.related_products?.length || 0} products selected
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="admin-modal-footer">
@@ -775,9 +849,9 @@ export default function ProductsPage() {
             <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
               <div className="confirm-icon">
                 <svg viewBox="0 0 24 24" fill="none" width="32" height="32">
-                  <path d="M12 9V13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                  <path d="M12 17H12.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                  <path d="M10.29 3.86L1.82 18C1.64 18.3024 1.54 18.6453 1.53 18.9973C1.52 19.3492 1.60 19.6975 1.76 20.0098C1.92 20.322 2.16 20.5872 2.45 20.7798C2.75 20.9723 3.09 21.0851 3.44 21.1H20.56C20.91 21.0851 21.25 20.9723 21.55 20.7798C21.84 20.5872 22.08 20.322 22.24 20.0098C22.4 19.6975 22.48 19.3492 22.47 18.9973C22.46 18.6453 22.36 18.3024 22.18 18L13.71 3.86C13.53 3.56611 13.28 3.32312 12.98 3.15448C12.68 2.98585 12.34 2.89725 12 2.89725C11.66 2.89725 11.32 2.98585 11.02 3.15448C10.72 3.32312 10.47 3.56611 10.29 3.86Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M12 9V13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  <path d="M12 17H12.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  <path d="M10.29 3.86L1.82 18C1.64 18.3024 1.54 18.6453 1.53 18.9973C1.52 19.3492 1.60 19.6975 1.76 20.0098C1.92 20.322 2.16 20.5872 2.45 20.7798C2.75 20.9723 3.09 21.0851 3.44 21.1H20.56C20.91 21.0851 21.25 20.9723 21.55 20.7798C21.84 20.5872 22.08 20.322 22.24 20.0098C22.4 19.6975 22.48 19.3492 22.47 18.9973C22.46 18.6453 22.36 18.3024 22.18 18L13.71 3.86C13.53 3.56611 13.28 3.32312 12.98 3.15448C12.68 2.98585 12.34 2.89725 12 2.89725C11.66 2.89725 11.32 2.98585 11.02 3.15448C10.72 3.32312 10.47 3.56611 10.29 3.86Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
               <h3>Delete Product?</h3>
@@ -1036,6 +1110,71 @@ export default function ProductsPage() {
 
           .action-btn.edit:hover {
             background: #bfdbfe;
+          }
+
+          .delete-btn:hover {
+            background: #b91c1c;
+          }
+
+          .related-selection-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+          }
+
+          .related-selector {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            background: #fff;
+          }
+
+          .search-input-small {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 14px;
+          }
+
+          .products-list-scroll {
+            max-height: 250px;
+            overflow-y: auto;
+            border: 1px solid #f0f0f0;
+            border-radius: 4px;
+            padding: 10px;
+          }
+
+          .product-select-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+            border-radius: 4px;
+          }
+
+          .product-select-item:hover {
+            background: #f9f9f9;
+          }
+
+          .product-select-item input {
+            width: 16px;
+            height: 16px;
+          }
+
+          .p-title {
+            font-size: 14px;
+            color: #333;
+          }
+
+          .selected-count {
+            margin-top: 10px;
+            font-size: 13px;
+            color: #666;
+            font-weight: 500;
           }
 
           .action-btn.delete {

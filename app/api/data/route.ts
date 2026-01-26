@@ -36,7 +36,7 @@ export async function POST(req: Request) {
 
     // Use custom fields, or default optimized fields, or all fields if explicitly requested
     const selectFields = fields || (select_all ? '*' : DEFAULT_FIELDS[tbl_name] || '*');
-    
+
     let query;
     try {
       query = supabase.from(tbl_name).select(selectFields);
@@ -57,6 +57,12 @@ export async function POST(req: Request) {
       if (limitMatch) query = query.limit(parseInt(limitMatch[1], 10));
     }
 
+    // Apply IDs filter if provided
+    if (rest.ids && Array.isArray(rest.ids)) {
+      query = query.in('id', rest.ids);
+      delete rest.ids;
+    }
+
     // Apply filters if provided
     const filterKeys = Object.keys(rest);
     if (filterKeys.length) {
@@ -69,13 +75,13 @@ export async function POST(req: Request) {
 
     try {
       let { data, error } = await query;
-      
+
       // If query failed or returned empty results and we were filtering by status, retry without status filter
       // This handles cases where status column doesn't exist or no approved items exist yet
       if ((error || (data && data.length === 0)) && rest.status !== undefined) {
         const { status, ...restWithoutStatus } = rest;
         let retryQuery = supabase.from(tbl_name).select(selectFields);
-        
+
         if (typeof extra_condition === 'string') {
           const limitMatch = extra_condition.match(/LIMIT\s+(\d+)/i);
           const orderMatch = extra_condition.match(/ORDER\s+BY\s+(\w+)\s+(ASC|DESC)/i);
@@ -86,16 +92,16 @@ export async function POST(req: Request) {
           }
           if (limitMatch) retryQuery = retryQuery.limit(parseInt(limitMatch[1], 10));
         }
-        
+
         if (Object.keys(restWithoutStatus).length) {
           retryQuery = retryQuery.match(restWithoutStatus as Record<string, any>);
         }
-        
+
         const retryResult = await retryQuery;
         data = retryResult.data;
         error = retryResult.error;
       }
-      
+
       if (error) {
         console.error('Supabase returned error', error);
         return NextResponse.json([]);

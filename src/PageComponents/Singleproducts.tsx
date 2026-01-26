@@ -15,6 +15,7 @@ import { IoMdHome } from "react-icons/io";
 import { toast } from "react-toastify";
 
 import { API_PATH, APP_NAME } from "../constants";
+import { Product, Review } from "@/types";
 
 import ProductCard from "../Components/Shared/ProductCard";
 import SEOComponent from "../Components/Shared/SEOComponent";
@@ -35,8 +36,8 @@ import QuantitySelector from "../Components/Common/QuantitySelector";
 const Singleproducts = () => {
   const params = useParams();
   const productHandle = params?.productHandle || '';
-  const [product, setProduct] = useState(null);
-  const [mainImage, setMainImage] = useState(null);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [mainImage, setMainImage] = useState<string | null>(null);
   const [isInCart, setIsInCart] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
   const [isPageLoaded, setIsPageLoaded] = useState(false); //product page
@@ -50,7 +51,7 @@ const Singleproducts = () => {
   const [reviewSortBy, setReviewSortBy] = useState(
     sortOptions.find((o) => o.value === "mostRecent")
   );
-  const [sortedReviews, setSortedReviews] = useState([]);
+  const [sortedReviews, setSortedReviews] = useState<Review[]>([]);
 
   const { user } = useAuth();
   const { cartCount, updateCartCount } = useCart();
@@ -170,7 +171,7 @@ const Singleproducts = () => {
 
         // Include user ID in request payload if user is logged in
         if (user) {
-          requestData.user_id = user.id;
+          (requestData as any).user_id = user.id;
         }
 
         const response = await fetch(`${API_PATH}/products/detail`, {
@@ -209,43 +210,51 @@ const Singleproducts = () => {
     fetchData();
   }, [productHandle, user]);
 
-  const [handpickedProducts, setHandpickedProducts] = useState([]);
+  const [handpickedProducts, setHandpickedProducts] = useState<Product[]>([]);
   // Fetch related products (optimized - only fetch when product is loaded)
   useEffect(() => {
     if (!product) return; // Only fetch when we have the product
 
-    const postData = {
+    const hasAssignedRelated = product.related_products && Array.isArray(product.related_products) && product.related_products.length > 0;
+
+    const postData: any = {
       tbl_name: "products",
-      extra_condition: " ORDER BY id ASC LIMIT 8",
       // Only fetch fields needed for product cards
       fields: 'id, handle, title, price, regular_price, image_url, category',
     };
 
-    const requestOptions = {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(postData),
-    };
+    if (hasAssignedRelated) {
+      postData.ids = product.related_products;
 
-    fetch(`${API_PATH}/data`, requestOptions)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Failed to fetch related products");
-        }
-        return response.json();
-      })
-      .then((data) => {
-        // Filter out the current product from related products
-        const filtered = data.filter((p: any) => p.id !== product.id);
-        setHandpickedProducts(filtered);
-        setIsPageLoaded(true);
-      })
-      .catch((error) => {
-        console.error("Error fetching related products:", error);
-        setIsPageLoaded(true);
-      });
+      const requestOptions = {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(postData),
+      };
+
+      fetch(`${API_PATH}/data`, requestOptions)
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Failed to fetch related products");
+          }
+          return response.json();
+        })
+        .then((data) => {
+          // Filter out the current product from related products (just in case)
+          const filtered = data.filter((p: any) => p.id !== product.id);
+          setHandpickedProducts(filtered);
+          setIsPageLoaded(true);
+        })
+        .catch((error) => {
+          console.error("Error fetching related products:", error);
+          setIsPageLoaded(true);
+        });
+    } else {
+      setHandpickedProducts([]);
+      setIsPageLoaded(true);
+    }
   }, [product]);
 
   // const handleAddToCart = async () => {
@@ -327,18 +336,18 @@ const Singleproducts = () => {
 
   const settings = {
     className: "center",
-    infinite: true,
+    infinite: handpickedProducts.length > 4,
     centerPadding: "600px",
-    slidesToShow: 4,
+    slidesToShow: Math.min(4, handpickedProducts.length),
     slidesToScroll: 1,
-    speed: 2000,
+    speed: 500,
     responsive: [
       {
         breakpoint: 1024,
         settings: {
           slidesToShow: 3,
           slidesToScroll: 1,
-          infinite: true,
+          infinite: handpickedProducts.length > 3,
           dots: true,
         },
       },
@@ -359,9 +368,8 @@ const Singleproducts = () => {
     ],
     swipeToSlide: true,
     autoplay: true,
-    nextArrow: <SampleNextArrow />,
-    nextArrow: <SampleNextArrow />,
-    prevArrow: <SamplePrevArrow />,
+    nextArrow: <SampleNextArrow onClick={undefined} />,
+    prevArrow: <SamplePrevArrow onClick={undefined} />,
   };
 
   const gallerySettings = {
@@ -744,30 +752,30 @@ const Singleproducts = () => {
             </div>
           </section>
 
-          <section className="related-products">
-            <div className="container">
-              <div className="row">
-                <div className="col-lg-12">
-                  <div className="section-heading">
-                    <h2>Related Products</h2>
+          {handpickedProducts.length > 0 && (
+            <section className="related-products">
+              <div className="container">
+                <div className="row">
+                  <div className="col-lg-12">
+                    <div className="section-heading">
+                      <h2>Related Products</h2>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="slider-container">
-                <Slider {...settings}>
-                  {handpickedProducts.length > 0
-                    ? handpickedProducts.map((product) => (
+                <div className="slider-container">
+                  <Slider {...settings}>
+                    {handpickedProducts.map((product) => (
                       <ProductCard
                         key={product.id}
                         product={product}
                         isImageLazy={false}
                       />
-                    ))
-                    : null}
-                </Slider>
+                    ))}
+                  </Slider>
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
+          )}
         </>
       )}
     </StyledSingleProduct>

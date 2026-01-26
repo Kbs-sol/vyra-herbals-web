@@ -72,6 +72,9 @@ const ReviewCard = ({ review, className }) => {
 export default ReviewCard;
 
 const StyledReviewCard = styled.section`
+  .card-body {
+    padding-bottom: 2rem;
+  }
   .card-head {
     display: flex;
     align-items: center;
@@ -88,6 +91,7 @@ const StyledReviewCard = styled.section`
     align-items: center;
     justify-content: center;
     font-weight: 600;
+    flex-shrink: 0;
   }
   .avatar img {
     width: 100%;
