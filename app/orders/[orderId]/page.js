@@ -4,6 +4,6 @@ import Orders from '@/Pages/Orders';
 
 export const dynamic = 'force-dynamic';
 
-export default async function OrderPage({ params }) {
+export default function OrderPage({ params }) {
   return <Orders />;
 }

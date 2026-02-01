@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import styled from 'styled-components';
 import { useAuth } from '@/Components/Contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -8,7 +8,7 @@ import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import Link from 'next/link';
 import { Modal, Button } from 'react-bootstrap';
 
-const LoginPage = () => {
+const LoginContent = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -141,6 +141,14 @@ const LoginPage = () => {
         </Modal.Footer>
       </StyledModal>
     </Container>
+  );
+};
+
+const LoginPage = () => {
+  return (
+    <Suspense fallback={<LoadingWrapper>Loading...</LoadingWrapper>}>
+      <LoginContent />
+    </Suspense>
   );
 };
 
