@@ -16,7 +16,8 @@ export async function POST(req: Request) {
       shipping_data: orderData.shippingData,
       payment_method: 'cod',
       status: 'placed',
-      user_id: orderData.userId
+      user_id: orderData.userId,
+      created_at: new Date().toISOString()
     };
     const { data: inserted, error } = await supabase.from('orders').insert([orderPayload]).select();
     if (error) {
@@ -25,6 +26,12 @@ export async function POST(req: Request) {
     }
 
     const order = inserted?.[0];
+
+    // Clear cart for the user
+    if (orderData.userId) {
+      await supabase.from('cart').delete().eq('user_id', orderData.userId);
+    }
+
     return NextResponse.json({ order_id: order?.id });
   } catch (err) {
     console.error('COD order exception:', err);

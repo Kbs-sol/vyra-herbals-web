@@ -143,6 +143,13 @@ const Checkout = ({ show, onHide, cartItems, product }) => {
   }, [formData.pincode]);
 
   useEffect(() => {
+    if (typeof show === 'boolean') {
+      setShowModal(show);
+      if (show) setIsModalOpenedPreviously(true);
+    }
+  }, [show]);
+
+  useEffect(() => {
     const handlePop = () => {
       if (showModal && window.location.pathname !== "/checkout") {
         cleanUp();
@@ -275,8 +282,8 @@ const Checkout = ({ show, onHide, cartItems, product }) => {
   const handleCheckout = () => {
     const currentPath = window.location.pathname + window.location.search;
     sessionStorage.setItem("checkout_prev_path", currentPath);
-    if (!isModalOpenedPreviously) window.history.pushState({}, "", "/checkout");
-    else window.history.replaceState({}, "", "/checkout");
+    if (!isModalOpenedPreviously && window.location.pathname !== '/checkout') window.history.pushState({}, "", "/checkout");
+    else if (window.location.pathname !== '/checkout') window.history.replaceState({}, "", "/checkout");
     setDisableBtn(true);
     setTimeout(() => {
       setShowModal(true);
@@ -306,6 +313,7 @@ const Checkout = ({ show, onHide, cartItems, product }) => {
       // console.log("accessKey : ", accessKey);
       if (accessKey == null) {
         console.log("Failed to get access key. Please try again..");
+        notifyError("Failed to initiate payment. Please check configuration or try COD.");
         setLoading(false);
         return;
       }
@@ -352,7 +360,10 @@ const Checkout = ({ show, onHide, cartItems, product }) => {
         .then((data) => {
           // let data = JSON.parse(res.replace(/^[^{]*/, ""));
           if (data?.order_id) {
-            router.push(`/orders/${data.order_id}`);
+            notify("Order Placed Successfully!");
+            setTimeout(() => {
+              router.push(`/orders/${data.order_id}`);
+            }, 1000);
           }
           clearCart(); // Clear cart after successful COD order
         })

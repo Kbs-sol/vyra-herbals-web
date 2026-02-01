@@ -37,7 +37,8 @@ export async function POST(req: Request) {
             payment_method: 'online',
             status: 'placed',
             txn_id: txnid,
-            user_id: orderData.userId // Extracted from payload
+            user_id: orderData.userId, // Extracted from payload
+            created_at: new Date().toISOString()
         };
 
         const { data: inserted, error: insertError } = await supabase
