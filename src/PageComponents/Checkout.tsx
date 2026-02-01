@@ -12,8 +12,10 @@ import SVGIcon from "../Components/Common/SVGIcon";
 import Cart from "./Cart";
 import CartItem from "../Components/Shared/CartItem";
 import BillSummary from "../Components/Shared/BillSummary";
+import { useAuth } from "../Components/Contexts/AuthContext";
 
 const Checkout = ({ show, onHide, cartItems, product }) => {
+  const { user } = useAuth();
   const defaultFormData = {
     fullName: "",
     phone: "",
@@ -126,9 +128,9 @@ const Checkout = ({ show, onHide, cartItems, product }) => {
       // } else {
       const totalPrice = cartItems
         ? cartItems.reduce(
-            (total, item) => total + item.quantity * item.price,
-            0
-          )
+          (total, item) => total + item.quantity * item.price,
+          0
+        )
         : product.price;
       setTransactionPrice(totalPrice);
     }
@@ -324,6 +326,7 @@ const Checkout = ({ show, onHide, cartItems, product }) => {
         productTitle: productDetails, // Include product titles in shipping data
       },
       paymentMethod: paymentMethod,
+      userId: user?.id,
       // orderId: txnId
     };
 
@@ -566,7 +569,7 @@ const Checkout = ({ show, onHide, cartItems, product }) => {
                 {hasError &&
                   renderErrorMessage(
                     formErrors[field.fieldName] ||
-                      defaultFormErrors[field.fieldName]
+                    defaultFormErrors[field.fieldName]
                   )}
               </Form.Group>
             );

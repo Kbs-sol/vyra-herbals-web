@@ -15,7 +15,8 @@ export async function POST(req: Request) {
       transaction_price: orderData.transactionPrice,
       shipping_data: orderData.shippingData,
       payment_method: 'cod',
-      status: 'placed'
+      status: 'placed',
+      user_id: orderData.userId
     };
     const { data: inserted, error } = await supabase.from('orders').insert([orderPayload]).select();
     if (error) {

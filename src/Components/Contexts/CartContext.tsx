@@ -1,9 +1,12 @@
 'use client';
 
 import React, { createContext, useState, useContext, useEffect, ReactNode } from "react";
-import { API_PATH, APP_NAME } from "../../constants";
+import { APP_NAME } from "../../constants";
 import { useAuth } from "./AuthContext";
 import type { CartItem } from "@/types";
+import { supabase } from "@/utils/supabaseClient";
+import { useRouter } from "next/navigation";
+import { toast } from "react-toastify";
 
 interface CartContextType {
   cartCount: number;
@@ -21,51 +24,47 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cartCount, setCartCount] = useState<number>(0);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const router = useRouter();
 
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
 
   useEffect(() => {
-    fetchCart();
-  }, []);
-
-  const getCartFromLocal = (): CartItem[] => {
-    return JSON.parse(localStorage.getItem(`${APP_NAME}_cart`) || '[]') as CartItem[];
-  };
+    if (!loading) {
+      fetchCart();
+    }
+  }, [user, loading]);
 
   const fetchCart = async (): Promise<void> => {
     try {
-      // Check if the user is logged in
       if (user && user.id) {
-        // User is logged in, fetch cart count from API
-        const postData = {
-          tbl_name: "cart",
-          user_id: user.id,
-        };
+        // Fetch cart with product details joined
+        const { data, error } = await supabase
+          .from('cart')
+          .select('quantity, product_id, products(*)')
+          .eq('user_id', user.id);
 
-        const requestOptions = {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(postData),
-        };
+        if (error) {
+          console.error("Error fetching cart:", error);
+          return;
+        }
 
-        const response = await fetch(`${API_PATH}/data`, requestOptions);
-        const data = await response.json();
+        if (data) {
+          const items: CartItem[] = data.map((item: any) => ({
+            ...item.products,
+            quantity: item.quantity,
+            // Ensure ID from product is used as the main ID for CartItem
+            id: item.products.id
+          }));
 
-        // Ensure data is an array and set cart count
-        if (Array.isArray(data)) {
-          setCartItems([...data]);
-          setCartCount(data.length);
-        } else {
-          console.error("Unexpected data format:", data);
-          setCartCount(0);
+          setCartItems(items);
+          setCartCount(items.length);
         }
       } else {
-        // User is not logged in, retrieve cart count from localStorage
-        const cartList = getCartFromLocal();
-        setCartItems([...cartList]);
-        setCartCount(cartList.length);
+        // If not logged in, cart is empty (per requirement: login required to use cart)
+        // We could optionally show local storage but requirement says "store ... in database instead of localstorage"
+        // and "when he tries to add product to cart then it will login"
+        setCartItems([]);
+        setCartCount(0);
       }
     } catch (error) {
       console.error("Error fetching cart count:", error);
@@ -77,167 +76,123 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     setCartCount(newCount);
   };
 
-  /**
-   * Fetch the details of the each product present in the existing cart
-   */
+  // Deprecated/No-op as we fetch details in fetchCart now
   const fetchCartProductsFromAPI = async (): Promise<void> => {
-    const updateProductQuantities = (products: any[], items: CartItem[]): CartItem[] => {
-      return products.map((product) => ({
-        ...product,
-        quantity: items.find((item) => item.id === product.id)?.quantity || 0,
-      }));
-    };
-    if (cartItems.length) {
-      const productIds = cartItems.map((item) => item.id);
-      return fetch(`${API_PATH}/products/cart`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ productIds: productIds }),
-      })
-        .then((response) => {
-          if (!response.ok) {
-            throw new Error("Failed to fetch product details");
-          }
-          return response.json();
-        })
-        .then((products) => {
-          setCartItems(updateProductQuantities(products, cartItems));
-        })
-        .catch((error) =>
-          console.error("Error fetching product details:", error)
-        );
-    }
+    // Already handled in fetchCart via join
+    return Promise.resolve();
   };
 
-  /**
-   * Adds the product to the existing cart
-   * @param {number} id - ID of the product
-   * @param {string} quantity - Quantity of product to be added (dafault is 1)
-   */
-
   const addItemToCart = async (id: number | string, quantity: number = 1): Promise<void> => {
-    if (!id) {
-      console.error("Product or Product ID is undefined");
+    if (!id) return;
+
+    if (!user) {
+      // Enforce login
+      //   toast.info("Please login to add items to cart");
+      router.push('/login');
       return;
     }
+
     try {
-      if (user && user.id) {
-        // Handle API call for logged-in users
-        const response = await fetch(`${API_PATH}/cart/add`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ user_id: user.id, product_id: id, quantity })
-        });
+      // Upsert: simpler handling of "if exists update, else insert" if we had a unique constraint on (user_id, product_id)
+      // The schema has UNIQUE(user_id, product_id), so upsert works great.
 
-        if (!response.ok) {
-          throw new Error('Failed to add item to cart');
-        }
+      // First, get current quantity if it exists to add to it? 
+      // Supabase upsert will just replace unless we handle conflicts or use a function.
+      // Easiest is to check if exists in current state or DB.
 
-        // Refresh cart to get updated backend state
-        await fetchCart();
-      } else {
-        const cart = [...getCartFromLocal()];
-        const existingItemIndex = cart.findIndex(item => item.id === id);
+      const existingItem = cartItems.find(item => item.id === id);
+      let finalQuantity = quantity;
 
-        if (existingItemIndex > -1) {
-          cart[existingItemIndex].quantity = (Number(cart[existingItemIndex].quantity) || 0) + quantity;
-        } else {
-          cart.push({ id, quantity });
-        }
-
-        setCartItems(cart);
-        localStorage.setItem(`${APP_NAME}_cart`, JSON.stringify(cart));
-        setCartCount(cart.length);
+      if (existingItem) {
+        finalQuantity = (existingItem.quantity || 0) + quantity;
       }
+
+      // Optimization: Insert or Update
+      const { error } = await supabase
+        .from('cart')
+        .upsert({
+          user_id: user.id,
+          product_id: id,
+          quantity: finalQuantity
+        }, { onConflict: 'user_id, product_id' });
+
+      if (error) throw error;
+
+      await fetchCart();
+      toast.success("Added to cart");
+
     } catch (error) {
       console.error("Error adding product to cart:", error);
+      toast.error("Failed to add to cart");
     }
   };
 
   const removeItemFromCart = async (productId: number | string): Promise<void> => {
-    if (!productId) {
-      console.log("Invalid productId passed to remove");
-      return;
-    }
+    if (!productId || !user) return;
 
     try {
-      if (user && user.id) {
-        const response = await fetch(`${API_PATH}/cart/remove`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ user_id: user.id, product_id: productId })
-        });
+      const { error } = await supabase
+        .from('cart')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('product_id', productId);
 
-        if (!response.ok) {
-          throw new Error('Failed to remove item from cart');
-        }
-        await fetchCart();
-      } else {
-        // Remove the item with matching ID
-        const filteredCart = cartItems.filter((item) => item.id !== productId);
+      if (error) throw error;
 
-        // Update local storage with the filtered cart items
-        localStorage.setItem(`${APP_NAME}_cart`, JSON.stringify(filteredCart));
-        setCartItems(filteredCart);
-        setCartCount(filteredCart.length);
-      }
+      await fetchCart();
     } catch (error) {
       console.error("Error removing item from cart:", error);
     }
   };
 
   const updateItemInCart = async (action: 'increment' | 'decrement', productId: number | string): Promise<void> => {
-    const maxQty = 10;
+    if (!user) return;
 
-    // Optimistic update helper
-    const calculateNewQty = (currentQty: number) => {
-      if (action === 'decrement') return currentQty - 1;
-      if (action === 'increment') return currentQty < maxQty ? currentQty + 1 : currentQty;
-      return currentQty;
-    };
+    const maxQty = 10;
+    const currentItem = cartItems.find(item => item.id === productId);
+    if (!currentItem) return;
+
+    let newQty = currentItem.quantity;
+    if (action === 'decrement') newQty -= 1;
+    if (action === 'increment') newQty += 1;
+
+    if (newQty < 1) return; // Or remove? Usually stay at 1.
+    if (newQty > maxQty) return;
 
     try {
-      if (user && user.id) {
-        const currentItem = cartItems.find(item => item.id === productId);
-        if (!currentItem) return;
+      const { error } = await supabase
+        .from('cart')
+        .update({ quantity: newQty })
+        .eq('user_id', user.id)
+        .eq('product_id', productId);
 
-        const newQty = calculateNewQty(Number(currentItem.quantity));
-        if (newQty < 1) return; // Prevent reducing below 1 via update, usu. remove is explicit
+      if (error) throw error;
 
-        const response = await fetch(`${API_PATH}/cart/update`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ user_id: user.id, product_id: productId, quantity: newQty })
-        });
+      // Optimistic update
+      setCartItems(prev => prev.map(item => item.id === productId ? { ...item, quantity: newQty } : item));
 
-        if (!response.ok) {
-          throw new Error('Failed to update item quantity');
-        }
-        await fetchCart();
-
-      } else {
-        const updatedCart = cartItems.map((item) =>
-          item.id === productId
-            ? {
-              ...item,
-              quantity: calculateNewQty(Number(item.quantity))
-            }
-            : item
-        );
-        setCartItems(updatedCart);
-        localStorage.setItem(`${APP_NAME}_cart`, JSON.stringify(updatedCart));
-      }
     } catch (error) {
       console.error("Error updating item in cart:", error);
+      await fetchCart(); // Revert on error
     }
   };
 
-  const clearCart = (): void => {
-    setCartItems([]);
-    setCartCount(0);
-    localStorage.setItem(`${APP_NAME}_cart`, JSON.stringify([]));
+  const clearCart = async (): Promise<void> => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('cart')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setCartItems([]);
+      setCartCount(0);
+    } catch (error) {
+      console.error("Error clearing cart:", error);
+    }
   };
 
   return (
@@ -265,3 +220,5 @@ export const useCart = (): CartContextType => {
   }
   return context;
 };
+// End of file
+

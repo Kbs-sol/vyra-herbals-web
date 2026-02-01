@@ -7,15 +7,17 @@ import Offcanvas from "react-bootstrap/Offcanvas";
 // import { FaBars } from "react-icons/fa6";
 import { FaBarsStaggered } from "react-icons/fa6";
 import { useCart } from "../Contexts/CartContext";
+import { useAuth } from "../Contexts/AuthContext";
 import Slider from "react-slick";
 import SearchBar from "../Shared/SearchBar";
 import styled from "styled-components";
-import { FaShoppingCart } from "react-icons/fa";
-import { Accordion } from "react-bootstrap";
+import { FaShoppingCart, FaUserCircle } from "react-icons/fa";
+import { Accordion, Dropdown } from "react-bootstrap";
 
 const Header = () => {
   const [showMenu, setShowMenu] = useState(false);
   const { cartCount } = useCart();
+  const { user, logout } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const router = useRouter();
   const pathname = usePathname();
@@ -294,6 +296,27 @@ const Header = () => {
                   <sup>{cartCount}</sup>
                 </Link>
               </button>
+
+              <div className="header-widget">
+                {user ? (
+                  <Dropdown align="end">
+                    <StyledDropdownToggle variant="link" id="dropdown-profile">
+                      <FaUserCircle size={24} color="var(--primary)" />
+                    </StyledDropdownToggle>
+
+                    <Dropdown.Menu>
+                      <Dropdown.Item as={Link} href="/profile">My Profile</Dropdown.Item>
+                      <Dropdown.Item as={Link} href="/profile#orders">My Orders</Dropdown.Item>
+                      <Dropdown.Divider />
+                      <Dropdown.Item onClick={logout}>Logout</Dropdown.Item>
+                    </Dropdown.Menu>
+                  </Dropdown>
+                ) : (
+                  <Link href="/login" className="login-btn">
+                    Login
+                  </Link>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -689,4 +712,19 @@ const StyledAccordion = styled(Accordion)`
       }
     }
   }
+`;
+
+const StyledDropdownToggle = styled(Dropdown.Toggle)`
+    padding: 0;
+    border: none;
+    color: var(--primary);
+    &::after {
+        display: none !important;
+    }
+    &:hover, &:focus, &:active {
+        color: var(--primary-dark) !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
 `;
