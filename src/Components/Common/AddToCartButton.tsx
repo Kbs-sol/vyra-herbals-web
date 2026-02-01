@@ -9,7 +9,7 @@ import { useAuth } from "../Contexts/AuthContext";
 import { useRouter } from "next/navigation";
 
 const AddToCartButton = (props) => {
-  const { productId, quantity = 1, className } = props;
+  const { productId, quantity = 1, className, product } = props;
   const { cartItems, addItemToCart } = useCart();
   const { user } = useAuth();
   const router = useRouter();
@@ -26,7 +26,7 @@ const AddToCartButton = (props) => {
       return;
     }
     setLoading(true);
-    await addItemToCart(productId, quantity);
+    await addItemToCart(productId, quantity, product);
     setLoading(false);
   };
 
@@ -73,6 +73,7 @@ AddToCartButton.propTypes = {
   productId: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
     .isRequired,
   quantity: PropTypes.number,
+  product: PropTypes.object,
 };
 
 const StyledButton = styled.button`

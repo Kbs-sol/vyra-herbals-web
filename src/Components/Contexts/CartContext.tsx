@@ -13,7 +13,7 @@ interface CartContextType {
   updateCartCount: (newCount: number) => void;
   cartItems: CartItem[];
   clearCart: () => void;
-  addItemToCart: (id: number | string, quantity?: number) => Promise<void>;
+  addItemToCart: (id: number | string, quantity?: number, product?: any) => Promise<void>;
   removeItemFromCart: (productId: number | string) => void;
   updateItemInCart: (action: 'increment' | 'decrement', productId: number | string) => void;
   fetchCartProductsFromAPI: () => Promise<void>;
@@ -82,7 +82,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     return Promise.resolve();
   };
 
-  const addItemToCart = async (id: number | string, quantity: number = 1): Promise<void> => {
+  const addItemToCart = async (id: number | string, quantity: number = 1, product?: any): Promise<void> => {
     if (!id) return;
 
     if (!user) {
@@ -95,7 +95,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     const prevCartCount = cartCount;
 
     setCartItems((prevItems) => {
-      const existingItemIndex = prevItems.findIndex((item) => item.id == id); // Use == for loose equality (string vs number)
+      const existingItemIndex = prevItems.findIndex((item) => item.id == id); // Use == for loose equality
 
       if (existingItemIndex > -1) {
         // Item exists, update quantity
@@ -106,13 +106,26 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         };
         return newItems;
       } else {
-        // New item - we might not have full product details here if called from a card with limited info,
-        // but often we do. For the optimistic update to work well in UI, we ideally want the product object.
-        // However, CartContext usually just needs ID for logic, but UI needs details.
-        // The fetchCart will correct this shortly. For now, increase count.
-        // A temporary placeholder might be needed if UI renders strictly from cartItems.
-        // Let's assume for count it's fine.
-        return prevItems; // Complex to optimistically add new item without full product data, rely on count first
+        // New item
+        if (product) {
+          // Construct a temporary CartItem using the passed product
+          // This should match your CartItem type structure
+          const newItem: CartItem = {
+            id: typeof id === 'string' ? parseInt(id) : id,
+            quantity: quantity,
+            title: product.title,
+            price: product.price,
+            image_url: product.image_url,
+            handle: product.handle,
+            // Add other necessary fields if CartItem type requires them
+            // For optimistic UI, title/price/image are usually enough
+          } as CartItem;
+
+          return [...prevItems, newItem];
+        }
+        // If no product details passed, we can't show it in the list optimistically 
+        // but we can update the count.
+        return prevItems;
       }
     });
 

@@ -1,4 +1,4 @@
-'use client';
+
 
 import Category from '@/Pages/Category';
 

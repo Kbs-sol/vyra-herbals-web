@@ -561,6 +561,7 @@ const Singleproducts = () => {
                         <AddToCartButton
                           productId={product?.id}
                           quantity={qty}
+                          product={product}
                         />
                       </div>
 

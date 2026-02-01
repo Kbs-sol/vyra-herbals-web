@@ -68,7 +68,7 @@ const ProductCard2 = ({ product }) => {
               % Off
             </span>
           </h6>
-          <AddToCartButton productId={product?.id} />
+          <AddToCartButton productId={product?.id} product={product} />
           <div className="product-action">
             <button className="action-minus" title="Quantity Minus">
               <i className="icofont-minus"></i>
