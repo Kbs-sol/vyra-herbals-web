@@ -307,8 +307,6 @@ const Header = () => {
                     <Dropdown.Menu>
                       <Dropdown.Item as={Link} href="/profile">My Profile</Dropdown.Item>
                       <Dropdown.Item as={Link} href="/profile#orders">My Orders</Dropdown.Item>
-                      <Dropdown.Divider />
-                      <Dropdown.Item onClick={logout}>Logout</Dropdown.Item>
                     </Dropdown.Menu>
                   </Dropdown>
                 ) : (
