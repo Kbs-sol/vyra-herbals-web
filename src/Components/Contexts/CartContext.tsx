@@ -86,28 +86,53 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     if (!id) return;
 
     if (!user) {
-      // Enforce login
-      //   toast.info("Please login to add items to cart");
       router.push('/login');
       return;
     }
 
+    // 1. Optimistic Update
+    const prevCartItems = [...cartItems];
+    const prevCartCount = cartCount;
+
+    setCartItems((prevItems) => {
+      const existingItemIndex = prevItems.findIndex((item) => item.id == id); // Use == for loose equality (string vs number)
+
+      if (existingItemIndex > -1) {
+        // Item exists, update quantity
+        const newItems = [...prevItems];
+        newItems[existingItemIndex] = {
+          ...newItems[existingItemIndex],
+          quantity: (newItems[existingItemIndex].quantity || 0) + quantity,
+        };
+        return newItems;
+      } else {
+        // New item - we might not have full product details here if called from a card with limited info,
+        // but often we do. For the optimistic update to work well in UI, we ideally want the product object.
+        // However, CartContext usually just needs ID for logic, but UI needs details.
+        // The fetchCart will correct this shortly. For now, increase count.
+        // A temporary placeholder might be needed if UI renders strictly from cartItems.
+        // Let's assume for count it's fine.
+        return prevItems; // Complex to optimistically add new item without full product data, rely on count first
+      }
+    });
+
+    // Optimistically update count (more important for header)
+    const existingItem = cartItems.find(item => item.id == id);
+    if (!existingItem) {
+      setCartCount(prev => prev + 1);
+    }
+    // If it exists, count (number of unique items) doesn't change, usually. 
+    // Or if count represents total quantity? 
+    // Context seems to define cartCount as items.length based on fetchCart: setCartCount(items.length);
+
     try {
-      // Upsert: simpler handling of "if exists update, else insert" if we had a unique constraint on (user_id, product_id)
-      // The schema has UNIQUE(user_id, product_id), so upsert works great.
-
-      // First, get current quantity if it exists to add to it? 
-      // Supabase upsert will just replace unless we handle conflicts or use a function.
-      // Easiest is to check if exists in current state or DB.
-
-      const existingItem = cartItems.find(item => item.id === id);
+      const existingItem = prevCartItems.find(item => item.id == id);
       let finalQuantity = quantity;
-
       if (existingItem) {
         finalQuantity = (existingItem.quantity || 0) + quantity;
       }
 
-      // Optimization: Insert or Update
+      // 2. Perform Async Operation
       const { error } = await supabase
         .from('cart')
         .upsert({
@@ -118,12 +143,17 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
       if (error) throw error;
 
+      // 3. Confirm / Re-fetch to ensure consistency
       await fetchCart();
       toast.success("Added to cart");
 
     } catch (error) {
       console.error("Error adding product to cart:", error);
       toast.error("Failed to add to cart");
+
+      // 4. Revert on Error
+      setCartItems(prevCartItems);
+      setCartCount(prevCartCount);
     }
   };
 

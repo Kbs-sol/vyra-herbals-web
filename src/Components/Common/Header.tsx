@@ -313,7 +313,7 @@ const Header = () => {
                   </Dropdown>
                 ) : (
                   <Link href="/login" className="login-btn">
-                    Login
+                    <span>Login</span>
                   </Link>
                 )}
               </div>
@@ -550,7 +550,7 @@ const StyledHeader = styled.section`
       }
     }
 
-    .header-widget-group {
+      .header-widget-group {
       display: flex;
       align-items: center;
       justify-content: center;
@@ -568,6 +568,24 @@ const StyledHeader = styled.section`
         width: 1.6rem;
         svg path {
           fill: var(--primary);
+        }
+      }
+      
+      .login-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--primary);
+        font-weight: 600;
+        text-decoration: none !important;
+        padding: 5px 12px;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+        font-size: 0.95rem;
+
+        &:hover {
+          background: rgba(112, 74, 13, 0.08);
+          color: #5c3c0b;
         }
       }
     }

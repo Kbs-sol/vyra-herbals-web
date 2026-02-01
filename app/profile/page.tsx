@@ -3,12 +3,11 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/Components/Contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/utils/supabaseClient'; // Direct supabase usage for fetching orders
-import styled from 'styled-components';
-import { Container, Row, Col, Card, Badge, Table, Spinner, Button } from 'react-bootstrap';
-import { FaBoxOpen, FaUser, FaSignOutAlt, FaShoppingBag } from 'react-icons/fa';
+import { supabase } from '@/utils/supabaseClient';
+import styled, { css } from 'styled-components';
+import { Container, Row, Col, Card, Badge, Table, Spinner, Modal, Button, Nav, Tab, Form } from 'react-bootstrap';
+import { FaBoxOpen, FaUser, FaSignOutAlt, FaShoppingBag, FaCog, FaHistory, FaCheckCircle } from 'react-icons/fa';
 import Link from 'next/link';
-import { APP_NAME } from '@/constants';
 
 interface Order {
     id: number;
@@ -23,22 +22,31 @@ const ProfilePage = () => {
     const { user, loading: authLoading, logout } = useAuth();
     const router = useRouter();
     const [orders, setOrders] = useState<Order[]>([]);
-    const [loadingOrders, setLoadingOrders] = useState(true);
+    const [loadingOrders, setLoadingOrders] = useState(false);
+    const [showLogoutModal, setShowLogoutModal] = useState(false);
+    const [activeTab, setActiveTab] = useState('orders');
 
+    // Fetch orders only when user is available and not already loading
     useEffect(() => {
-        if (!authLoading && !user) {
-            router.push('/login');
-        } else if (user) {
-            fetchOrders();
+        if (!authLoading) {
+            if (!user) {
+                router.push('/login');
+            } else if (!loadingOrders && orders.length === 0) {
+                // Only fetch if we haven't already (or simple cache check)
+                // Actually, let's fetch always on mount if user exists
+                fetchOrders();
+            }
         }
     }, [user, authLoading, router]);
 
     const fetchOrders = async () => {
+        if (!user) return;
+        setLoadingOrders(true);
         try {
             const { data, error } = await supabase
                 .from('orders')
                 .select('*')
-                .eq('user_id', user?.id)
+                .eq('user_id', user.id)
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
@@ -50,110 +58,172 @@ const ProfilePage = () => {
         }
     };
 
-    if (authLoading || (loadingOrders && user)) {
+    const handleLogout = async () => {
+        await logout();
+        setShowLogoutModal(false);
+    };
+
+    if (authLoading) {
         return (
             <LoadingContainer>
-                <Spinner animation="border" variant="success" />
-                <p>Loading your profile...</p>
+                <Spinner animation="border" role="status" variant="secondary">
+                    <span className="visually-hidden">Loading...</span>
+                </Spinner>
             </LoadingContainer>
         );
     }
 
-    if (!user) return null; // Will redirect
+    if (!user) return null;
 
     return (
         <PageWrapper>
             <Container className="py-5">
-                <Row className="mb-4">
-                    <Col>
-                        <h2 className="mb-0">My Profile</h2>
-                        <p className="text-muted">Manage your account and view orders</p>
-                    </Col>
-                </Row>
+                <HeaderSection className="mb-5">
+                    <h1 className="display-5 fw-bold text-dark">My Account</h1>
+                    <p className="text-secondary">Manage your profile, settings, and orders.</p>
+                </HeaderSection>
 
-                <Row>
-                    {/* Sidebar / User Info */}
-                    <Col lg={4} className="mb-4">
-                        <UserCard className="shadow-sm border-0 h-100">
-                            <Card.Body className="text-center py-5">
-                                <div className="avatar-circle mb-3">
-                                    {user.name ? user.name.charAt(0).toUpperCase() : <FaUser />}
-                                </div>
-                                <h4 className="card-title mb-1">{user.name || 'Valued Customer'}</h4>
-                                <p className="card-text text-muted mb-4">{user.email}</p>
+                <Tab.Container id="profile-tabs" activeKey={activeTab} onSelect={(k) => setActiveTab(k || 'orders')}>
+                    <Row>
+                        <Col lg={3} className="mb-4">
+                            <SidebarCard className="border-0 shadow-sm">
+                                <Card.Body className="p-0">
+                                    <UserInfo className="p-4 text-center border-bottom">
+                                        <div className="avatar mb-3">
+                                            {user.name ? user.name.charAt(0).toUpperCase() : <FaUser />}
+                                        </div>
+                                        <h5 className="fw-bold mb-1">{user.name || 'User'}</h5>
+                                        <small className="text-muted">{user.email}</small>
+                                    </UserInfo>
 
-                                <div className="d-grid gap-2">
-                                    {/* <Button variant="outline-primary">Edit Profile</Button> */}
-                                    <Button variant="outline-danger" onClick={() => logout()}>
-                                        <FaSignOutAlt className="me-2" /> Logout
-                                    </Button>
-                                    {user.role === 2 && (
-                                        <Link href="/admin/dashboard" passHref>
-                                            <Button variant="dark" className="w-100 mt-2">Admin Dashboard</Button>
-                                        </Link>
-                                    )}
-                                </div>
-                            </Card.Body>
-                        </UserCard>
-                    </Col>
+                                    <Nav variant="pills" className="flex-column p-2 custom-nav">
+                                        <Nav.Item>
+                                            <Nav.Link eventKey="orders" className="d-flex align-items-center">
+                                                <FaShoppingBag className="me-3" /> Orders
+                                            </Nav.Link>
+                                        </Nav.Item>
+                                        <Nav.Item>
+                                            <Nav.Link eventKey="settings" className="d-flex align-items-center">
+                                                <FaCog className="me-3" /> Settings
+                                            </Nav.Link>
+                                        </Nav.Item>
+                                    </Nav>
 
-                    {/* Main Content / Orders */}
-                    <Col lg={8}>
-                        <Card className="shadow-sm border-0" id="orders">
-                            <Card.Header className="bg-white border-bottom py-3">
-                                <div className="d-flex justify-content-between align-items-center">
-                                    <h5 className="mb-0"><FaShoppingBag className="me-2 text-primary" /> Order History</h5>
-                                    <Badge bg="primary">{orders.length} Orders</Badge>
-                                </div>
-                            </Card.Header>
-                            <Card.Body className="p-0">
-                                {orders.length === 0 ? (
-                                    <div className="text-center py-5">
-                                        <FaBoxOpen size={50} className="text-muted mb-3" />
-                                        <h5>No orders found</h5>
-                                        <p className="text-muted">Looks like you haven't placed any orders yet.</p>
-                                        <Link href="/search?searchtext=all">
-                                            <Button variant="primary">Start Shopping</Button>
-                                        </Link>
+                                    <div className="p-3 border-top mt-2">
+                                        <LogoutButton variant="link" onClick={() => setShowLogoutModal(true)}>
+                                            <FaSignOutAlt className="me-2" /> Log Out
+                                        </LogoutButton>
                                     </div>
-                                ) : (
-                                    <div className="table-responsive">
-                                        <Table hover className="mb-0 align-middle">
-                                            <thead className="bg-light">
-                                                <tr>
-                                                    <th className="ps-4">Order ID</th>
-                                                    <th>Date</th>
-                                                    <th>Status</th>
-                                                    <th>Total</th>
-                                                    <th className="text-end pe-4">Action</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {orders.map((order) => (
-                                                    <tr key={order.id}>
-                                                        <td className="ps-4 fw-bold">#{order.id}</td>
-                                                        <td>{new Date(order.created_at).toLocaleDateString()}</td>
-                                                        <td>
-                                                            <StatusBadge status={order.status.toLowerCase()}>
+                                </Card.Body>
+                            </SidebarCard>
+                        </Col>
+
+                        <Col lg={9}>
+                            <Tab.Content>
+                                <Tab.Pane eventKey="orders">
+                                    <SectionTitle>Order History</SectionTitle>
+
+                                    {loadingOrders ? (
+                                        <div className="text-center py-5">
+                                            <Spinner animation="border" variant="secondary" />
+                                        </div>
+                                    ) : orders.length === 0 ? (
+                                        <EmptyState>
+                                            <FaBoxOpen size={48} className="mb-3 text-secondary opacity-50" />
+                                            <h5>No orders yet</h5>
+                                            <p className="text-muted mb-4">You haven't placed any orders. Start exploring our products!</p>
+                                            <Link href="/search?searchtext=all" passHref>
+                                                <Button variant="dark" className="px-4 rounded-pill">Start Shopping</Button>
+                                            </Link>
+                                        </EmptyState>
+                                    ) : (
+                                        <OrdersList>
+                                            {orders.map((order) => (
+                                                <OrderItem key={order.id} className="shadow-sm border-0 mb-3">
+                                                    <Card.Body className="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                                                        <div>
+                                                            <div className="text-uppercase text-muted small fw-bold mb-1">Order #{order.id}</div>
+                                                            <div className="fw-bold fs-5">₹{order.total_amount}</div>
+                                                        </div>
+
+                                                        <div className="d-none d-md-block">
+                                                            <div className="text-muted small mb-1">Date Placed</div>
+                                                            <div>{new Date(order.created_at).toLocaleDateString()}</div>
+                                                        </div>
+
+                                                        <div>
+                                                            <StatusChip status={order.status.toLowerCase()}>
                                                                 {order.status}
-                                                            </StatusBadge>
-                                                        </td>
-                                                        <td className="fw-bold">₹{order.total_amount}</td>
-                                                        <td className="text-end pe-4">
-                                                            {/* We could add an Order Details page later */}
-                                                            {/* <Button size="sm" variant="outline-secondary">View</Button> */}
-                                                            <small className="text-muted">{order.items?.length || 0} items</small>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </Table>
-                                    </div>
-                                )}
-                            </Card.Body>
-                        </Card>
-                    </Col>
-                </Row>
+                                                            </StatusChip>
+                                                        </div>
+
+                                                        <div className="text-end">
+                                                            <div className="text-muted small mb-1">{order.items?.length || 0} Items</div>
+                                                            {/* Placeholder for Details Button if needed */}
+                                                        </div>
+                                                    </Card.Body>
+                                                </OrderItem>
+                                            ))}
+                                        </OrdersList>
+                                    )}
+                                </Tab.Pane>
+
+                                <Tab.Pane eventKey="settings">
+                                    <SectionTitle>Account Settings</SectionTitle>
+                                    <Card className="border-0 shadow-sm">
+                                        <Card.Body className="p-4">
+                                            <Form>
+                                                <Row className="mb-3">
+                                                    <Col md={6}>
+                                                        <Form.Group className="mb-3">
+                                                            <Form.Label>Full Name</Form.Label>
+                                                            <Form.Control type="text" value={user.name || ''} readOnly className="bg-light" />
+                                                        </Form.Group>
+                                                    </Col>
+                                                    <Col md={6}>
+                                                        <Form.Group className="mb-3">
+                                                            <Form.Label>Email Address</Form.Label>
+                                                            <Form.Control type="email" value={user.email || ''} readOnly className="bg-light" />
+                                                        </Form.Group>
+                                                    </Col>
+                                                </Row>
+                                                <Row>
+                                                    <Col md={6}>
+                                                        <Form.Group className="mb-3">
+                                                            <Form.Label>User ID</Form.Label>
+                                                            <Form.Control type="text" value={user.id} readOnly className="bg-light" />
+                                                        </Form.Group>
+                                                    </Col>
+                                                    <Col md={6}>
+                                                        <Form.Group className="mb-3">
+                                                            <Form.Label>Account Status</Form.Label>
+                                                            <div><Badge bg="success"><FaCheckCircle className="me-1" /> Active</Badge></div>
+                                                        </Form.Group>
+                                                    </Col>
+                                                </Row>
+                                                {/* <div className="mt-4 pt-3 border-top">
+                                                     <Button variant="primary" disabled>Save Changes (Coming Soon)</Button>
+                                                </div> */}
+                                            </Form>
+                                        </Card.Body>
+                                    </Card>
+                                </Tab.Pane>
+                            </Tab.Content>
+                        </Col>
+                    </Row>
+                </Tab.Container>
+
+                <StyledModal show={showLogoutModal} onHide={() => setShowLogoutModal(false)} centered>
+                    <Modal.Body className="text-center p-5">
+                        <h4 className="mb-3 fw-bold">Log Out?</h4>
+                        <p className="text-muted mb-4">Are you sure you want to log out of your account?</p>
+                        <div className="d-flex justify-content-center gap-3">
+                            <Button variant="light" onClick={() => setShowLogoutModal(false)} className="rounded-pill px-4">Cancel</Button>
+                            <Button variant="danger" onClick={handleLogout} className="rounded-pill px-4">Log Out</Button>
+                        </div>
+                    </Modal.Body>
+                </StyledModal>
+
             </Container>
         </PageWrapper>
     );
@@ -161,60 +231,136 @@ const ProfilePage = () => {
 
 export default ProfilePage;
 
+// --- Styled Components ---
+
 const PageWrapper = styled.div`
-    background-color: #f8f9fa;
-    min-height: 80vh;
+    background-color: #f4f6f8;
+    min-height: 100vh;
 `;
 
 const LoadingContainer = styled.div`
-    min-height: 60vh;
+    height: 100vh;
     display: flex;
-    flex-direction: column;
-    align-items: center;
     justify-content: center;
-    gap: 1rem;
-    color: var(--primary);
+    align-items: center;
 `;
 
-const UserCard = styled(Card)`
-    .avatar-circle {
-        width: 80px;
-        height: 80px;
-        background-color: var(--primary-light, #e9ecef);
-        color: var(--primary);
+const HeaderSection = styled.div`
+    h1 { letter-spacing: -0.5px; }
+`;
+
+const SectionTitle = styled.h4`
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 1.5rem;
+`;
+
+const SidebarCard = styled(Card)`
+    border-radius: 12px;
+    overflow: hidden;
+    
+    .custom-nav {
+         .nav-link {
+             color: #555;
+             font-weight: 500;
+             padding: 0.75rem 1rem;
+             margin-bottom: 0.25rem;
+             border-radius: 8px;
+             transition: all 0.2s;
+             
+             &:hover {
+                 background-color: #f8f9fa;
+                 color: #000;
+             }
+             
+             &.active {
+                 background-color: var(--primary);
+                 color: white;
+                 box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.2);
+             }
+         }
+    }
+`;
+
+const UserInfo = styled.div`
+    .avatar {
+        width: 72px;
+        height: 72px;
+        background-color: #e2e8f0;
+        color: #64748b;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 2.5rem;
+        font-size: 1.75rem;
         margin: 0 auto;
-        font-weight: bold;
     }
 `;
 
-const StatusBadge = styled.span<{ status: string }>`
-    padding: 0.35em 0.65em;
-    font-size: 0.75em;
-    font-weight: 700;
-    line-height: 1;
-    color: #fff;
+const LogoutButton = styled(Button)`
+    color: #ef4444;
+    text-decoration: none;
+    font-weight: 500;
+    width: 100%;
+    text-align: left;
+    padding-left: 1rem;
+    
+    &:hover {
+        color: #dc2626;
+        background-color: #fef2f2;
+        text-decoration: none;
+    }
+`;
+
+const OrderItem = styled(Card)`
+    border-radius: 12px;
+    transition: transform 0.2s;
+    &:hover {
+        transform: translateY(-2px);
+    }
+`;
+
+const OrdersList = styled.div``;
+
+const EmptyState = styled.div`
+    background: white;
+    border-radius: 12px;
+    padding: 4rem 2rem;
     text-align: center;
-    white-space: nowrap;
-    vertical-align: baseline;
-    border-radius: 0.25rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+`;
+
+const StatusChip = styled.span<{ status: string }>`
+    display: inline-block;
+    padding: 0.4rem 1rem;
+    border-radius: 50px;
+    font-size: 0.85rem;
+    font-weight: 600;
     text-transform: capitalize;
     
-    background-color: ${props => {
+    ${props => {
         switch (props.status) {
-            case 'delivered': return '#28a745';
-            case 'shipped': return '#17a2b8';
+            case 'delivered':
+                return css`background-color: #dcfce7; color: #166534;`;
+            case 'shipped':
+                return css`background-color: #e0f2fe; color: #075985;`;
             case 'placed':
-            case 'created': return '#007bff';
-            case 'cancelled': return '#dc3545';
-            case 'pending': return '#ffc107';
-            default: return '#6c757d';
+            case 'created':
+                return css`background-color: #dbeafe; color: #1e40af;`;
+            case 'cancelled':
+                return css`background-color: #fee2e2; color: #991b1b;`;
+            case 'pending':
+                return css`background-color: #fef3c7; color: #92400e;`;
+            default:
+                return css`background-color: #f1f5f9; color: #475569;`;
         }
-    }};
-    
-    color: ${props => props.status === 'pending' ? '#212529' : '#fff'};
+    }}
+`;
+
+const StyledModal = styled(Modal)`
+    .modal-content {
+        border-radius: 16px;
+        border: none;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
 `;

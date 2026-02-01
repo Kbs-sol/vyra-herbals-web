@@ -51,8 +51,10 @@ const LoginPage = () => {
     }
   };
 
-  if (authLoading || user) {
-    return <LoadingWrapper>Loading...</LoadingWrapper>;
+  // If user is already logged in and we know it, redirect will happen via useEffect
+  // Don't block rendering - show the form immediately
+  if (user && !authLoading) {
+    return <LoadingWrapper>Redirecting...</LoadingWrapper>;
   }
 
   return (
