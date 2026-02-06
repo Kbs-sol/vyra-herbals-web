@@ -4,6 +4,7 @@ import Link from "next/link";
 import LazyImage from "../Common/LazyImage";
 import styled from "styled-components";
 import AddToCartButton from "../Common/AddToCartButton";
+import AddToWishlistButton from "../Common/AddToWishlistButton";
 import EllipsisControl from "../Common/EllipsisControl";
 import Utility from "../../utils/UtilityFunctions";
 import { useMemo } from "react";
@@ -23,9 +24,11 @@ const ProductCard = ({ product, isImageLazy = true }) => {
     <StyledProduct className="col">
       <div className="product-card">
         <div className="product-media">
-          <button className="product-wish wish">
-            <i className="fas fa-heart"></i>
-          </button>
+          <AddToWishlistButton
+            productId={product?.id}
+            product={product}
+            className="product-wish"
+          />
           <Link className="product-image" href={`/product/${product.handle}`}>
             <LazyImage
               src={product.image_url}
@@ -122,14 +125,7 @@ export const StyledProduct = styled.section`
         position: absolute;
         top: 8px;
         right: 12px;
-        font-size: 18px;
-        color: #fff;
-        &.active {
-          color: var(--primary);
-        }
-        &.wish {
-          display: none !important;
-        }
+        z-index: 2;
       }
       .product-image {
         width: 100%;

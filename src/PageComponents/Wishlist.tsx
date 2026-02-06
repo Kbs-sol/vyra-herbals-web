@@ -1,0 +1,356 @@
+'use client';
+
+import React from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import styled from 'styled-components';
+import { FaHeart, FaTrash, FaShoppingCart } from 'react-icons/fa';
+import { IoMdHome } from 'react-icons/io';
+
+import { useWishlist } from '@/Components/Contexts/WishlistContext';
+import { useCart } from '@/Components/Contexts/CartContext';
+import { useAuth } from '@/Components/Contexts/AuthContext';
+import LazyImage from '@/Components/Common/LazyImage';
+import Utility from '@/utils/UtilityFunctions';
+import SEOComponent from '@/Components/Shared/SEOComponent';
+
+const Wishlist = () => {
+    const { wishlistItems, wishlistCount, removeFromWishlist } = useWishlist();
+    const { addItemToCart, cartItems } = useCart();
+    const { user } = useAuth();
+    const router = useRouter();
+
+    const isInCart = (productId: number) => {
+        return cartItems.some((item) => item.id === productId);
+    };
+
+    const handleAddToCart = async (product: any) => {
+        await addItemToCart(product.id, 1, product);
+    };
+
+    const handleRemoveFromWishlist = async (productId: number) => {
+        await removeFromWishlist(productId);
+    };
+
+    if (!user) {
+        return (
+            <StyledWishlist>
+                <SEOComponent title="Wishlist" description="View your wishlist" />
+                <section className="bredcum_out">
+                    <div className="container">
+                        <div className="breadcrumbs">
+                            <ul className="items d-flex">
+                                <li className="item home">
+                                    <Link href="/" title="Go to Home Page">
+                                        <IoMdHome />
+                                    </Link>
+                                </li>
+                                <li>/</li>
+                                <li className="item cms_page">
+                                    <strong>Wishlist</strong>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <section className="wishlist-section py-5">
+                    <div className="container">
+                        <div className="empty-wishlist text-center py-5">
+                            <FaHeart className="empty-icon" />
+                            <h3>Please login to view your wishlist</h3>
+                            <p>Login to save your favorite products and access them anytime.</p>
+                            <Link href="/login" className="btn btn-primary mt-3">
+                                Login Now
+                            </Link>
+                        </div>
+                    </div>
+                </section>
+            </StyledWishlist>
+        );
+    }
+
+    return (
+        <StyledWishlist>
+            <SEOComponent title="Wishlist" description="View your wishlist items" />
+
+            <section className="bredcum_out">
+                <div className="container">
+                    <div className="breadcrumbs">
+                        <ul className="items d-flex">
+                            <li className="item home">
+                                <Link href="/" title="Go to Home Page">
+                                    <IoMdHome />
+                                </Link>
+                            </li>
+                            <li>/</li>
+                            <li className="item cms_page">
+                                <strong>Wishlist</strong>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section className="wishlist-section py-4">
+                <div className="container">
+                    <div className="section-header mb-4">
+                        <h2>
+                            <FaHeart className="me-2" style={{ color: '#e74c3c' }} />
+                            My Wishlist ({wishlistCount})
+                        </h2>
+                    </div>
+
+                    {wishlistCount === 0 ? (
+                        <div className="empty-wishlist text-center py-5">
+                            <FaHeart className="empty-icon" />
+                            <h3>Your wishlist is empty</h3>
+                            <p>Start adding your favorite products to your wishlist!</p>
+                            <Link href="/search?searchtext=all" className="btn btn-primary mt-3">
+                                Browse Products
+                            </Link>
+                        </div>
+                    ) : (
+                        <div className="wishlist-grid">
+                            {wishlistItems.map((product) => (
+                                <div key={product.id} className="wishlist-item">
+                                    <div className="product-image">
+                                        <Link href={`/product/${product.handle}`}>
+                                            <LazyImage src={product.image_url} alt={product.title} />
+                                        </Link>
+                                    </div>
+                                    <div className="product-details">
+                                        <h4 className="product-title">
+                                            <Link href={`/product/${product.handle}`}>
+                                                {product.title}
+                                            </Link>
+                                        </h4>
+                                        <div className="product-price">
+                                            <span className="current-price">₹{product.price}</span>
+                                            {product.regular_price && product.regular_price > product.price && (
+                                                <>
+                                                    <span className="original-price">₹{product.regular_price}</span>
+                                                    <span className="discount">
+                                                        {Math.floor(Utility.calculateDiscount(product.price, product.regular_price))}% Off
+                                                    </span>
+                                                </>
+                                            )}
+                                        </div>
+                                        <div className="product-actions">
+                                            {isInCart(product.id) ? (
+                                                <button
+                                                    className="btn btn-outline-success"
+                                                    onClick={() => router.push('/cart')}
+                                                >
+                                                    <FaShoppingCart className="me-2" />
+                                                    Go to Cart
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    className="btn btn-primary"
+                                                    onClick={() => handleAddToCart(product)}
+                                                >
+                                                    <FaShoppingCart className="me-2" />
+                                                    Add to Cart
+                                                </button>
+                                            )}
+                                            <button
+                                                className="btn btn-outline-danger"
+                                                onClick={() => handleRemoveFromWishlist(product.id)}
+                                                title="Remove from wishlist"
+                                            >
+                                                <FaTrash />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </section>
+        </StyledWishlist>
+    );
+};
+
+export default Wishlist;
+
+const StyledWishlist = styled.div`
+  .section-header {
+    h2 {
+      display: flex;
+      align-items: center;
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+  }
+
+  .empty-wishlist {
+    .empty-icon {
+      font-size: 4rem;
+      color: #e74c3c;
+      opacity: 0.3;
+      margin-bottom: 1rem;
+    }
+    
+    h3 {
+      color: var(--text);
+      margin-bottom: 0.5rem;
+    }
+    
+    p {
+      color: #666;
+      margin-bottom: 1rem;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      padding: 10px 24px;
+      
+      &:hover {
+        background: var(--primary-dark);
+        border-color: var(--primary-dark);
+      }
+    }
+  }
+
+  .wishlist-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .wishlist-item {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    
+    &:hover {
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+      transform: translateY(-4px);
+    }
+
+    .product-image {
+      position: relative;
+      aspect-ratio: 1;
+      overflow: hidden;
+      
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.3s ease;
+      }
+      
+      &:hover img {
+        transform: scale(1.05);
+      }
+    }
+
+    .product-details {
+      padding: 1rem;
+
+      .product-title {
+        font-size: 1rem;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        line-height: 1.4;
+        
+        a {
+          color: var(--text);
+          text-decoration: none;
+          
+          &:hover {
+            color: var(--primary);
+          }
+        }
+      }
+
+      .product-price {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+
+        .current-price {
+          font-size: 1.25rem;
+          font-weight: 700;
+          color: var(--text);
+        }
+
+        .original-price {
+          font-size: 0.9rem;
+          color: #999;
+          text-decoration: line-through;
+        }
+
+        .discount {
+          font-size: 0.85rem;
+          color: #27ae60;
+          font-weight: 600;
+        }
+      }
+
+      .product-actions {
+        display: flex;
+        gap: 0.5rem;
+
+        .btn {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 8px 12px;
+          font-size: 0.9rem;
+          border-radius: 8px;
+          transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+          background: var(--primary);
+          border-color: var(--primary);
+          color: #fff;
+          
+          &:hover {
+            background: var(--primary-dark);
+            border-color: var(--primary-dark);
+          }
+        }
+
+        .btn-outline-success {
+          flex: 1;
+        }
+
+        .btn-outline-danger {
+          flex: 0 0 auto;
+          width: 40px;
+          padding: 8px;
+        }
+      }
+    }
+  }
+
+  @media (max-width: 576px) {
+    .wishlist-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .wishlist-item {
+      .product-details {
+        .product-actions {
+          flex-wrap: wrap;
+          
+          .btn-primary,
+          .btn-outline-success {
+            flex: 1 1 calc(100% - 50px);
+          }
+        }
+      }
+    }
+  }
+`;

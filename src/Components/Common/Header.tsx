@@ -7,16 +7,18 @@ import Offcanvas from "react-bootstrap/Offcanvas";
 // import { FaBars } from "react-icons/fa6";
 import { FaBarsStaggered } from "react-icons/fa6";
 import { useCart } from "../Contexts/CartContext";
+import { useWishlist } from "../Contexts/WishlistContext";
 import { useAuth } from "../Contexts/AuthContext";
 import Slider from "react-slick";
 import SearchBar from "../Shared/SearchBar";
 import styled from "styled-components";
-import { FaShoppingCart, FaUserCircle } from "react-icons/fa";
+import { FaShoppingCart, FaUserCircle, FaHeart } from "react-icons/fa";
 import { Accordion, Dropdown } from "react-bootstrap";
 
 const Header = () => {
   const [showMenu, setShowMenu] = useState(false);
   const { cartCount } = useCart();
+  const { wishlistCount } = useWishlist();
   const { user, logout } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const router = useRouter();
@@ -286,6 +288,16 @@ const Header = () => {
                   }}
                 />
               </section>
+
+              <button className="header-widget header-wishlist" title="Go to wishlist">
+                <Link
+                  href="/wishlist"
+                  onClick={(e) => pathname?.includes("wishlist") && e.preventDefault()}
+                >
+                  <FaHeart />
+                  {wishlistCount > 0 && <sup>{wishlistCount}</sup>}
+                </Link>
+              </button>
 
               <button className="header-widget header-cart" title="Go to cart">
                 <Link
@@ -559,13 +571,19 @@ const StyledHeader = styled.section`
           margin-left: 0px;
         }
       }
-      .header-cart {
+      .header-cart,
+      .header-wishlist {
         color: var(--white);
         background: var(--chalk);
         border-radius: 50%;
         width: 1.6rem;
         svg path {
           fill: var(--primary);
+        }
+      }
+      .header-wishlist {
+        svg {
+          color: var(--primary);
         }
       }
       

@@ -4,6 +4,7 @@ import Script from 'next/script';
 import { Suspense } from 'react';
 import { AuthProvider } from '@/Components/Contexts/AuthContext';
 import { CartProvider } from '@/Components/Contexts/CartContext';
+import { WishlistProvider } from '@/Components/Contexts/WishlistContext';
 import Header from '@/Components/Common/Header';
 import Footer from '@/Components/Common/Footer';
 import ConditionalLayout from '@/Components/Common/ConditionalLayout';
@@ -24,7 +25,7 @@ import '../public/assets/css/custom/index.css';
 import '../public/assets/css/custom/about.css';
 import '../public/assets/css/custom/product-details.css';
 
-const openSans = Open_Sans({ 
+const openSans = Open_Sans({
   subsets: ['latin'],
   weight: ['300', '400', '500', '600', '700', '800'],
   style: ['normal', 'italic'],
@@ -105,9 +106,11 @@ export default function RootLayout({
 
         <AuthProvider>
           <CartProvider>
-            <ConditionalLayout>
-              {children}
-            </ConditionalLayout>
+            <WishlistProvider>
+              <ConditionalLayout>
+                {children}
+              </ConditionalLayout>
+            </WishlistProvider>
           </CartProvider>
         </AuthProvider>
       </body>

@@ -26,6 +26,7 @@ import Loader from "../Components/Loader";
 import AddToCartButton from "../Components/Common/AddToCartButton";
 import styled from "styled-components";
 import WebShare from "../Components/Common/WebShare";
+import AddToWishlistButton from "../Components/Common/AddToWishlistButton";
 import SVGIcon from "../Components/Common/SVGIcon";
 import AddReview from "../Components/Shared/AddReview";
 import Utility from "../utils/UtilityFunctions";
@@ -538,8 +539,14 @@ const Singleproducts = () => {
                                 <button>200ml</button>
                             </div>
                         </div> */}
-                    <div className="details-list-group mt-3 mb-3">
-                      <label className="details-list-title">
+                    <div className="details-list-group mt-3 mb-3 d-flex align-items-center gap-3">
+                      <AddToWishlistButton
+                        productId={product?.id}
+                        product={product}
+                        showLabel={true}
+                        className="inline"
+                      />
+                      <label className="details-list-title mb-0">
                         <WebShare
                           url={`/product/${product.handle}`}
                           title={product.title}

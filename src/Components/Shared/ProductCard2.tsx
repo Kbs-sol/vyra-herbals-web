@@ -4,6 +4,7 @@ import Link from "next/link";
 import LazyImage from "../Common/LazyImage";
 import styled from "styled-components";
 import AddToCartButton from "../Common/AddToCartButton";
+import AddToWishlistButton from "../Common/AddToWishlistButton";
 import EllipsisControl from "../Common/EllipsisControl";
 import Utility from "../../utils/UtilityFunctions";
 import StarRatings from "../Common/StarRatings";
@@ -26,9 +27,11 @@ const ProductCard2 = ({ product }) => {
           {/* <div className="feature-label">
             <label className="label-text feat">Save 100</label>
           </div> */}
-          <button className="feature-wish wish">
-            <i className="fas fa-heart"></i>
-          </button>
+          <AddToWishlistButton
+            productId={product?.id}
+            product={product}
+            className="feature-wish"
+          />
           <a className="feature-image" href={`/product/${product.handle}`}>
             <LazyImage src={product.image_url} alt="product" />
           </a>
@@ -126,14 +129,7 @@ export const StyledProductCard2 = styled.section`
         position: absolute;
         top: 7px;
         right: 10px;
-        font-size: 18px;
-        color: #fffafa;
-        &.active {
-          color: var(--primary);
-        }
-        &.wish {
-          display: none !important;
-        }
+        z-index: 2;
       }
       .feature-label {
         display: flex;

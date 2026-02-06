@@ -138,8 +138,8 @@ const ProfilePage = () => {
                                         </EmptyState>
                                     ) : (
                                         <OrdersList>
-                                            {orders.map((order) => (
-                                                <OrderItem key={order.id} className="shadow-sm border-0 mb-3">
+                                            {orders.map((order, index) => (
+                                                <OrderItem key={order.id ?? `order-${index}`} className="shadow-sm border-0 mb-3">
                                                     <Card.Body className="d-flex flex-wrap align-items-center justify-content-between gap-3">
                                                         <div>
                                                             <div className="text-uppercase text-muted small fw-bold mb-1">Order #{order.id}</div>
