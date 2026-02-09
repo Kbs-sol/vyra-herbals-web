@@ -32,6 +32,15 @@ const menuItems = [
     ),
   },
   {
+    name: 'Best Sellers',
+    href: '/admin/featured',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
+        <path d="M12 17.27L18.18 21L16.54 13.97L22 9.24L14.81 8.63L12 2L9.19 8.63L2 9.24L7.46 13.97L5.82 21L12 17.27Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
     name: 'Orders',
     href: '/admin/orders',
     icon: (

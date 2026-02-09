@@ -5,38 +5,67 @@ import { API_PATH } from "../../constants";
 import { useState, useEffect } from "react";
 import ProductCard2 from "../Shared/ProductCard2";
 
+import { Product } from "@/types";
+
 const BestSeller = () => {
-  const [handpickedProducts, setHandpickedProducts] = useState([]);
+  const [handpickedProducts, setHandpickedProducts] = useState<Product[]>([]);
   // Fetch first 4 best seller products
   useEffect(() => {
-    const postData = {
-      extra_condition: " ORDER BY id ASC LIMIT 4",
-      // Fetch first 4 products - don't filter by specific IDs
-    };
+    const fetchFeaturedProducts = async () => {
+      try {
+        // 1. Fetch featured selection
+        const featuredRes = await fetch('/api/featured');
+        const featuredData = await featuredRes.json();
 
-    // Define the fetch options
-    const requestOptions = {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(postData),
-    };
+        let targetIds: number[] = [];
 
-    // Fetch products with reviews
-    fetch(`${API_PATH}/products/with-reviews`, requestOptions)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Failed to fetch best seller products");
+        if (featuredData.success && Array.isArray(featuredData.data) && featuredData.data.length > 0) {
+          // Sort by position and extract product_ids
+          const sortedItems = featuredData.data
+            .sort((a: any, b: any) => a.position - b.position)
+            .filter((item: any) => item.product_id); // Filter out empty slots
+
+          targetIds = sortedItems.map((item: any) => item.product_id);
         }
-        return response.json();
-      })
-      .then((data) => {
-        setHandpickedProducts(data);
-      })
-      .catch((error) => {
-        console.error("Error fetching best seller products:", error);
-      });
+
+        // 2. Fetch products details
+        let postData: any = {};
+
+        if (targetIds.length > 0) {
+          postData = { ids: targetIds };
+        } else {
+          // Fallback to default behavior if no featured products selected
+          postData = { extra_condition: " ORDER BY id ASC LIMIT 4" };
+        }
+
+        const requestOptions = {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(postData),
+        };
+
+        const response = await fetch(`${API_PATH}/products/with-reviews`, requestOptions);
+        if (!response.ok) throw new Error("Failed to fetch products");
+
+        const data = await response.json();
+
+        // 3. If we used targetIds, we need to sort the result to match the ID order
+        // because SQL 'IN' clause doesn't guarantee order
+        if (targetIds.length > 0) {
+          const sortedData = targetIds
+            .map(id => data.find((p: any) => p.id === id))
+            .filter(p => !!p); // Remove any undefined (e.g. if product was deleted)
+          setHandpickedProducts(sortedData as any);
+        } else {
+          setHandpickedProducts(data);
+        }
+
+      } catch (error) {
+        console.error("Error fetching featured products:", error);
+      }
+    };
+
+    fetchFeaturedProducts();
   }, []);
 
   return (
@@ -53,8 +82,8 @@ const BestSeller = () => {
         <div className="row row-cols-1 row-cols-md-1 row-cols-lg-2 row-cols-xl-2">
           {handpickedProducts.length > 0
             ? handpickedProducts.map((product, index) => (
-                <ProductCard2 key={product.id ?? `bestseller-${index}`} product={product} />
-              ))
+              <ProductCard2 key={product.id ?? `bestseller-${index}`} product={product} />
+            ))
             : null}
         </div>
       </div>
