@@ -22,6 +22,7 @@ export interface Product {
   benefits?: string;
   ingredients?: string;
   note?: string;
+  featured_order?: number;
   related_products?: number[];
   created_at?: string;
   [key: string]: any;

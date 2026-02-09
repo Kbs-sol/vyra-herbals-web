@@ -9,9 +9,9 @@ import Link from "next/link";
 // Inline lightweight loader instead of full-screen loader
 const InlineLoader = () => (
   <div style={{ padding: '2rem', textAlign: 'center' }}>
-    <div style={{ 
-      width: '40px', 
-      height: '40px', 
+    <div style={{
+      width: '40px',
+      height: '40px',
       border: '3px solid #f3f3f3',
       borderTop: '3px solid var(--primary, #064d35)',
       borderRadius: '50%',
@@ -23,13 +23,13 @@ const InlineLoader = () => (
 );
 
 const Our1 = () => {
-  const [handpickedProducts, setHandpickedProducts] = useState([]);
+  const [handpickedProducts, setHandpickedProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   // Fetch first 8 products ordered by ID
   useEffect(() => {
     setIsLoading(true);
     const postData = {
-      extra_condition: " ORDER BY id ASC LIMIT 8",
+      extra_condition: " ORDER BY featured_order ASC LIMIT 8",
       // Don't filter by specific IDs - fetch first 8 products
     };
 

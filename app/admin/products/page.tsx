@@ -39,6 +39,7 @@ export default function ProductsPage() {
     note: '',
     related_products: [] as number[],
     ordered_count_30_days: '0',
+    featured_order: '9999',
   });
 
   const [allProductsForSelection, setAllProductsForSelection] = useState<Product[]>([]);
@@ -246,6 +247,7 @@ export default function ProductsPage() {
       ingredients: '',
       note: '',
       ordered_count_30_days: '0',
+      featured_order: '9999',
     });
     fetchAllProductsForSelection();
     setShowModal(true);
@@ -268,6 +270,7 @@ export default function ProductsPage() {
       note: product.note || '',
       related_products: product.related_products || [],
       ordered_count_30_days: product.ordered_count_30_days?.toString() || '0',
+      featured_order: product.featured_order?.toString() || '9999',
     });
     fetchAllProductsForSelection();
     setShowModal(true);
@@ -298,6 +301,7 @@ export default function ProductsPage() {
         price: parseFloat(formData.price),
         regular_price: formData.regular_price ? parseFloat(formData.regular_price) : null,
         ordered_count_30_days: parseInt(formData.ordered_count_30_days) || 0,
+        featured_order: parseInt(formData.featured_order) || 9999,
         ...(editingProduct ? { id: editingProduct.id } : {}),
       };
 
@@ -637,6 +641,16 @@ export default function ProductsPage() {
                         min="0"
                         step="1"
                         placeholder="0"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Featured Order (Lower comes first, default 9999)</label>
+                      <input
+                        type="number"
+                        value={formData.featured_order}
+                        onChange={(e) => setFormData({ ...formData, featured_order: e.target.value })}
+                        step="1"
+                        placeholder="9999"
                       />
                     </div>
                   </div>
