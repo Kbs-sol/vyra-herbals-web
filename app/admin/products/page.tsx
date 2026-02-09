@@ -38,6 +38,7 @@ export default function ProductsPage() {
     ingredients: '',
     note: '',
     related_products: [] as number[],
+    ordered_count_30_days: '0',
   });
 
   const [allProductsForSelection, setAllProductsForSelection] = useState<Product[]>([]);
@@ -244,6 +245,7 @@ export default function ProductsPage() {
       benefits: '',
       ingredients: '',
       note: '',
+      ordered_count_30_days: '0',
     });
     fetchAllProductsForSelection();
     setShowModal(true);
@@ -265,6 +267,7 @@ export default function ProductsPage() {
       ingredients: product.ingredients || '',
       note: product.note || '',
       related_products: product.related_products || [],
+      ordered_count_30_days: product.ordered_count_30_days?.toString() || '0',
     });
     fetchAllProductsForSelection();
     setShowModal(true);
@@ -294,6 +297,7 @@ export default function ProductsPage() {
         image_url: formData.image_url || mergedImages[0] || null,
         price: parseFloat(formData.price),
         regular_price: formData.regular_price ? parseFloat(formData.regular_price) : null,
+        ordered_count_30_days: parseInt(formData.ordered_count_30_days) || 0,
         ...(editingProduct ? { id: editingProduct.id } : {}),
       };
 
@@ -622,6 +626,17 @@ export default function ProductsPage() {
                         min="0"
                         step="0.01"
                         placeholder="0.00"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Ordered in last 30 days (Manual Display)</label>
+                      <input
+                        type="number"
+                        value={formData.ordered_count_30_days}
+                        onChange={(e) => setFormData({ ...formData, ordered_count_30_days: e.target.value })}
+                        min="0"
+                        step="1"
+                        placeholder="0"
                       />
                     </div>
                   </div>

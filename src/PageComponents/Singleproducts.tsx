@@ -482,7 +482,7 @@ const Singleproducts = () => {
                   <div className="details-content">
                     <span className="mb-1 user-stat d-inline-block d-xl-none">
                       <SVGIcon iconName={"line-graph"} />
-                      {product.view_count +
+                      {(product.ordered_count_30_days || 0) +
                         "+" +
                         " People ordered this in last 30 days"}
                     </span>
@@ -524,7 +524,7 @@ const Singleproducts = () => {
                       </span>
                       <span className="ms-3 user-stat d-none d-xl-inline-block">
                         <SVGIcon iconName={"line-graph"} />
-                        {product.view_count +
+                        {(product.ordered_count_30_days || 0) +
                           "+" +
                           " People ordered this in last 30 days"}
                       </span>

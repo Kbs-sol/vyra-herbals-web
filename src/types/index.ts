@@ -17,6 +17,7 @@ export interface Product {
   rating?: number;
   reviews?: Review[];                 // Associated reviews
   view_count?: number;
+  ordered_count_30_days?: number;
   directions?: string;
   benefits?: string;
   ingredients?: string;
