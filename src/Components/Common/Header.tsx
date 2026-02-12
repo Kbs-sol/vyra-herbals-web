@@ -14,6 +14,7 @@ import SearchBar from "../Shared/SearchBar";
 import styled from "styled-components";
 import { FaShoppingCart, FaUserCircle, FaHeart } from "react-icons/fa";
 import { Accordion, Dropdown } from "react-bootstrap";
+import { Category } from "@/types";
 
 const Header = () => {
   const [showMenu, setShowMenu] = useState(false);
@@ -25,6 +26,26 @@ const Header = () => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [currentSearchingTerm, setCurrentSearchingTerm] = useState("all");
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch('/api/data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tbl_name: 'categories' })
+        });
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          setCategories(data);
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+    fetchCategories();
+  }, []);
 
   // Custom arrow component to avoid passing currentSlide/slideCount to DOM
   const HiddenArrow = ({ className, style, onClick }: any) => (
@@ -156,46 +177,16 @@ const Header = () => {
                         All Products
                       </button>
                     </li>
-                    <li>
-                      <button
-                        className="dropdown-item"
-                        onClick={() => router.push("/category/hair-oil")}
-                      >
-                        Hair Oil
-                      </button>
-                    </li>
-                    <li>
-                      <button
-                        className="dropdown-item"
-                        onClick={() => router.push("/category/shampoo")}
-                      >
-                        Shampoo
-                      </button>
-                    </li>
-                    <li>
-                      <button
-                        className="dropdown-item"
-                        onClick={() => router.push("/category/combs")}
-                      >
-                        Neem Combs
-                      </button>
-                    </li>
-                    <li>
-                      <button
-                        className="dropdown-item"
-                        onClick={() => router.push("/category/scalp-massager")}
-                      >
-                        Scalp Massager
-                      </button>
-                    </li>
-                    <li>
-                      <button
-                        className="dropdown-item"
-                        onClick={() => router.push("/category/kits")}
-                      >
-                        Combos & Kits
-                      </button>
-                    </li>
+                    {categories.map((cat) => (
+                      <li key={cat.id}>
+                        <button
+                          className="dropdown-item"
+                          onClick={() => router.push(`/category/${cat.slug || cat.handle || ""}`)}
+                        >
+                          {cat.name}
+                        </button>
+                      </li>
+                    ))}
                   </ul>
                 </li>
                 <li className="navbar-item dropdown">
@@ -354,24 +345,15 @@ const Header = () => {
                         All Products
                       </Link>
 
-                      <Link href="/category/hair-oil" onClick={hideMobileCanvas}>
-                        Hair Oil
-                      </Link>
-                      <Link href="/category/shampoo" onClick={hideMobileCanvas}>
-                        Shampoo
-                      </Link>
-                      <Link href="/category/combs" onClick={hideMobileCanvas}>
-                        Neem Combs
-                      </Link>
-                      <Link
-                        href="/category/scalp-massager"
-                        onClick={hideMobileCanvas}
-                      >
-                        Scalp Massager
-                      </Link>
-                      <Link href="/category/kits" onClick={hideMobileCanvas}>
-                        Combos & Kits
-                      </Link>
+                      {categories.map((cat) => (
+                        <Link
+                          key={cat.id}
+                          href={`/category/${cat.slug || cat.handle || ""}`}
+                          onClick={hideMobileCanvas}
+                        >
+                          {cat.name}
+                        </Link>
+                      ))}
                     </Accordion.Body>
                   </Accordion.Item>
                   <Accordion.Item eventKey="1">

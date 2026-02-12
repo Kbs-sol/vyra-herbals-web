@@ -4,8 +4,31 @@ import React from "react";
 import { FaArrowRight } from "react-icons/fa6";
 import Link from "next/link";
 import styled from "styled-components";
+import { useEffect, useState } from "react";
+import { Category as CategoryType } from "@/types";
 
 const Category = () => {
+  const [categories, setCategories] = useState<CategoryType[]>([]);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch('/api/data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tbl_name: 'categories' })
+        });
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          setCategories(data);
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+    fetchCategories();
+  }, []);
+
   return (
     <StyledCategories className="section category-part pt-4 pb-4">
       <div className="container">
@@ -18,63 +41,23 @@ const Category = () => {
         </div>
         <div className="row">
           <div className="col-lg-12">
-            <div className="category-slider slider-arrow d-flex">
-              <div className="category-wrap">
-                <Link href="/category/hair-oil">
-                  <div className="category-media">
-                    <img src="/assets/images/cat/oil.jpg" alt="category" />
-                    <img src="/home-hair-oil.jpg" alt="Hair Oil" />
-                  </div>
-                  <div className="category-meta">
-                    <h4>
-                      Hair Oil
-                      <FaArrowRight />
-                    </h4>
-                    {/* <p>(25 items)</p> */}
-                  </div>
-                </Link>
-              </div>
-
-              <div className="category-wrap">
-                <Link href="/category/combs">
-                  <div className="category-media">
-                    <img src="/assets/images/cat/coomb.jpg" alt="category" />
-                    <img src="/home-neem-comb.jpg" alt="Comb" />
-                  </div>
-                  <div className="category-meta">
-                    <h4>
-                      Neem Combs <FaArrowRight />
-                    </h4>
-                  </div>
-                </Link>
-              </div>
-              <div className="category-wrap">
-                <Link href="/category/shampoo">
-                  <div className="category-media">
-                    <img src="/assets/images/cat/shampoo.jpg" alt="category" />
-                    <img src="/home-shampoo.jpg" alt="Shampoo" />
-                  </div>
-                  <div className="category-meta">
-                    <h4>
-                      Shampoo <FaArrowRight />
-                    </h4>
-                  </div>
-                </Link>
-              </div>
-              <div className="category-wrap">
-                <Link href="/category/scalp-massager">
-                  <div className="category-media">
-                    <img src="/assets/images/cat/scalp.jpg" alt="category" />
-                    <img src="/home-scalp-massager.jpg" alt="Scalp Massager" />
-                  </div>
-                  <div className="category-meta">
-                    <h4>
-                      Scalp Massager
-                      <FaArrowRight />
-                    </h4>
-                  </div>
-                </Link>
-              </div>
+            <div className="category-slider slider-arrow d-flex flex-wrap justify-content-center">
+              {categories.map((cat) => (
+                <div className="category-wrap" key={cat.id}>
+                  <Link href={`/category/${cat.slug || cat.handle || ""}`}>
+                    <div className="category-media">
+                      <img src={cat.image_url || "/assets/images/cat/oil.jpg"} alt={cat.name} />
+                      <img src={cat.image_url || "/assets/images/cat/oil.jpg"} alt={cat.name} />
+                    </div>
+                    <div className="category-meta">
+                      <h4>
+                        {cat.name}
+                        <FaArrowRight />
+                      </h4>
+                    </div>
+                  </Link>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -88,6 +71,8 @@ export default Category;
 const StyledCategories = styled.section`
   .category-wrap {
     transition: transform 0.3s ease;
+    width: 200px;
+    margin: 10px;
     &:hover {
       transform: translateY(-5px);
     }
