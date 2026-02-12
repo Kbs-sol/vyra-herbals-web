@@ -7,78 +7,83 @@ import { FaHeart, FaRegHeart } from "react-icons/fa";
 import { useWishlist } from "../Contexts/WishlistContext";
 import { useAuth } from "../Contexts/AuthContext";
 import { useRouter } from "next/navigation";
+import { toast } from "react-toastify";
 
 interface AddToWishlistButtonProps {
-    productId: number | string;
-    product?: any;
-    className?: string;
-    showLabel?: boolean;
+  productId: number | string;
+  product?: any;
+  className?: string;
+  showLabel?: boolean;
 }
 
 const AddToWishlistButton = (props: AddToWishlistButtonProps) => {
-    const { productId, product, className, showLabel = false } = props;
-    const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
-    const { user } = useAuth();
-    const router = useRouter();
+  const { productId, product, className, showLabel = false } = props;
+  const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
+  const { user } = useAuth();
+  const router = useRouter();
 
-    const [loading, setLoading] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
 
-    const inWishlist = useMemo(() => {
-        return isInWishlist(productId);
-    }, [isInWishlist, productId]);
+  const inWishlist = useMemo(() => {
+    return isInWishlist(productId);
+  }, [isInWishlist, productId]);
 
-    const handleToggleWishlist = async (e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
+  const handleToggleWishlist = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
 
-        if (!user) {
-            router.push("/login");
-            return;
-        }
+    if (!user) {
+      toast.error("You have to login first", {
+        position: "bottom-center",
+        autoClose: 1000,
+      });
+      router.push(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+      return;
+    }
 
-        setLoading(true);
-        try {
-            if (inWishlist) {
-                await removeFromWishlist(productId);
-            } else {
-                await addToWishlist(productId, product);
-            }
-        } finally {
-            setLoading(false);
-        }
-    };
+    setLoading(true);
+    try {
+      if (inWishlist) {
+        await removeFromWishlist(productId);
+      } else {
+        await addToWishlist(productId, product);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    return (
-        <StyledWishlistButton
-            className={`wishlist-btn ${inWishlist ? 'active' : ''} ${className || ''}`}
-            title={inWishlist ? "Remove from Wishlist" : "Add to Wishlist"}
-            onClick={handleToggleWishlist}
-            disabled={loading}
-            type="button"
-        >
-            {loading ? (
-                <Spinner />
-            ) : inWishlist ? (
-                <FaHeart className="heart-icon filled" />
-            ) : (
-                <FaRegHeart className="heart-icon" />
-            )}
-            {showLabel && (
-                <span className="label">
-                    {inWishlist ? "In Wishlist" : "Add to Wishlist"}
-                </span>
-            )}
-        </StyledWishlistButton>
-    );
+  return (
+    <StyledWishlistButton
+      className={`wishlist-btn ${inWishlist ? 'active' : ''} ${className || ''}`}
+      title={inWishlist ? "Remove from Wishlist" : "Add to Wishlist"}
+      onClick={handleToggleWishlist}
+      disabled={loading}
+      type="button"
+    >
+      {loading ? (
+        <Spinner />
+      ) : inWishlist ? (
+        <FaHeart className="heart-icon filled" />
+      ) : (
+        <FaRegHeart className="heart-icon" />
+      )}
+      {showLabel && (
+        <span className="label">
+          {inWishlist ? "In Wishlist" : "Add to Wishlist"}
+        </span>
+      )}
+    </StyledWishlistButton>
+  );
 };
 
 export default React.memo(AddToWishlistButton);
 
 AddToWishlistButton.propTypes = {
-    productId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
-    product: PropTypes.object,
-    className: PropTypes.string,
-    showLabel: PropTypes.bool,
+  productId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+  product: PropTypes.object,
+  className: PropTypes.string,
+  showLabel: PropTypes.bool,
 };
 
 const StyledWishlistButton = styled.button`

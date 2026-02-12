@@ -7,6 +7,7 @@ import { FaEye, FaShoppingCart } from "react-icons/fa";
 import { useCart } from "../Contexts/CartContext";
 import { useAuth } from "../Contexts/AuthContext";
 import { useRouter } from "next/navigation";
+import { toast } from "react-toastify";
 
 const AddToCartButton = (props) => {
   const { productId, quantity = 1, className, product } = props;
@@ -22,7 +23,11 @@ const AddToCartButton = (props) => {
 
   const handleAddToCart = async () => {
     if (!user) {
-      router.push("/login");
+      toast.error("You have to login first", {
+        position: "bottom-center",
+        autoClose: 1000,
+      });
+      router.push(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
       return;
     }
     setLoading(true);

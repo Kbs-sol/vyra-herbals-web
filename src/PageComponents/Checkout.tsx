@@ -280,6 +280,14 @@ const Checkout = ({ show, onHide, cartItems, product }) => {
   };
 
   const handleCheckout = () => {
+    if (!user) {
+      toast.error("You have to login first", {
+        position: "bottom-center",
+        autoClose: 1000,
+      });
+      router.push(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+      return;
+    }
     const currentPath = window.location.pathname + window.location.search;
     sessionStorage.setItem("checkout_prev_path", currentPath);
     if (!isModalOpenedPreviously && window.location.pathname !== '/checkout') window.history.pushState({}, "", "/checkout");
