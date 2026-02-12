@@ -14,6 +14,29 @@ const Footer = () => {
   return (
     <>
       <StyledFooter className="footer-part">
+        {/* -- Amazon availability strip (clean, site-themed) -- */}
+        <div className="amazon-available">
+          <div className="container">
+            <div className="row align-items-center">
+              <div className="col-md-8">
+                <h4 className="amazon-title">Now available on Amazon</h4>
+                <p className="amazon-desc mb-0">Buy authentic VyraHerbals products on Amazon — fast delivery and easy returns.</p>
+              </div>
+              <div className="col-md-4 text-md-end text-start mt-3 mt-md-0">
+                <a
+                  className="btn amazon-btn"
+                  href="#"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Shop VyraHerbals on Amazon"
+                >
+                  Shop on Amazon
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="container">
           <div className="row">
             <div className="col-sm-6 col-xl-3">
@@ -193,10 +216,49 @@ const StyledFooter = styled.footer`
     z-index: 10;
     height: 3rem;
   }
+
+  /* Amazon availability strip styling */
+  .amazon-available {
+    background: var(--chalk);
+    border-top: 1px solid rgba(0,0,0,0.03);
+    padding: 22px 0;
+  }
+  .amazon-available .amazon-title {
+    margin: 0 0 4px 0;
+    font-size: 1.125rem;
+    color: var(--heading);
+    font-weight: 600;
+  }
+  .amazon-available .amazon-desc {
+    margin: 0;
+    color: #5b5b5b;
+    font-size: 0.95rem;
+  }
+  .amazon-available .amazon-btn {
+    background: var(--primary);
+    color: #fff;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-block;
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .amazon-available .amazon-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(112,74,13,0.12);
+  }
+
   @media (max-width: 575px) {
     .footer_wts {
       bottom: 2.6rem;
       right: 1rem;
     }
+
+    .amazon-available {
+      text-align: left;
+      padding: 18px 0;
+    }
+    .amazon-available .amazon-btn { width: 100%; }
   }
 `;
