@@ -275,7 +275,8 @@ const StyledCategories = styled.section`
     min-height: auto !important;
     height: auto !important;
     margin-bottom: 0 !important;
-    
+    overflow-x: hidden; /* clip any accidental horizontal overflow from children */
+
     /* Override external CSS conflicts */
     &.pt-2 {
       padding-top: 0 !important;
@@ -337,14 +338,31 @@ const StyledCategories = styled.section`
   .category-scroll-container {
     overflow-x: auto;
     overflow-y: hidden;
-    padding-bottom: 0px;
-    margin-bottom: 0px;
+    /* push the native scrollbar visually out of view while keeping functionality */
+    padding-bottom: 18px; /* give space for the scrollbar */
+    margin-bottom: -18px; /* hide that space from layout */
     -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+    -ms-overflow-style: none; /* IE + Edge */
+    scrollbar-width: none !important; /* Firefox */
+    overscroll-behavior-x: contain; /* keep scroll inside this container */
+    max-width: 100%;
+    box-sizing: border-box;
     height: fit-content; /* Only take the height needed */
-    
+
+    /* Make scrollbar visually invisible in all engines (defensive) */
     &::-webkit-scrollbar {
-      display: none;
+      height: 0 !important;
+      width: 0 !important;
+      background: transparent !important;
+    }
+    &::-webkit-scrollbar-track {
+      background: transparent !important;
+      height: 0 !important;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: transparent !important;
+      border: 0 !important;
+      height: 0 !important;
     }
 
     /* Force a single horizontal row and prevent external CSS from making items wrap */
@@ -358,6 +376,7 @@ const StyledCategories = styled.section`
       white-space: nowrap; /* additional protection against wrapping */
       align-items: stretch;
       will-change: scroll-left;
+      min-width: 0; /* prevent flex children from forcing parent/page overflow */
 
       @media (min-width: 992px) {
         justify-content: flex-start;
