@@ -64,13 +64,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Only insert allowed fields to avoid schema mismatch errors
-    const allowed = ['title','handle','excerpt','content','author','image_url','images','status','tags'];
+    const allowed = ['title','handle','excerpt','content','author','image_url','images','status','tags','related_posts'];
     const insertPayload: any = {};
     for (const k of allowed) {
       if (body[k] !== undefined) insertPayload[k] = body[k];
     }
 
     insertPayload.images = Array.isArray(insertPayload.images) ? insertPayload.images.filter((i: string) => !!i) : [];
+    // ensure related_posts is an array of numbers
+    if (Array.isArray(insertPayload.related_posts)) {
+      insertPayload.related_posts = insertPayload.related_posts.map((v: any) => (typeof v === 'string' ? parseInt(v, 10) : v)).filter(Boolean);
+    }
     if (typeof insertPayload.tags === 'string') {
       insertPayload.tags = insertPayload.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
     }
@@ -108,13 +112,16 @@ export async function PUT(request: NextRequest) {
     }
 
     // Whitelist fields to update to avoid schema mismatch
-    const allowed = ['title','handle','excerpt','content','author','image_url','images','status','tags'];
+    const allowed = ['title','handle','excerpt','content','author','image_url','images','status','tags','related_posts'];
     const updatePayload: any = {};
     for (const k of allowed) {
       if (updateData[k] !== undefined) updatePayload[k] = updateData[k];
     }
 
     updatePayload.images = Array.isArray(updatePayload.images) ? updatePayload.images.filter((i: string) => !!i) : [];
+    if (Array.isArray(updatePayload.related_posts)) {
+      updatePayload.related_posts = updatePayload.related_posts.map((v: any) => (typeof v === 'string' ? parseInt(v, 10) : v)).filter(Boolean);
+    }
     if (typeof updatePayload.tags === 'string') {
       updatePayload.tags = updatePayload.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
     }

@@ -92,6 +92,7 @@ export interface Blog {
   status?: number;              // 0 = draft/hidden, 1 = published
   image_url?: string;
   images?: string[];
+  related_posts?: number[];
   created_at?: string;
   updated_at?: string;
   [key: string]: any;

@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import AdminLayoutWrapper from '../components/AdminLayoutWrapper';
 import { Blog } from '@/types';
+import Select from 'react-select';
 
 export default function BlogsPage() {
   const [blogs, setBlogs] = useState<Blog[]>([]);
@@ -29,6 +30,7 @@ export default function BlogsPage() {
     meta_title: '',
     meta_description: '',
     status: 1,
+    related_posts: [] as number[],
   });
 
   const pageSize = 10;
@@ -68,6 +70,23 @@ export default function BlogsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     fetchBlogs();
   }, [fetchBlogs]);
+
+  // load all blog options for Related Posts selector
+  useEffect(() => {
+    const loadOptions = async () => {
+      try {
+        const res = await fetch(`/api/admin/blogs?page=1&limit=200`);
+        const json = await res.json();
+        if (json.success) {
+          const opts = (json.data || []).map((b: any) => ({ value: b.id, label: b.title }));
+          setAllBlogOptions(opts);
+        }
+      } catch (err) {
+        console.warn('Failed to load blog options', err);
+      }
+    };
+    loadOptions();
+  }, []);
 
   const slugify = (text: string) =>
     (text || '')
@@ -120,6 +139,9 @@ export default function BlogsPage() {
     setShowModal(true);
   };
 
+  const [mdeTab, setMdeTab] = useState<'write' | 'preview'>('write');
+  const [allBlogOptions, setAllBlogOptions] = useState<{ value: number; label: string }[]>([]);
+
   const openEditModal = (blog: Blog) => {
     setEditingBlog(blog);
     setFormData({
@@ -134,6 +156,7 @@ export default function BlogsPage() {
       meta_title: blog.meta_title || '',
       meta_description: blog.meta_description || '',
       status: blog.status ?? 1,
+      related_posts: (blog.related_posts as any[]) || [],
     });
     setShowModal(true);
   };
@@ -351,14 +374,35 @@ export default function BlogsPage() {
                     <input value={formData.tags} onChange={(e) => setFormData((p) => ({ ...p, tags: e.target.value }))} />
                   </div>
 
+                  <div>
+                    <label>Related Posts</label>
+                    <Select
+                      isMulti
+                      options={allBlogOptions}
+                      value={allBlogOptions.filter((o) => (formData.related_posts || []).includes(o.value))}
+                      onChange={(selected) => setFormData((p) => ({ ...p, related_posts: (selected || []).map((s: any) => s.value) }))}
+                      placeholder="Select related posts..."
+                    />
+                    <small className="muted">Select posts that should appear under "Related Posts" on the public blog page.</small>
+                  </div>
+
                   <div className="full">
                     <label>Excerpt</label>
                     <textarea value={formData.excerpt} onChange={(e) => setFormData((p) => ({ ...p, excerpt: e.target.value }))} rows={3} />
                   </div>
 
                   <div className="full">
-                    <label>Content (Markdown supported)</label>
-                    <textarea value={formData.content} onChange={(e) => setFormData((p) => ({ ...p, content: e.target.value }))} rows={10} />
+                    <label>Content (Markdown)</label>
+                    <div className="mde-toolbar">
+                      <button type="button" className={mdeTab === 'write' ? 'active' : ''} onClick={() => setMdeTab('write')}>Write</button>
+                      <button type="button" className={mdeTab === 'preview' ? 'active' : ''} onClick={() => setMdeTab('preview')}>Preview</button>
+                    </div>
+                    {mdeTab === 'write' ? (
+                      <textarea value={formData.content} onChange={(e) => setFormData((p) => ({ ...p, content: e.target.value }))} rows={14} />
+                    ) : (
+                      <div className="preview-box" dangerouslySetInnerHTML={{ __html: renderMarkdown(formData.content) }} />
+                    )}
+                    <small className="muted">Supports Markdown (headings, lists, links). Preview shown on toggle.</small>
                   </div>
 
                   <div className="preview full">

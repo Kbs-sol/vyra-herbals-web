@@ -97,6 +97,8 @@ CREATE INDEX IF NOT EXISTS idx_blogs_created_at ON blogs(created_at DESC);
 ALTER TABLE blogs ADD COLUMN IF NOT EXISTS tags TEXT[];
 ALTER TABLE blogs ADD COLUMN IF NOT EXISTS meta_title TEXT;
 ALTER TABLE blogs ADD COLUMN IF NOT EXISTS meta_description TEXT;
+-- Related posts: allow admin to set related blog IDs (displayed on public blog page)
+ALTER TABLE blogs ADD COLUMN IF NOT EXISTS related_posts BIGINT[];
 
 -- 7. CART TABLE
 -- Shopping cart items for logged-in users

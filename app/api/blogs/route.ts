@@ -21,7 +21,24 @@ export async function GET(request: NextRequest) {
       if (error) {
         return NextResponse.json({ success: false, error: error.message || 'Failed to fetch blog' }, { status: 500 });
       }
-      return NextResponse.json({ success: true, data });
+
+      // if related_posts set, fetch those published blogs
+      let related = [];
+      try {
+        if (data?.related_posts && Array.isArray(data.related_posts) && data.related_posts.length > 0) {
+          const { data: relData, error: relErr } = await supabase
+            .from('blogs')
+            .select('id,title,handle,excerpt,image_url,created_at')
+            .in('id', data.related_posts)
+            .eq('status', 1)
+            .limit(10);
+          if (!relErr && relData) related = relData;
+        }
+      } catch (e) {
+        console.warn('Failed to fetch related posts', e);
+      }
+
+      return NextResponse.json({ success: true, data: { ...data, related_posts_data: related } });
     }
 
     let query: any = supabase.from('blogs').select('*', { count: 'exact' }).eq('status', 1);
