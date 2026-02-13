@@ -25,15 +25,18 @@ export async function POST(req: Request) {
     }
 
     const txn = inserted?.[0];
-    const txnId = txn?.id || `TXN_${Date.now()}`; // Fallback if no ID
+    let txnId = String(txn?.id || `TXN${Date.now()}`);
+
+    // Easebuzz txnid has a 40 character limit. If it's a UUID, it's 36.
+    // If we have a prefix, ensure it doesn't exceed 40.
+    if (txnId.length > 40) txnId = txnId.slice(-40);
 
     // Easebuzz Integration
-    const key = process.env.EASEBUZZ_KEY;
-    const salt = process.env.EASEBUZZ_SALT;
-    const env = process.env.EASEBUZZ_ENV || 'test';
+    const key = (process.env.EASEBUZZ_KEY || '').trim();
+    const salt = (process.env.EASEBUZZ_SALT || '').trim();
+    const env = (process.env.EASEBUZZ_ENV || 'test').trim();
 
     if (!key || !salt || key.includes('REPLACE') || salt.includes('REPLACE')) {
-      // Allow testing if keys are not set, but log warning
       console.warn('Easebuzz keys are missing or invalid.');
       return NextResponse.json({
         error: 'Payment gateway configuration missing. Please check server logs.'
@@ -44,21 +47,25 @@ export async function POST(req: Request) {
       ? 'https://pay.easebuzz.in/payment/initiateLink'
       : 'https://testpay.easebuzz.in/payment/initiateLink';
 
+    // Easebuzz expects amount as a float with two decimal places (e.g. 10.00)
+    const formattedAmount = Number(amount).toFixed(2);
+
     // Hash sequence: key|txnid|amount|productinfo|firstname|email|udf1|udf2|udf3|udf4|udf5|udf6|udf7|udf8|udf9|udf10|salt
-    const hashString = `${key}|${txnId}|${amount}|${productinfo}|${firstname}|${email}|||||||||||${salt}`;
+    const hashString = `${key}|${txnId}|${formattedAmount}|${productinfo}|${firstname}|${email}|||||||||||${salt}`;
     const hash = crypto.createHash('sha512').update(hashString).digest('hex');
 
     const paymentData = new URLSearchParams();
     paymentData.append('key', key);
-    paymentData.append('txnid', String(txnId));
-    paymentData.append('amount', String(amount));
+    paymentData.append('txnid', txnId);
+    paymentData.append('amount', formattedAmount);
     paymentData.append('productinfo', productinfo);
     paymentData.append('firstname', firstname);
     paymentData.append('email', email);
     paymentData.append('phone', phone);
     paymentData.append('hash', hash);
-    paymentData.append('surl', `${process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:3000'}/api/payment/success`); // Update with actual success URL
-    paymentData.append('furl', `${process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:3000'}/api/payment/failure`); // Update with actual failure URL
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').trim();
+    paymentData.append('surl', `${appUrl}/api/payment/success`);
+    paymentData.append('furl', `${appUrl}/api/payment/failure`);
 
     const response = await fetch(baseUrl, {
       method: 'POST',
@@ -72,7 +79,14 @@ export async function POST(req: Request) {
     const result = await response.json();
 
     if (result.status === 1) {
-      return NextResponse.json({ txnid: txnId, data: result.data });
+      const payBaseUrl = (process.env.EASEBUZZ_ENV || 'test') === 'prod'
+        ? 'https://pay.easebuzz.in/pay/'
+        : 'https://testpay.easebuzz.in/pay/';
+      return NextResponse.json({
+        txnid: txnId,
+        data: result.data,
+        paymentUrl: `${payBaseUrl}${result.data}`
+      });
     } else {
       console.error('Easebuzz Error:', result);
       return NextResponse.json({ error: result.data || 'Payment initiation failed' }, { status: 400 });

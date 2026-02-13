@@ -27,7 +27,23 @@ export async function POST(req: Request) {
 
     const order = inserted?.[0];
 
-    // Clear cart for the user
+    // 2. Create Shipment automatically
+    let trackingId = '';
+    try {
+      const { createShipment } = await import('@/utils/shipping');
+      const shipmentResult = await createShipment({ ...orderPayload, id: order.id });
+      if (shipmentResult.success) {
+        trackingId = shipmentResult.trackingId || '';
+        // Update order with tracking ID
+        if (trackingId) {
+          await supabase.from('orders').update({ tracking_id: trackingId }).eq('id', order.id);
+        }
+      }
+    } catch (shipError) {
+      console.error('Shipment creation failed:', shipError);
+    }
+
+    // 3. Clear cart for the user
     if (orderData.userId) {
       await supabase.from('cart').delete().eq('user_id', orderData.userId);
     }

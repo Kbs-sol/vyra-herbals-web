@@ -5,9 +5,21 @@ import { API_PATH } from "../constants";
 import styled from "styled-components";
 import LoadingIndicator from "../Components/Common/LoadingIndicator";
 
+interface TrackingInfo {
+  success: number;
+  status?: string;
+  edd?: string;
+  location?: string;
+  details?: Array<{
+    location: string;
+    status: string;
+    time: string;
+  }>;
+}
+
 const TrackOrder = () => {
   const [inputValue, setInputValue] = useState("");
-  const [trackingInfo, setTrackingInfo] = useState(null);
+  const [trackingInfo, setTrackingInfo] = useState<TrackingInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -28,8 +40,6 @@ const TrackOrder = () => {
     setError("");
 
     let payload = {
-      username: "ela13167",
-      key: "QLhDvpgyGhsQKqNe0cKzHqqdKiIf6INfJpze31oOwTlijHEqixUBEAAHloqumXxQJJOmWLMNSbuz5PsbGBySSCEe1VNcLceo47J2A8W7MPmfg2iqHG0o3YrAIRJ4ycuOWlrie5epRIeMykfH0DCfLm5p1U0nuU27kPC5dQWkJHlKV15YbWTGtwGgZCjaO1WmMSJXDylW8G2MKRgt1LR53QcVezxlOiXDExh1rAzoIHK6mkjcr7tqzKuEtC57bnNs",
       shipment_id: inputValue,
     };
 

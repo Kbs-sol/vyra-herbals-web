@@ -578,6 +578,7 @@ const Singleproducts = () => {
                           show={showCheckout}
                           onHide={handleCloseCheckout}
                           product={product}
+                          quantity={qty}
                         />
                       </div>
                     </div>

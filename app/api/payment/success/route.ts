@@ -58,10 +58,26 @@ export async function POST(req: Request) {
             await supabase.from('cart').delete().eq('user_id', orderData.userId);
         }
 
-        // 4. Update transaction status (optional, if using transactions table)
+        // 4. Create Shipment automatically
+        let trackingId = '';
+        try {
+            const { createShipment } = await import('@/utils/shipping');
+            const shipmentResult = await createShipment({ ...orderPayload, id: inserted.id });
+            if (shipmentResult.success) {
+                trackingId = shipmentResult.trackingId || '';
+                // Update order with tracking ID
+                if (trackingId) {
+                    await supabase.from('orders').update({ tracking_id: trackingId }).eq('id', inserted.id);
+                }
+            }
+        } catch (shipError) {
+            console.error('Shipment creation failed:', shipError);
+        }
+
+        // 5. Update transaction status (optional, if using transactions table)
         await supabase.from('transactions').update({ status: 'success', txn_id: String(txnid) }).eq('txn_id', String(txnid));
 
-        // 5. Redirect to Order page or Profile
+        // 6. Redirect to Order page or Profile
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:3000';
         return NextResponse.redirect(`${baseUrl}/profile#orders`, 303);
 

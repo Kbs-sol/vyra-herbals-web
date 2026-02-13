@@ -14,9 +14,22 @@ import CartItem from "../Components/Shared/CartItem";
 import BillSummary from "../Components/Shared/BillSummary";
 import { useAuth } from "../Components/Contexts/AuthContext";
 
-const Checkout = ({ show, onHide, cartItems, product }) => {
+interface CheckoutFormData {
+  fullName: string;
+  phone: string;
+  email: string;
+  houseNumber: string;
+  area: string;
+  landmark: string;
+  pincode: string;
+  city: string;
+  state: string;
+  country: string;
+}
+
+const Checkout = ({ show, onHide, cartItems, product, quantity = 1 }) => {
   const { user } = useAuth();
-  const defaultFormData = {
+  const defaultFormData: CheckoutFormData = {
     fullName: "",
     phone: "",
     email: "",
@@ -42,8 +55,8 @@ const Checkout = ({ show, onHide, cartItems, product }) => {
     phone: /^[0-9]{0,10}$/,
     email: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
   };
-  const [formData, setFormData] = useState({ ...defaultFormData });
-  const [formErrors, setFormErrors] = useState({});
+  const [formData, setFormData] = useState<CheckoutFormData>({ ...defaultFormData });
+  const [formErrors, setFormErrors] = useState<any>({});
 
   const [showModal, setShowModal] = useState(false);
   const [disableBtn, setDisableBtn] = useState(false);
@@ -55,12 +68,12 @@ const Checkout = ({ show, onHide, cartItems, product }) => {
   const router = useRouter();
   const [isApiSuccess, setIsApiSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [orderedItems, setOrderedItems] = useState();
+  const [orderedItems, setOrderedItems] = useState<any[]>([]);
   const [hasValidation, setHasValidation] = useState(false);
   const [showOrderSummary, setShowOrderSummary] = useState(false);
   const [isModalOpenedPreviously, setIsModalOpenedPreviously] = useState(false);
 
-  const inputRefs = useRef({}); // Store refs dynamically
+  const inputRefs = useRef<Record<string, HTMLInputElement | null>>({}); // Store refs dynamically
 
   const assignRef = (el, fieldName) => {
     inputRefs.current[fieldName] = el;
@@ -96,7 +109,10 @@ const Checkout = ({ show, onHide, cartItems, product }) => {
         id: item.id,
         quantity: item.quantity,
         price: item.price,
+        regular_price: item.regular_price || item.price,
         title: item.title,
+        handle: item.handle,
+        image_url: item.image_url,
       }))
     );
   };
@@ -114,10 +130,11 @@ const Checkout = ({ show, onHide, cartItems, product }) => {
       setTotalPriceOfCartProducts(totalPrice);
       updateOrderedItemsState(cartItems);
     } else if (product) {
-      setTotalPriceOfCartProducts(product.price);
-      updateOrderedItemsState([product]);
+      const singleProductPrice = product.price * quantity;
+      setTotalPriceOfCartProducts(singleProductPrice);
+      updateOrderedItemsState([{ ...product, quantity }]);
     }
-  }, [cartItems, product]);
+  }, [cartItems, product, quantity]);
 
   useEffect(() => {
     if (paymentMethod === "online") {
@@ -131,10 +148,10 @@ const Checkout = ({ show, onHide, cartItems, product }) => {
           (total, item) => total + item.quantity * item.price,
           0
         )
-        : product.price;
+        : product.price * quantity;
       setTransactionPrice(totalPrice);
     }
-  }, [paymentMethod, cartItems, product]);
+  }, [paymentMethod, cartItems, product, quantity]);
 
   useEffect(() => {
     if (String(formData.pincode).length === 6) {
@@ -235,7 +252,7 @@ const Checkout = ({ show, onHide, cartItems, product }) => {
   const isFormValid = () => {
     setHasValidation(true);
     let isValid = true;
-    let errors = {};
+    let errors: any = {};
     if (!formData.fullName.trim()) {
       errors.fullName = defaultFormErrors.fullName;
       isValid = false;
@@ -266,7 +283,7 @@ const Checkout = ({ show, onHide, cartItems, product }) => {
     if (!formData.pincode.trim()) {
       errors.pincode = "Please enter your PIN code";
       isValid = false;
-    } else if (formData.pincode.length !== 6 || !formData.state.length) {
+    } else if (String(formData.pincode).length !== 6 || !String(formData.state).length) {
       errors.pincode = "Invalid Pincode. Please enter correct pincode.";
       isValid = false;
     }
@@ -317,18 +334,19 @@ const Checkout = ({ show, onHide, cartItems, product }) => {
     setLoading(true);
     let accessKey = null;
     if (paymentMethod !== "cod") {
-      accessKey = await getAccessKey(); // Implement getAccessKey to fetch the access key from your server
-      // console.log("accessKey : ", accessKey);
-      if (accessKey == null) {
-        console.log("Failed to get access key. Please try again..");
+      const responseData = await getAccessKey();
+      if (!responseData || !responseData.paymentUrl) {
+        console.log("Failed to get payment URL. Please try again..");
         notifyError("Failed to initiate payment. Please check configuration or try COD.");
         setLoading(false);
         return;
       }
+      accessKey = responseData.data;
+      var paymentUrl = responseData.paymentUrl;
     }
 
     // Extract product titles with quantity
-    const productDetails = orderedItems
+    const productDetails = (orderedItems || [])
       .map((item) => `${item.quantity} x ${item.title}`)
       .join(", ");
 
@@ -390,9 +408,9 @@ const Checkout = ({ show, onHide, cartItems, product }) => {
         body: JSON.stringify({ txnId, orderData }),
       })
         .then((res) => {
-          // Proceed with Prepaid payment redirection
-          window.open("https://pay.easebuzz.in/pay/" + accessKey);
-          // window.open("https://testpay.easebuzz.in/pay/" + accessKey); // For testing environment
+          // Proceed with Prepaid payment redirection using the URL from backend
+          if (paymentUrl) window.open(paymentUrl, "_self");
+          else notifyError("Payment URL not found.");
         })
         .catch((err) => {
           notifyError("Failed to save order session. Please try again.");
@@ -425,7 +443,7 @@ const Checkout = ({ show, onHide, cartItems, product }) => {
       const data = await response.json();
       console.log(data);
       txnId = data.txnid;
-      return data.data;
+      return data; // Return full data object including paymentUrl
     } catch (error) {
       console.error(error);
       return null;
@@ -522,7 +540,7 @@ const Checkout = ({ show, onHide, cartItems, product }) => {
   const renderErrorMessage = (msg) => {
     return (
       <Form.Control.Feedback type="invalid">
-        <SVGIcon iconName={"error-icon"} />
+        <SVGIcon iconName={"error-icon"} className={"error-svg"} />
         {msg}
       </Form.Control.Feedback>
     );
@@ -532,21 +550,17 @@ const Checkout = ({ show, onHide, cartItems, product }) => {
     return (
       <StyledOrderSummary>
         <ul className="item-list">
-          {cartItems &&
-            cartItems.map((item, index) => (
-              <CartItem
-                key={"order-item-" + index}
-                product={item}
-                showQuantitySelector={false}
-              />
-            ))}
-          {product && (
-            <CartItem product={product} showQuantitySelector={false} />
-          )}
+          {orderedItems.map((item, index) => (
+            <CartItem
+              key={"order-item-" + index}
+              product={item}
+              showQuantitySelector={false}
+            />
+          ))}
         </ul>
         <section className="bill-summary">
           <BillSummary
-            items={cartItems || [product]}
+            items={orderedItems}
             isCOD={paymentMethod === "cod"}
           />
         </section>
