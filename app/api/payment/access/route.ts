@@ -63,7 +63,22 @@ export async function POST(req: Request) {
     paymentData.append('email', email);
     paymentData.append('phone', phone);
     paymentData.append('hash', hash);
-    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').trim();
+    // Determine Base URL for callbacks (surl/furl)
+    const origin = new URL(req.url).origin;
+    let appUrl = (process.env.NEXT_PUBLIC_APP_URL || '').trim();
+
+    // 1. Prefer localhost if request is from localhost (Local Development)
+    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+      appUrl = origin;
+    }
+    // 2. Fallback if App URL is missing or incorrect (Supabase)
+    else if (!appUrl || appUrl.includes('supabase.co')) {
+      if (origin.includes('vercel.app')) {
+        appUrl = origin;
+      } else {
+        appUrl = 'https://vyra-herbals.vercel.app';
+      }
+    }
     paymentData.append('surl', `${appUrl}/api/payment/success`);
     paymentData.append('furl', `${appUrl}/api/payment/failure`);
 

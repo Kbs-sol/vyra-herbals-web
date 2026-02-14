@@ -93,29 +93,63 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const login = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      console.log("Attempting login for:", email);
 
-    if (!error && data.user) {
-      // State update handled by onAuthStateChange
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        throw new Error('No internet connection. Please check your network.');
+      }
+
+      // Check for config (just existence)
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+        console.error("Supabase URL is missing in client env!");
+      }
+
+      // Timeout after 10 seconds
+      const timeoutPromise = new Promise<{ data: { user: null; session: null }; error: any }>((_, reject) =>
+        setTimeout(() => reject(new Error('Login request timed out after 10s. Check your network or Supabase config.')), 10000)
+      );
+
+      const authPromise = supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      const { data, error } = await Promise.race([authPromise, timeoutPromise]) as any;
+
+      if (error) {
+        console.error("Login error:", error);
+      } else if (data.user) {
+        console.log("Login successful:", data.user.id);
+        // State update handled by onAuthStateChange logic
+      }
+
+      return { error };
+    } catch (err: any) {
+      console.error("Login exception:", err);
+      // Ensure we return an error object that the UI can display
+      return { error: { message: err.message || "An unexpected error occurred" } };
     }
-
-    return { error };
   };
 
   const signUp = async (email: string, password: string, name: string) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          name: name
+    try {
+      console.log("Attempting signup for:", email);
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name: name
+          }
         }
-      }
-    });
-    return { error };
+      });
+      if (error) console.error("Signup error:", error);
+      return { error };
+    } catch (err) {
+      console.error("Signup exception:", err);
+      return { error: err };
+    }
   };
 
   const logout = async (): Promise<void> => {

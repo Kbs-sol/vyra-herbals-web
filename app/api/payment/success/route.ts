@@ -9,10 +9,36 @@ export async function POST(req: Request) {
         // const hash = formData.get('hash'); // Verify hash in production!
 
         if (status !== 'success') {
-            return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:3000'}/cart?error=payment_failed`, 303);
+            const origin = new URL(req.url).origin;
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL || origin;
+            return NextResponse.redirect(`${appUrl}/cart?error=payment_failed`, 303);
         }
 
         const supabase = createServerSupabase();
+
+        // Robust Base URL detection
+        const origin = new URL(req.url).origin;
+        let appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+
+        console.log(`[Payment Success] Origin: ${origin}, Initial AppUrl: ${appUrl}`);
+
+        // Dynamic Redirection Logic:
+        // 1. If running locally, ALWAYS trust the origin.
+        if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+            appUrl = origin;
+            console.log('[Payment Success] Localhost detected. Using origin as AppUrl.');
+        }
+        // 2. If APP_URL is invalid (Supabase or empty), fallback.
+        else if (!appUrl || appUrl.includes('supabase.co')) {
+            if (origin.includes('vercel.app')) {
+                appUrl = origin;
+            } else {
+                appUrl = 'https://vyra-herbals.vercel.app';
+            }
+            console.log(`[Payment Success] AppUrl corrected to: ${appUrl}`);
+        } else {
+            console.log(`[Payment Success] Using provided NEXT_PUBLIC_APP_URL: ${appUrl}`);
+        }
 
         // 1. Get the session payload
         const { data: sessions, error: sessionError } = await supabase
@@ -23,21 +49,22 @@ export async function POST(req: Request) {
 
         if (sessionError || !sessions) {
             console.error('Session lookup failed:', sessionError);
-            return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+            return NextResponse.redirect(`${appUrl}/cart?error=session_not_found`, 303);
         }
 
         const orderData = sessions.payload;
 
         // 2. Insert into orders
+        // NOTE: Ensure user_id and txn_id columns exist in the orders table!
         const orderPayload = {
             items: orderData.orderItems,
-            total_amount: orderData.totalAmount || formData.get('amount'),
-            transaction_price: orderData.transactionPrice,
+            total_amount: orderData.totalAmount || formData.get('amount') || 0,
+            transaction_price: orderData.transactionPrice || 0,
             shipping_data: orderData.shippingData,
             payment_method: 'online',
             status: 'placed',
-            txn_id: txnid,
-            user_id: orderData.userId, // Extracted from payload
+            txn_id: String(txnid),
+            user_id: orderData.userId,
             created_at: new Date().toISOString()
         };
 
@@ -49,11 +76,10 @@ export async function POST(req: Request) {
 
         if (insertError) {
             console.error('Order creation failed:', insertError);
-            return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:3000'}/cart?error=order_creation_failed`, 303);
+            return NextResponse.redirect(`${appUrl}/cart?error=order_creation_failed&details=${encodeURIComponent(insertError.message)}`, 303);
         }
 
         // 3. Clear cart? 
-        // Ideally we clear the cart for this user.
         if (orderData.userId) {
             await supabase.from('cart').delete().eq('user_id', orderData.userId);
         }
@@ -74,12 +100,11 @@ export async function POST(req: Request) {
             console.error('Shipment creation failed:', shipError);
         }
 
-        // 5. Update transaction status (optional, if using transactions table)
+        // 5. Update transaction status
         await supabase.from('transactions').update({ status: 'success', txn_id: String(txnid) }).eq('txn_id', String(txnid));
 
         // 6. Redirect to Order page or Profile
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:3000';
-        return NextResponse.redirect(`${baseUrl}/profile#orders`, 303);
+        return NextResponse.redirect(`${appUrl}/profile#orders`, 303);
 
     } catch (err) {
         console.error('Payment success exception:', err);

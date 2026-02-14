@@ -177,8 +177,8 @@ const Header = () => {
                         All Products
                       </button>
                     </li>
-                    {categories.map((cat) => (
-                      <li key={cat.id}>
+                    {categories.map((cat, index) => (
+                      <li key={cat.id || index}>
                         <button
                           className="dropdown-item"
                           onClick={() => router.push(`/category/${cat.slug || cat.handle || ""}`)}
@@ -345,9 +345,9 @@ const Header = () => {
                         All Products
                       </Link>
 
-                      {categories.map((cat) => (
+                      {categories.map((cat, index) => (
                         <Link
-                          key={cat.id}
+                          key={cat.id || index}
                           href={`/category/${cat.slug || cat.handle || ""}`}
                           onClick={hideMobileCanvas}
                         >
