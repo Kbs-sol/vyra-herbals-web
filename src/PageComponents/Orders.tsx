@@ -2,14 +2,26 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { API_PATH } from "../constants";
 import styled from "styled-components";
 import { FaCheckCircle } from "react-icons/fa";
 import LoadingIndicator from "../Components/Common/LoadingIndicator";
 import { useCart } from "../Components/Contexts/CartContext";
+import OrderTracker from "../Components/Orders/OrderTracker";
+import OrderProductItem from "../Components/Orders/OrderProductItem";
+
+
+interface OrderData {
+  shipping_address: string;
+  order_amount: number;
+  products: any[];
+  status: string;
+  status_timeline?: any[];
+}
 
 const Orders = () => {
-  const [orderData, setOrderData] = useState(null);
+  const [orderData, setOrderData] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(true);
   const params = useParams();
   const orderId = params?.orderId || '';
@@ -21,20 +33,54 @@ const Orders = () => {
   }, [orderId]);
 
   const fetchOrderData = (orderId) => {
+    if (orderId === 'legacy-view') {
+      try {
+        const cachedOrder = localStorage.getItem('legacy_order_view');
+        if (cachedOrder) {
+          const parsedOrder = JSON.parse(cachedOrder);
+          // Normalize legacy data to match OrderData interface
+          const normalizedData = {
+            ...parsedOrder,
+            products: parsedOrder.items || parsedOrder.products || [],
+            status: parsedOrder.status || 'placed',
+            order_amount: parsedOrder.total_amount || 0,
+            shipping_address: parsedOrder.shipping_address || JSON.stringify({
+              fullName: 'Details Unavailable',
+              address: 'Address details missing for this legacy order',
+              mobile: 'N/A'
+            })
+          };
+          setOrderData(normalizedData);
+          setLoading(false);
+          return;
+        }
+      } catch (e) {
+        console.error("Error parsing legacy order:", e);
+      }
+    }
+
     fetch(`${API_PATH}/orders/info?order_id=${orderId}`)
       .then((response) => response.json())
       .then((data) => {
         if (data.status === "success") {
-          setOrderData(data.data);
+          // Normalize data
+          const normalizedData = {
+            ...data.data,
+            products: data.data.products || data.data.items || [],
+            status: data.data.status || 'placed',
+            order_amount: data.data.order_amount || data.data.total_amount || 0
+          };
+          setOrderData(normalizedData);
+
           if (cartItems.length > 0) {
             const orderProductsMap = new Map(
-              data.data.products.map(product => [
-                product.product_id,
-                Number(product.quantity)
+              normalizedData.products.map(product => [
+                product.product_id || product.id,
+                Number(product.quantity || product.qty || 1)
               ])
             );
             const isOrderMatching = cartItems.every(cartItem =>
-              orderProductsMap.get(cartItem.product_id || cartItem.id ) === Number(cartItem.quantity)
+              orderProductsMap.get(cartItem.product_id || cartItem.id) === Number(cartItem.quantity)
             );
 
             if (isOrderMatching) {
@@ -77,90 +123,104 @@ const Orders = () => {
 
   return (
     <StyledOrders>
-      {loading ? (
-        <div className="loading-container">
-          <LoadingIndicator variant="spinner" />
-        </div>
-      ) : orderData ? (
-        <div className="order-table">
-          <div className="order-header flex-lg-row flex-column align-items-center">
-            <div className="order-success centered">
-              <FaCheckCircle size={60} className="success-icon" />
-              <h3>Order Placed Successfully!</h3>
-              <p>Thank you for shopping with us.</p>
-              <p className="note-text text-danger">
-                Kindly note the Order ID for further tracking.
-              </p>
-            </div>
-
-            <div className="order-details border md-3">
-              <h6>Order Information:</h6>
-
-              <p>
-                <strong>Order ID:</strong> {orderData.shipment_id}
-              </p>
-              <p>
-                <strong>Order Amount:</strong> ₹{orderData.order_amount}
-              </p>
-              <p>
-                <strong>Order Date:</strong> {orderData.order_date}
-              </p>
-              <p>
-                <strong>Payment Method:</strong>{" "}
-                {orderData.order_payment_method === "cod"
-                  ? "Cash On Delivery"
-                  : "Prepaid"}
-              </p>
-              {orderData.order_payment_method !== "cod" && (
-                <p>
-                  <strong>Transaction ID:</strong> {orderData.transaction_id}
-                </p>
-              )}
-              <h6>Shipping Address</h6>
-              <p>
-                <strong>Name:</strong>{" "}
-                {formatShippingAddress(orderData.shipping_address).name}
-              </p>
-              <p>
-                <strong>Mobile:</strong>{" "}
-                {formatShippingAddress(orderData.shipping_address).mobile}
-              </p>
-              <p>
-                <strong>Address:</strong>{" "}
-                {formatShippingAddress(orderData.shipping_address).address}
-              </p>
-            </div>
+      <div className="container py-4">
+        {loading ? (
+          <div className="loading-container">
+            <LoadingIndicator variant="spinner" />
           </div>
-
-          <div className="product-details">
-            <h3>Products:</h3>
-            {orderData.products.map((product) => (
-              <div key={product.product_id} className="product-item">
-                <img
-                  src={product.product_image}
-                  alt={product.product_title}
-                  className="product-image"
-                />
-                <div className="product-info">
-                  <p>
-                    <strong>Product Title:</strong> {product.product_title}
-                  </p>
-                  <p>
-                    <strong>Quantity:</strong> {product.quantity}
-                  </p>
-                  <p>
-                    <strong>Item Amount:</strong> ₹{product.item_amount}
-                  </p>
+        ) : orderData ? (
+          <div className="row g-4">
+            {/* Left Column */}
+            <div className="col-lg-8">
+              {/* Address Card */}
+              <div className="card shadow-sm border-0 mb-4 rounded-3 overflow-hidden">
+                <div className="card-header bg-white border-bottom p-3">
+                  <h5 className="mb-0 fw-bold">Delivery Address</h5>
+                </div>
+                <div className="card-body p-4">
+                  <div className="d-flex gap-3">
+                    <div className="address-icon text-muted"> <FaCheckCircle size={20} /> </div> {/* Using generic icon if map/home not available */}
+                    <div>
+                      <h6 className="fw-bold mb-1">{orderData.shipping_address ? formatShippingAddress(orderData.shipping_address).name : 'No Name'}</h6>
+                      <p className="mb-1 text-muted small">{orderData.shipping_address ? formatShippingAddress(orderData.shipping_address).address : 'No Address Details'}</p>
+                      <p className="mb-0 text-dark fw-medium">Phone: {orderData.shipping_address ? formatShippingAddress(orderData.shipping_address).mobile : 'N/A'}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
-            ))}
+
+              {/* Order Tracker */}
+              <div className="card shadow-sm border-0 mb-4 rounded-3">
+                <div className="card-body p-4">
+                  <h5 className="fw-bold mb-4">Order Status</h5>
+                  <OrderTracker
+                    currentStatus={orderData.status || 'placed'}
+                    timeline={orderData.status_timeline || []}
+                  />
+                </div>
+              </div>
+
+              {/* Products */}
+              <div className="card shadow-sm border-0 mb-4 rounded-3">
+                <div className="card-header bg-white border-bottom p-3">
+                  <h5 className="mb-0 fw-bold">Items in this Order</h5>
+                </div>
+                <div className="card-body p-0">
+                  <div className="px-4">
+                    {orderData.products.map((product) => (
+                      <OrderProductItem key={product.product_id} product={product} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column */}
+            <div className="col-lg-4">
+              {/* Price Details */}
+              <div className="card shadow-sm border-0 mb-4 rounded-3">
+                <div className="card-header bg-white border-bottom p-3">
+                  <h5 className="mb-0 fw-bold">Price Details</h5>
+                </div>
+                <div className="card-body p-4">
+                  <div className="d-flex justify-content-between mb-2">
+                    <span className="text-muted">Price ({orderData.products.length} items)</span>
+                    <span>₹{orderData.order_amount}</span> {/* Assuming order_amount is total, if subtotal is available use that */}
+                  </div>
+                  <div className="d-flex justify-content-between mb-3 border-bottom pb-3">
+                    <span className="text-muted">Delivery Charges</span>
+                    <span className="text-success">Free</span>
+                  </div>
+                  <div className="d-flex justify-content-between align-items-center">
+                    <span className="fw-bold fs-5">Total Amount</span>
+                    <span className="fw-bold fs-5">₹{orderData.order_amount}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* More Actions */}
+              <div className="card shadow-sm border-0 rounded-3">
+                <div className="card-body p-0">
+                  <ul className="list-group list-group-flush rounded-3">
+                    <li className="list-group-item p-3 action-link" style={{ cursor: 'pointer' }} onClick={() => window.print()}>
+                      Download Invoice
+                    </li>
+                    <Link href={`/contact?orderId=${orderId}`} passHref style={{ textDecoration: 'none' }}>
+                      <li className="list-group-item p-3 action-link" style={{ cursor: 'pointer' }}>
+                        Need Help with this order?
+                      </li>
+                    </Link>
+                  </ul>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="loading-container">
-          <p>No order data found.</p>
-        </div>
-      )}
+        ) : (
+          <div className="loading-container text-center py-5">
+            <p className="text-muted">No order details found.</p>
+          </div>
+        )}
+      </div>
     </StyledOrders>
   );
 };
@@ -168,77 +228,23 @@ const Orders = () => {
 export default Orders;
 
 const StyledOrders = styled.div`
-  .order-table {
-    max-width: 900px;
-    margin: 2rem auto;
-    display: flex;
-    flex-direction: column;
-    gap: 2rem;
-    border: 1px solid #ddd;
-    padding: 1.5rem;
-    background: #f9f9f9;
-    border-radius: 10px;
-  }
+  background-color: #f1f3f6;
+  min-height: 100vh;
 
-  .order-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    border-bottom: 2px solid #ddd;
-    padding-bottom: 1rem;
+  .loading-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 50vh;
   }
-
-  .order-success {
-    flex: 1;
-    text-align: center;
-  }
-
-  .centered {
-    margin: 0 auto;
-    text-align: center;
-  }
-
-  .order-details {
-    flex: 1;
-    font-size: 1rem;
-    padding-bottom: 0.5rem;
-    border-radius: 1rem;
-    overflow: hidden;
-    h6 {
-      background-color: var(--border);
-      &:not(:first-child) {
-        margin-top: 0.5rem;
+  
+  .action-link {
+      transition: background-color 0.2s;
+      font-weight: 500;
+      color: #2874f0;
+      
+      &:hover {
+          background-color: #f8f9fa;
       }
-    }
-    p,
-    h6 {
-      padding: 0 1rem;
-    }
-  }
-
-  .product-details {
-    background: #fff;
-    padding: 1.5rem;
-    border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  }
-
-  .product-item {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 0.5rem;
-    border-bottom: 1px solid #eee;
-  }
-
-  .product-image {
-    width: 80px;
-    height: 80px;
-    object-fit: cover;
-    border-radius: 5px;
-  }
-
-  .success-icon {
-    color: #28a745;
   }
 `;

@@ -14,8 +14,10 @@ interface Order {
     created_at: string;
     total_amount: number;
     status: string;
-    items: any[];
+    items?: any[];
+    products?: any[];
     tracking_id?: string;
+    status_timeline?: any[];
 }
 
 const ProfilePage = () => {
@@ -27,21 +29,19 @@ const ProfilePage = () => {
     const [activeTab, setActiveTab] = useState('orders');
 
     // Fetch orders only when user is available and not already loading
+    // Fetch orders only when user is available
     useEffect(() => {
-        if (!authLoading) {
-            if (!user) {
-                router.push('/login');
-            } else if (!loadingOrders && orders.length === 0) {
-                // Only fetch if we haven't already (or simple cache check)
-                // Actually, let's fetch always on mount if user exists
-                fetchOrders();
-            }
+        if (!authLoading && user) {
+            fetchOrders();
+        } else if (!authLoading && !user) {
+            router.push('/login');
         }
-    }, [user, authLoading, router]);
+    }, [user?.id, authLoading, router]);
 
     const fetchOrders = async () => {
         if (!user) return;
         setLoadingOrders(true);
+        // Log removed
         try {
             const { data, error } = await supabase
                 .from('orders')
@@ -49,8 +49,23 @@ const ProfilePage = () => {
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false });
 
+            // Logs removed
+
             if (error) throw error;
-            setOrders(data || []);
+
+            // Filter out invalid orders and handle missing data
+            // Filter out invalid orders and handle missing data
+            const validOrders = (data || []).map((order, index) => {
+                const fallbackId = `temp-${Date.now()}-${index}`;
+                return {
+                    ...order,
+                    id: order.id || order.order_id || fallbackId, // Fallback to order_id or generated ID
+                    items: order.items || order.products || [], // Normalize items
+                    created_at: order.created_at || order.order_date || new Date().toISOString() // Fallback date
+                };
+            }).filter(order => order.id); // Only keep orders with an ID
+
+            setOrders(validOrders);
         } catch (error) {
             console.error('Error fetching orders:', error);
         } finally {
@@ -61,6 +76,100 @@ const ProfilePage = () => {
     const handleLogout = async () => {
         await logout();
         setShowLogoutModal(false);
+    };
+
+    const renderOrdersContent = () => {
+        if (loadingOrders) {
+            return (
+                <div className="text-center py-5">
+                    <Spinner animation="border" variant="secondary" />
+                </div>
+            );
+        }
+
+        if (orders.length === 0) {
+            return (
+                <EmptyState>
+                    <FaBoxOpen size={48} className="mb-3 text-secondary opacity-50" />
+                    <h5>No orders yet</h5>
+                    <p className="text-muted mb-4">You haven't placed any orders. Start exploring our products!</p>
+                    <Link href="/search?searchtext=all" passHref>
+                        <Button variant="dark" className="px-4 rounded-pill">Start Shopping</Button>
+                    </Link>
+                </EmptyState>
+            );
+        }
+
+        return (
+            <OrdersList>
+                {orders.map((order, index) => (
+                    <OrderItem key={order.id ?? `order-${index}`} className="shadow-sm border-0 mb-4">
+                        <Card.Header className="bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
+                            <div>
+                                <span className="text-uppercase fw-bold text-secondary small me-2">Order Placed</span>
+                                <span className="fw-medium text-dark">{new Date(order.created_at).toLocaleDateString("en-IN", { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                            </div>
+                            <div className="d-flex align-items-center gap-3">
+                                <span className="text-uppercase fw-bold text-secondary small">Total</span>
+                                <span className="fw-bold text-dark">₹{order.total_amount}</span>
+                            </div>
+                        </Card.Header>
+                        <Card.Body className="p-4">
+                            <div className="d-flex flex-column flex-md-row gap-4 justify-content-between align-items-md-center">
+                                <div className="flex-grow-1">
+                                    <div className="d-flex align-items-center mb-3">
+                                        <StatusChip status={order.status.toLowerCase()} className="me-3">
+                                            {order.status}
+                                        </StatusChip>
+                                        <span className="text-muted small">Order # {order.id}</span>
+                                    </div>
+
+                                    <div className="d-flex gap-3 overflow-auto pb-2" style={{ maxWidth: '100%' }}>
+                                        {(order.products || order.items || []).map((item: any, i: number) => (
+                                            <div key={i} style={{ width: 60, height: 60, flexShrink: 0 }} className="border rounded p-1 position-relative">
+                                                <img
+                                                    src={item.product_image || item.image_url || '/home-hair-oil.jpg'}
+                                                    alt={item.product_title || item.title || 'Product'}
+                                                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                                                    onError={(e) => {
+                                                        (e.target as HTMLImageElement).src = '/home-hair-oil.jpg';
+                                                    }}
+                                                />
+                                                {item.quantity > 1 && (
+                                                    <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-secondary" style={{ fontSize: '0.6rem' }}>
+                                                        {item.quantity}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="d-flex flex-column gap-2" style={{ minWidth: '140px' }}>
+                                    <Button
+                                        variant="primary"
+                                        className="w-100 rounded-pill fw-medium"
+                                        onClick={() => {
+                                            if (String(order.id).startsWith('temp-')) {
+                                                localStorage.setItem('legacy_order_view', JSON.stringify(order));
+                                                router.push('/orders/legacy-view');
+                                            } else {
+                                                router.push(`/orders/${order.id}`);
+                                            }
+                                        }}
+                                    >
+                                        View Details
+                                    </Button>
+                                    <Link href={String(order.id).startsWith('temp-') ? '/contact' : `/contact?orderId=${order.id}`} passHref>
+                                        <Button variant="outline-secondary" size="sm" className="w-100 rounded-pill">Need Help?</Button>
+                                    </Link>
+                                </div>
+                            </div>
+                        </Card.Body>
+                    </OrderItem>
+                ))}
+            </OrdersList>
+        );
     };
 
     if (authLoading) {
@@ -122,50 +231,7 @@ const ProfilePage = () => {
                             <Tab.Content>
                                 <Tab.Pane eventKey="orders">
                                     <SectionTitle>Order History</SectionTitle>
-
-                                    {loadingOrders ? (
-                                        <div className="text-center py-5">
-                                            <Spinner animation="border" variant="secondary" />
-                                        </div>
-                                    ) : orders.length === 0 ? (
-                                        <EmptyState>
-                                            <FaBoxOpen size={48} className="mb-3 text-secondary opacity-50" />
-                                            <h5>No orders yet</h5>
-                                            <p className="text-muted mb-4">You haven't placed any orders. Start exploring our products!</p>
-                                            <Link href="/search?searchtext=all" passHref>
-                                                <Button variant="dark" className="px-4 rounded-pill">Start Shopping</Button>
-                                            </Link>
-                                        </EmptyState>
-                                    ) : (
-                                        <OrdersList>
-                                            {orders.map((order, index) => (
-                                                <OrderItem key={order.id ?? `order-${index}`} className="shadow-sm border-0 mb-3">
-                                                    <Card.Body className="d-flex flex-wrap align-items-center justify-content-between gap-3">
-                                                        <div>
-                                                            <div className="text-uppercase text-muted small fw-bold mb-1">Order #{order.id}</div>
-                                                            <div className="fw-bold fs-5">₹{order.total_amount}</div>
-                                                        </div>
-
-                                                        <div className="d-none d-md-block">
-                                                            <div className="text-muted small mb-1">Date Placed</div>
-                                                            <div>{new Date(order.created_at).toLocaleDateString()}</div>
-                                                        </div>
-
-                                                        <div>
-                                                            <StatusChip status={order.status.toLowerCase()}>
-                                                                {order.status}
-                                                            </StatusChip>
-                                                        </div>
-
-                                                        <div className="text-end">
-                                                            <div className="text-muted small mb-1">{order.items?.length || 0} Items</div>
-                                                            {/* Placeholder for Details Button if needed */}
-                                                        </div>
-                                                    </Card.Body>
-                                                </OrderItem>
-                                            ))}
-                                        </OrdersList>
-                                    )}
+                                    {renderOrdersContent()}
                                 </Tab.Pane>
 
                                 <Tab.Pane eventKey="settings">
@@ -225,7 +291,7 @@ const ProfilePage = () => {
                 </StyledModal>
 
             </Container>
-        </PageWrapper>
+        </PageWrapper >
     );
 };
 
