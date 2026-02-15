@@ -105,17 +105,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.error("Supabase URL is missing in client env!");
       }
 
-      // Timeout after 10 seconds
-      const timeoutPromise = new Promise<{ data: { user: null; session: null }; error: any }>((_, reject) =>
-        setTimeout(() => reject(new Error('Login request timed out after 10s. Check your network or Supabase config.')), 10000)
-      );
-
-      const authPromise = supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-
-      const { data, error } = await Promise.race([authPromise, timeoutPromise]) as any;
 
       if (error) {
         console.error("Login error:", error);
