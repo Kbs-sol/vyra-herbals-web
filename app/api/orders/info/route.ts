@@ -17,7 +17,34 @@ export async function GET(req: Request) {
       console.error('Order info error:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    return NextResponse.json(data?.[0] || null);
+
+    const order = data?.[0];
+
+    if (!order) {
+      return NextResponse.json({ status: 'error', message: 'Order not found' }, { status: 404 });
+    }
+
+    // Normalize data for frontend
+    // Map shipping_data (DB) -> shipping_address (Frontend expectation)
+    // Ensure it is stringified because frontend calls JSON.parse()
+    let shippingAddressStr = order.shipping_address;
+    if (!shippingAddressStr && order.shipping_data) {
+      shippingAddressStr = typeof order.shipping_data === 'string'
+        ? order.shipping_data
+        : JSON.stringify(order.shipping_data);
+    }
+
+    const mappedOrder = {
+      ...order,
+      shipping_address: shippingAddressStr,
+      products: order.items || order.products || [], // Normalize items
+      // Ensure other fields match if needed
+    };
+
+    return NextResponse.json({
+      status: 'success',
+      data: mappedOrder
+    });
   } catch (err) {
     console.error('Order info exception:', err);
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });

@@ -30,6 +30,8 @@ const ProfilePage = () => {
 
     // Fetch orders only when user is available and not already loading
     // Fetch orders only when user is available
+    // Fetch orders only when user is available and not already loading
+    // Fetch orders only when user is available
     useEffect(() => {
         if (!authLoading && user) {
             fetchOrders();
@@ -48,6 +50,7 @@ const ProfilePage = () => {
                 .select('*')
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false });
+
 
             // Logs removed
 
@@ -284,9 +287,9 @@ const ProfilePage = () => {
                         </div>
                     </Modal.Body>
                 </StyledModal>
-
             </Container>
-        </PageWrapper >
+
+        </PageWrapper>
     );
 };
 

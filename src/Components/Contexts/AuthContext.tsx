@@ -61,20 +61,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const fetchUserProfile = async (authUser: SupabaseUser) => {
     try {
       // First try to get profile from public.users
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('users')
         .select('*')
         .eq('id', authUser.id)
-        .single();
+        .maybeSingle();
+
+      // If no data found by ID (UUID mismatch), try fetching by email
+      if (!data && authUser.email) {
+        console.log('AuthContext: ID lookup failed, trying email:', authUser.email);
+        const emailResult = await supabase
+          .from('users')
+          .select('*')
+          .eq('email', authUser.email)
+          .maybeSingle();
+
+        data = emailResult.data;
+        if (emailResult.error) error = emailResult.error;
+      }
 
       if (data) {
+        // MATCHING STRATEGY: 
+        // We prioritize authUser.id (Auth UUID) because that's what the user is logged in with.
+        // The database 'users' table might have a different UUID if it was created independently.
+        // If orders were created using the Auth UUID, we must use that.
         setUser({
-          id: data.id,
+          id: authUser.id, // KEEP AUTH ID
           email: authUser.email || '',
           name: data.name || authUser.user_metadata?.name || '',
           role: data.role,
           created_at: data.created_at,
-          // Add other fields as per AppUser type
+          // Store the database ID separately if needed, or ignore it for now to fix order visibility
+          // db_id: data.id 
         });
       } else {
         // Fallback or just set basic info if profile lookup fails (or trigger hasn't run yet)

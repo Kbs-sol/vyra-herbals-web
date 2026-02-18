@@ -5,11 +5,23 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { orderData } = body || {};
+    console.log('COD Order Request:', {
+      userId: orderData?.userId,
+      totalAmount: orderData?.totalAmount
+    });
+
     if (!orderData) return NextResponse.json({ error: 'orderData required' }, { status: 400 });
 
     const supabase = createServerSupabase();
     // Insert a new order with payment_method = cod
+    // Generate IDs manually since DB defaults seem missing
+    const now = new Date();
+    const generatedId = now.getTime(); // Simple unique int8
+    const generatedOrderId = `ORD-${generatedId}`;
+
     const orderPayload = {
+      id: generatedId,
+      order_id: generatedOrderId,
       items: orderData.orderItems,
       total_amount: orderData.totalAmount,
       transaction_price: orderData.transactionPrice,
@@ -17,7 +29,8 @@ export async function POST(req: Request) {
       payment_method: 'cod',
       status: 'placed',
       user_id: orderData.userId,
-      created_at: new Date().toISOString()
+      created_at: now.toISOString(),
+      order_date: now.toISOString() // Populate order_date as well
     };
     const { data: inserted, error } = await supabase.from('orders').insert([orderPayload]).select();
     if (error) {

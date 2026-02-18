@@ -55,8 +55,14 @@ export async function POST(req: Request) {
         const orderData = sessions.payload;
 
         // 2. Insert into orders
+        const now = new Date();
+        const generatedId = now.getTime(); // Match COD logic
+        const generatedOrderId = `ORD-${generatedId}`;
+
         // NOTE: Ensure user_id and txn_id columns exist in the orders table!
         const orderPayload = {
+            id: generatedId,
+            order_id: generatedOrderId,
             items: orderData.orderItems,
             total_amount: orderData.totalAmount || formData.get('amount') || 0,
             transaction_price: orderData.transactionPrice || 0,
@@ -65,7 +71,8 @@ export async function POST(req: Request) {
             status: 'placed',
             txn_id: String(txnid),
             user_id: orderData.userId,
-            created_at: new Date().toISOString()
+            created_at: now.toISOString(),
+            order_date: now.toISOString()
         };
 
         const { data: inserted, error: insertError } = await supabase
