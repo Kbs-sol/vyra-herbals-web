@@ -108,7 +108,13 @@ export async function POST(req: Request) {
         }
 
         // 5. Update transaction status
-        await supabase.from('transactions').update({ status: 'success', txn_id: String(txnid) }).eq('txn_id', String(txnid));
+        // 5. Update transaction status and link to order
+        await supabase.from('transactions').update({
+            status: 'success',
+            txn_id: String(txnid),
+            order_id: generatedOrderId, // Link the order ID we just created
+            payment_method: 'online'
+        }).eq('txn_id', String(txnid));
 
         // 6. Redirect to Order page or Profile
         return NextResponse.redirect(`${appUrl}/profile#orders`, 303);

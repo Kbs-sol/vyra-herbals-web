@@ -15,8 +15,23 @@ export async function POST(req: Request) {
     const supabase = createServerSupabase();
 
     // Create transaction record
+    // Manually generate ID since DB auto-increment is missing
+    const now = Date.now();
+    const generatedId = now;
+
+    // We can use the generated ID as the numeric ID
     const { data: inserted, error } = await supabase.from('transactions').insert([
-      { amount, firstname, email, phone, productinfo, status: 'created' }
+      {
+        id: generatedId,
+        amount,
+        firstname,
+        email,
+        phone,
+        productinfo,
+        status: 'created',
+        payment_method: 'online', // Default to online for this route
+        created_at: new Date().toISOString()
+      }
     ]).select();
 
     if (error) {
