@@ -55,11 +55,11 @@ const ProfilePage = () => {
 
             // Filter out invalid orders and handle missing data
             // Filter out invalid orders and handle missing data
-            const validOrders = (data || []).map((order, index) => {
-                const fallbackId = `temp-${Date.now()}-${index}`;
+            // Filter out invalid orders and handle missing data
+            const validOrders = (data || []).map((order) => {
                 return {
                     ...order,
-                    id: order.id || order.order_id || fallbackId, // Fallback to order_id or generated ID
+                    id: order.id || order.order_id, // Ensure we have a valid ID
                     items: order.items || order.products || [], // Normalize items
                     created_at: order.created_at || order.order_date || new Date().toISOString() // Fallback date
                 };
@@ -150,17 +150,12 @@ const ProfilePage = () => {
                                         variant="primary"
                                         className="w-100 rounded-pill fw-medium"
                                         onClick={() => {
-                                            if (String(order.id).startsWith('temp-')) {
-                                                localStorage.setItem('legacy_order_view', JSON.stringify(order));
-                                                router.push('/orders/legacy-view');
-                                            } else {
-                                                router.push(`/orders/${order.id}`);
-                                            }
+                                            router.push(`/orders/${order.id}`);
                                         }}
                                     >
                                         View Details
                                     </Button>
-                                    <Link href={String(order.id).startsWith('temp-') ? '/contact' : `/contact?orderId=${order.id}`} passHref>
+                                    <Link href={`/contact?orderId=${order.id}`} passHref>
                                         <Button variant="outline-secondary" size="sm" className="w-100 rounded-pill">Need Help?</Button>
                                     </Link>
                                 </div>

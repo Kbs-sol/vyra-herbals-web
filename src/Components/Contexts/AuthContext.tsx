@@ -87,6 +87,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error) {
       console.error("Error fetching user profile:", error);
+      // FALLBACK: Ensure user state is set even if profile fetch fails
+      setUser({
+        id: authUser.id,
+        email: authUser.email || '',
+        name: authUser.user_metadata?.name || '',
+        role: 1
+      });
     } finally {
       setLoading(false);
     }
@@ -114,7 +121,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.error("Login error:", error);
       } else if (data.user) {
         console.log("Login successful:", data.user.id);
-        // State update handled by onAuthStateChange logic
+        // Explicitly fetch user profile to update state immediately
+        await fetchUserProfile(data.user);
       }
 
       return { error };

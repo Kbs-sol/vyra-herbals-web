@@ -59,7 +59,10 @@ const Orders = () => {
       }
     }
 
-    fetch(`${API_PATH}/orders/info?order_id=${orderId}`)
+    const effectiveOrderId = String(orderId);
+    if (!effectiveOrderId) return;
+
+    fetch(`${API_PATH}/orders/info?order_id=${effectiveOrderId}`)
       .then((response) => response.json())
       .then((data) => {
         if (data.status === "success") {
@@ -101,24 +104,45 @@ const Orders = () => {
   };
 
   const formatShippingAddress = (shippingAddress) => {
-    const parsedAddress = JSON.parse(shippingAddress);
-    const {
-      fullName,
-      phone,
-      email,
-      houseNumber,
-      area,
-      pincode,
-      city,
-      state,
-      country,
-    } = parsedAddress;
-    return {
-      name: fullName,
-      mobile: phone,
-      email: email || "Not provided",
-      address: `${houseNumber}, ${area}, ${city}, ${state} - ${pincode}, ${country}`,
-    };
+    try {
+      const parsedAddress = JSON.parse(shippingAddress);
+
+      // Handle legacy simple address string
+      if (parsedAddress.address && !parsedAddress.houseNumber) {
+        return {
+          name: parsedAddress.fullName || 'No Name',
+          mobile: parsedAddress.phone || parsedAddress.mobile || 'N/A',
+          email: parsedAddress.email || "Not provided",
+          address: parsedAddress.address
+        };
+      }
+
+      const {
+        fullName,
+        phone,
+        email,
+        houseNumber,
+        area,
+        pincode,
+        city,
+        state,
+        country,
+      } = parsedAddress;
+
+      return {
+        name: fullName,
+        mobile: phone,
+        email: email || "Not provided",
+        address: `${houseNumber || ''}, ${area || ''}, ${city || ''}, ${state || ''} - ${pincode || ''}, ${country || ''}`.replace(/^, /, '').replace(/, , /g, ', ').replace(/, - ,/g, ','),
+      };
+    } catch (e) {
+      return {
+        name: 'Invalid Address Data',
+        mobile: 'N/A',
+        email: 'N/A',
+        address: 'Could not parse address details'
+      };
+    }
   };
 
   return (

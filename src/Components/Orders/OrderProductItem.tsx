@@ -36,7 +36,9 @@ const OrderProductItem: React.FC<OrderProductItemProps> = ({ product }) => {
           src={displayImage}
           alt={displayTitle}
           onError={(e) => {
-            (e.target as HTMLImageElement).src = '/placeholder.png';
+            const target = e.target as HTMLImageElement;
+            if (target.src.includes('/placeholder.png')) return; // Prevent infinite loop
+            target.src = '/placeholder.png';
           }}
         />
       </ImageWrapper>
