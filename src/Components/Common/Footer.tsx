@@ -14,24 +14,46 @@ const Footer = () => {
   return (
     <>
       <StyledFooter className="footer-part">
-        {/* -- Amazon availability strip (clean, site-themed) -- */}
-        <div className="amazon-available">
+        {/* -- Marketplace availability strip -- */}
+        <div className="marketplace-available">
           <div className="container">
             <div className="row align-items-center">
-              <div className="col-md-8">
-                <h4 className="amazon-title">Now available on Amazon</h4>
-                <p className="amazon-desc mb-0">Buy authentic VyraHerbals products on Amazon — fast delivery and easy returns.</p>
+              <div className="col-md-7">
+                <div className="marketplace-text">
+                  <h4 className="marketplace-title">Now Shop on Your Favorite Platforms</h4>
+                  <p className="marketplace-desc mb-0">Experience Vyra Herbals quality on Amazon, Flipkart, and Meesho.</p>
+                </div>
               </div>
-              <div className="col-md-4 text-md-end text-start mt-3 mt-md-0">
-                <a
-                  className="btn amazon-btn"
-                  href="#"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title="Shop VyraHerbals on Amazon"
-                >
-                  Shop on Amazon
-                </a>
+              <div className="col-md-5 text-md-end text-start mt-3 mt-md-0">
+                <div className="marketplace-logos">
+                  <a
+                    href="https://www.amazon.in/s?k=Vyra+Herbals"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="market-link"
+                    title="Shop VyraHerbals on Amazon"
+                  >
+                    <img src="/amazon-logo-png_seeklogo-286206.png" alt="Amazon" className="market-logo amazon-logo" />
+                  </a>
+                  <a
+                    href="https://www.flipkart.com/search?q=Vyra+Herbals"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="market-link"
+                    title="Shop VyraHerbals on Flipkart"
+                  >
+                    <img src="/flipkart-logo-icon-flat-style-png-4.png" alt="Flipkart" className="market-logo flipkart-logo" />
+                  </a>
+                  <a
+                    href="https://www.meesho.com/VyraHerbals?_ms=1"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="market-link"
+                    title="Shop VyraHerbals on Meesho"
+                  >
+                    <img src="/Meesho-682x435.avif" alt="Meesho" className="market-logo meesho-logo" />
+                  </a>
+                </div>
               </div>
             </div>
           </div>
@@ -217,36 +239,66 @@ const StyledFooter = styled.footer`
     height: 3rem;
   }
 
-  /* Amazon availability strip styling */
-  .amazon-available {
-    background: var(--chalk);
-    border-top: 1px solid rgba(0,0,0,0.03);
-    padding: 22px 0;
+  /* Marketplace availability strip styling */
+  .marketplace-available {
+    background: linear-gradient(to right, #fdfbf7, #f7f1e6);
+    border-top: 1px solid rgba(0,0,0,0.05);
+    padding: 30px 0;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
   }
-  .amazon-available .amazon-title {
-    margin: 0 0 4px 0;
-    font-size: 1.125rem;
+  .marketplace-text {
+    border-left: 3px solid var(--primary);
+    padding-left: 20px;
+  }
+  .marketplace-available .marketplace-title {
+    margin: 0 0 6px 0;
+    font-size: 1.25rem;
     color: var(--heading);
-    font-weight: 600;
+    font-weight: 700;
+    letter-spacing: -0.01em;
   }
-  .amazon-available .amazon-desc {
+  .marketplace-available .marketplace-desc {
     margin: 0;
-    color: #5b5b5b;
-    font-size: 0.95rem;
+    color: #666;
+    font-size: 1rem;
+    opacity: 0.9;
   }
-  .amazon-available .amazon-btn {
-    background: var(--primary);
-    color: #fff;
-    border-radius: 8px;
-    padding: 10px 16px;
-    font-weight: 600;
-    text-decoration: none;
-    display: inline-block;
-    transition: transform .12s ease, box-shadow .12s ease;
+  .marketplace-logos {
+    display: flex;
+    gap: 32px;
+    align-items: center;
+    justify-content: flex-end;
   }
-  .amazon-available .amazon-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(112,74,13,0.12);
+  .market-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 45px;
+    transition: all .3s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 8px 12px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    border: 1px solid rgba(0,0,0,0.03);
+  }
+  .market-link:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(112,74,13,0.1);
+    border-color: var(--primary-light, #f1e9da);
+  }
+  .market-logo {
+    height: 100%;
+    width: auto;
+    max-width: 110px;
+    object-fit: contain;
+    transition: all .3s ease;
+  }
+  .market-logo.amazon-logo { height: 24px; }
+  .market-logo.flipkart-logo { height: 28px; }
+  .market-logo.meesho-logo { height: 28px; }
+  
+  .market-link:hover .market-logo {
+    filter: brightness(1.05);
   }
 
   @media (max-width: 575px) {
@@ -255,10 +307,27 @@ const StyledFooter = styled.footer`
       right: 1rem;
     }
 
-    .amazon-available {
+    .marketplace-available {
       text-align: left;
-      padding: 18px 0;
+      padding: 25px 0;
     }
-    .amazon-available .amazon-btn { width: 100%; }
+    .marketplace-text {
+      border-left: none;
+      padding-left: 0;
+      margin-bottom: 20px;
+    }
+    .marketplace-logos {
+      justify-content: center;
+      gap: 15px;
+    }
+    .market-link {
+      height: 40px;
+      padding: 6px 10px;
+      flex: 1;
+      max-width: 120px;
+    }
+    .market-logo.amazon-logo { height: 18px; }
+    .market-logo.flipkart-logo { height: 22px; }
+    .market-logo.meesho-logo { height: 22px; }
   }
 `;
