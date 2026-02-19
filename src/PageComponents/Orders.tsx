@@ -10,6 +10,7 @@ import LoadingIndicator from "../Components/Common/LoadingIndicator";
 import { useCart } from "../Components/Contexts/CartContext";
 import OrderTracker from "../Components/Orders/OrderTracker";
 import OrderProductItem from "../Components/Orders/OrderProductItem";
+import { generateInvoice } from "../utils/invoiceGenerator";
 
 
 interface OrderData {
@@ -18,6 +19,11 @@ interface OrderData {
   products: any[];
   status: string;
   status_timeline?: any[];
+  courier_name?: string;
+  awb_code?: string;
+  label_url?: string;
+  delivery_status?: string;
+  tracking_id?: string;
 }
 
 const Orders = () => {
@@ -71,7 +77,11 @@ const Orders = () => {
             ...data.data,
             products: data.data.products || data.data.items || [],
             status: data.data.status || 'placed',
-            order_amount: data.data.order_amount || data.data.total_amount || 0
+            order_amount: data.data.order_amount || data.data.total_amount || 0,
+            courier_name: data.data.courier_name,
+            awb_code: data.data.awb_code,
+            label_url: data.data.label_url,
+            delivery_status: data.data.delivery_status
           };
           setOrderData(normalizedData);
 
@@ -176,11 +186,36 @@ const Orders = () => {
               {/* Order Tracker */}
               <div className="card shadow-sm border-0 mb-4 rounded-3">
                 <div className="card-body p-4">
-                  <h5 className="fw-bold mb-4">Order Status</h5>
+                  <div className="d-flex justify-content-between align-items-center mb-4">
+                    <h5 className="fw-bold mb-0">Order Status</h5>
+                    {orderData.awb_code && (
+                      <span className="badge bg-light text-dark border">
+                        AWB: {orderData.awb_code}
+                      </span>
+                    )}
+                  </div>
+
                   <OrderTracker
                     currentStatus={orderData.status || 'placed'}
+                    deliveryStatus={orderData.delivery_status}
                     timeline={orderData.status_timeline || []}
                   />
+
+                  {orderData.courier_name && (
+                    <div className="mt-4 pt-3 border-top">
+                      <div className="d-flex justify-content-between align-items-center">
+                        <div>
+                          <p className="mb-0 text-muted small text-uppercase fw-bold">Courier Partner</p>
+                          <p className="mb-0 fw-medium">{orderData.courier_name}</p>
+                        </div>
+                        {orderData.label_url && (
+                          <a href={orderData.label_url} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline-primary rounded-pill">
+                            Download Label
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -191,8 +226,8 @@ const Orders = () => {
                 </div>
                 <div className="card-body p-0">
                   <div className="px-4">
-                    {orderData.products.map((product) => (
-                      <OrderProductItem key={product.product_id} product={product} />
+                    {orderData.products.map((product, index) => (
+                      <OrderProductItem key={product.product_id || product.id || index} product={product} />
                     ))}
                   </div>
                 </div>
@@ -226,7 +261,7 @@ const Orders = () => {
               <div className="card shadow-sm border-0 rounded-3">
                 <div className="card-body p-0">
                   <ul className="list-group list-group-flush rounded-3">
-                    <li className="list-group-item p-3 action-link" style={{ cursor: 'pointer' }} onClick={() => window.print()}>
+                    <li className="list-group-item p-3 action-link" style={{ cursor: 'pointer' }} onClick={() => generateInvoice(orderData)}>
                       Download Invoice
                     </li>
                     <Link href={`/contact?orderId=${orderId}`} passHref style={{ textDecoration: 'none' }}>

@@ -12,10 +12,11 @@ interface TimelineStep {
 
 interface OrderTrackerProps {
     currentStatus: string;
+    deliveryStatus?: string;
     timeline?: { status: string; timestamp: string }[];
 }
 
-const OrderTracker: React.FC<OrderTrackerProps> = ({ currentStatus, timeline = [] }) => {
+const OrderTracker: React.FC<OrderTrackerProps> = ({ currentStatus, deliveryStatus, timeline = [] }) => {
     const steps = [
         { key: 'placed', label: 'Order Placed' },
         { key: 'shipped', label: 'Shipped' },
@@ -24,12 +25,24 @@ const OrderTracker: React.FC<OrderTrackerProps> = ({ currentStatus, timeline = [
     ];
 
     // Helper to find if a step is completed based on current status
-    const getStepStatus = (stepKey: string, current: string) => {
-        const statusOrder = ['placed', 'shipped', 'out_for_delivery', 'delivered'];
-        const currentIndex = statusOrder.indexOf(current.toLowerCase());
-        const stepIndex = statusOrder.indexOf(stepKey);
+    const getStepStatus = (stepKey: string, current: string, deliveryStat?: string) => {
+        const orderStatusOrder = ['placed', 'shipped', 'out_for_delivery', 'delivered'];
 
-        if (current.toLowerCase() === 'cancelled') {
+        let effectiveStatus = current.toLowerCase();
+
+        // If we have a specific delivery status from iCarry, map it to our internal status if valid
+        if (deliveryStat) {
+            const ds = deliveryStat.toLowerCase();
+            if (ds === 'booked') effectiveStatus = 'placed'; // Or shipped if booked means label created
+            if (ds === 'in_transit' || ds === 'shipped') effectiveStatus = 'shipped';
+            if (ds === 'out_for_delivery') effectiveStatus = 'out_for_delivery';
+            if (ds === 'delivered') effectiveStatus = 'delivered';
+        }
+
+        const currentIndex = orderStatusOrder.indexOf(effectiveStatus);
+        const stepIndex = orderStatusOrder.indexOf(stepKey);
+
+        if (effectiveStatus === 'cancelled') {
             return { isCompleted: stepKey === 'placed', isCurrent: false, isCancelled: true };
         }
 
@@ -42,7 +55,7 @@ const OrderTracker: React.FC<OrderTrackerProps> = ({ currentStatus, timeline = [
 
     // Merge predefined steps with actual timeline data if available
     const timelineSteps = steps.map((step) => {
-        const { isCompleted, isCurrent, isCancelled } = getStepStatus(step.key, currentStatus);
+        const { isCompleted, isCurrent, isCancelled } = getStepStatus(step.key, currentStatus, deliveryStatus);
         // Find timestamp from props if it exists
         const timelineEvent = timeline.find(t => t.status === step.key);
 

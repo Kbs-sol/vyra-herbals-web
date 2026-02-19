@@ -302,16 +302,9 @@ const Header = () => {
 
               <div className="header-widget">
                 {user ? (
-                  <Dropdown align="end">
-                    <StyledDropdownToggle variant="link" id="dropdown-profile">
-                      <FaUserCircle size={24} color="var(--primary)" />
-                    </StyledDropdownToggle>
-
-                    <Dropdown.Menu>
-                      <Dropdown.Item as={Link} href="/profile">My Profile</Dropdown.Item>
-                      <Dropdown.Item as={Link} href="/profile#orders">My Orders</Dropdown.Item>
-                    </Dropdown.Menu>
-                  </Dropdown>
+                  <Link href="/profile" className="header-profile" title="My Profile">
+                    <FaUserCircle size={24} color="var(--primary)" />
+                  </Link>
                 ) : (
                   <Link href="/login" className="login-btn">
                     <span>Login</span>

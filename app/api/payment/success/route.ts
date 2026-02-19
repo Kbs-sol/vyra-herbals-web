@@ -98,10 +98,15 @@ export async function POST(req: Request) {
             const shipmentResult = await createShipment({ ...orderPayload, id: inserted.id });
             if (shipmentResult.success) {
                 trackingId = shipmentResult.trackingId || '';
-                // Update order with tracking ID
-                if (trackingId) {
-                    await supabase.from('orders').update({ tracking_id: trackingId }).eq('id', inserted.id);
-                }
+                // Update order with tracking ID and other details
+                await supabase.from('orders').update({
+                    tracking_id: trackingId,
+                    shipment_id: shipmentResult.shipment_id,
+                    awb_code: shipmentResult.awb_code,
+                    courier_name: shipmentResult.courier_name,
+                    label_url: shipmentResult.label_url,
+                    delivery_status: 'Booked'
+                }).eq('id', inserted.id);
             }
         } catch (shipError) {
             console.error('Shipment creation failed:', shipError);

@@ -10,6 +10,9 @@ interface OrderProductItemProps {
     quantity: number;
     item_amount: number;
     attributes?: any; // For future use (size, color, etc.)
+    handle?: string;
+    image_url?: string;
+    title?: string;
   };
 }
 
@@ -17,14 +20,22 @@ const OrderProductItem: React.FC<OrderProductItemProps> = ({ product }) => {
   const router = useRouter();
 
   // Normalize product data to handle different API responses
-  const displayImage = product.product_image || (product as any).image_url || '/placeholder.png';
+  // Prioritize image_url over product_image as it aligns with CartItem/API response structure
+  const displayImage = product.image_url || product.product_image || (product as any).image_url || '/placeholder.png';
   const displayTitle = product.product_title || (product as any).title || 'Product';
   const displayPrice = product.item_amount || (product as any).price || (product as any).total_price || 0;
   const displayQty = product.quantity || (product as any).qty || 1;
+
+  // Use handle for redirection if available, otherwise fallback to ID (though handle is preferred)
+  const targetHandle = product.handle || (product as any).handle;
   const targetId = product.product_id || (product as any).id;
 
   const handleProductClick = () => {
-    if (targetId) {
+    if (targetHandle) {
+      router.push(`/product/${targetHandle}`);
+    } else if (targetId) {
+      // Fallback to ID if handle is missing, though this might lead to the issue user reported if the route doesn't support ID perfectly
+      // Ideally we should always have a handle.
       router.push(`/product/${targetId}`);
     }
   };

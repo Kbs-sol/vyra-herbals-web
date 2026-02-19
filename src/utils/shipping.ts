@@ -78,7 +78,7 @@ export const createShipment = async (orderData: any) => {
         // Using x-www-form-urlencoded as per PDF example structure
         const payload = new URLSearchParams();
         payload.append("pickup_address_id", "1"); // Assuming 1 as default, should be configurable
-        payload.append("client_order_id", orderData.id);
+        payload.append("client_order_id", String(orderData.id)); // Ensure string
         payload.append("consignee[name]", orderData.shipping_data.fullName);
         payload.append("consignee[mobile]", orderData.shipping_data.phone);
         payload.append("consignee[address]", `${orderData.shipping_data.houseNumber}, ${orderData.shipping_data.area}, ${orderData.shipping_data.landmark}`);
@@ -113,6 +113,10 @@ export const createShipment = async (orderData: any) => {
             return {
                 success: true,
                 trackingId: String(result.awb || result.shipment_id),
+                shipment_id: String(result.shipment_id),
+                awb_code: String(result.awb),
+                courier_name: String(result.courier_name || 'iCarry Partner'),
+                label_url: String(result.label_url || ''),
                 data: result
             };
         }

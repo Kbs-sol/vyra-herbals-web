@@ -18,6 +18,8 @@ interface Order {
     products?: any[];
     tracking_id?: string;
     status_timeline?: any[];
+    shipping_data?: any;
+    items_count?: number;
 }
 
 const ProfilePage = () => {
@@ -81,6 +83,29 @@ const ProfilePage = () => {
         setShowLogoutModal(false);
     };
 
+    const formatAddress = (shippingData: any) => {
+        try {
+            if (!shippingData) return null;
+            const data = typeof shippingData === 'string' ? JSON.parse(shippingData) : shippingData;
+
+            // Handle legacy simple address string
+            if (data.address && !data.houseNumber) {
+                return {
+                    name: data.fullName || 'Valued Customer',
+                    city: 'India'
+                };
+            }
+
+            return {
+                name: data.fullName || 'Valued Customer',
+                city: data.city || 'India',
+                state: data.state || ''
+            };
+        } catch (e) {
+            return { name: 'Valued Customer', city: 'India' };
+        }
+    };
+
     const renderOrdersContent = () => {
         if (loadingOrders) {
             return (
@@ -105,67 +130,77 @@ const ProfilePage = () => {
 
         return (
             <OrdersList>
-                {orders.map((order, index) => (
-                    <OrderItem key={order.id ?? `order-${index}`} className="shadow-sm border-0 mb-4">
-                        <Card.Header className="bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
-                            <div>
-                                <span className="text-uppercase fw-bold text-secondary small me-2">Order Placed</span>
-                                <span className="fw-medium text-dark">{new Date(order.created_at).toLocaleDateString("en-IN", { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                            </div>
-                            <div className="d-flex align-items-center gap-3">
-                                <span className="text-uppercase fw-bold text-secondary small">Total</span>
-                                <span className="fw-bold text-dark">₹{order.total_amount}</span>
-                            </div>
-                        </Card.Header>
-                        <Card.Body className="p-4">
-                            <div className="d-flex flex-column flex-md-row gap-4 justify-content-between align-items-md-center">
-                                <div className="flex-grow-1">
-                                    <div className="d-flex align-items-center mb-3">
-                                        <StatusChip status={order.status.toLowerCase()} className="me-3">
-                                            {order.status}
-                                        </StatusChip>
-                                        <span className="text-muted small">Order # {order.id}</span>
+                {orders.map((order, index) => {
+                    const address = formatAddress(order.shipping_data);
+                    const itemCount = (order.products || order.items || []).reduce((acc: number, item: any) => acc + (Number(item.quantity) || 1), 0);
+
+                    return (
+                        <OrderItem
+                            key={order.id ?? `order-${index}`}
+                            className="shadow-sm border-0 mb-4"
+                            onClick={() => router.push(`/orders/${order.id}`)}
+                            style={{ cursor: 'pointer' }}
+                        >
+                            <Card.Header className="bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span className="text-uppercase fw-bold text-secondary small me-2">Order Placed</span>
+                                    <span className="fw-medium text-dark">{new Date(order.created_at).toLocaleDateString("en-IN", { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                </div>
+                                <div className="d-flex align-items-center gap-3">
+                                    <span className="text-uppercase fw-bold text-secondary small">Total</span>
+                                    <span className="fw-bold text-dark">₹{order.total_amount}</span>
+                                </div>
+                            </Card.Header>
+                            <Card.Body className="p-4">
+                                <div className="d-flex flex-column flex-md-row gap-4 justify-content-between align-items-md-center">
+                                    <div className="flex-grow-1">
+                                        <div className="d-flex align-items-center mb-3 flex-wrap gap-2">
+                                            <StatusChip status={order.status.toLowerCase()} className="me-2">
+                                                {order.status}
+                                            </StatusChip>
+                                            <span className="text-muted small me-2">Order # {order.id}</span>
+                                            {address && (
+                                                <span className="badge bg-light text-secondary border fw-normal">
+                                                    Shipped to {address.name} {address.city ? `(${address.city})` : ''}
+                                                </span>
+                                            )}
+                                            <span className="badge bg-light text-secondary border fw-normal">
+                                                {itemCount} {itemCount === 1 ? 'Item' : 'Items'}
+                                            </span>
+                                        </div>
+
+                                        <div className="d-flex gap-3 overflow-auto pb-2" style={{ maxWidth: '100%' }}>
+                                            {(order.products || order.items || []).map((item: any, i: number) => (
+                                                <div key={i} style={{ width: 60, height: 60, flexShrink: 0 }} className="border rounded p-1 position-relative">
+                                                    <img
+                                                        src={item.product_image || item.image_url || '/home-hair-oil.jpg'}
+                                                        alt={item.product_title || item.title || 'Product'}
+                                                        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                                                        onError={(e) => {
+                                                            (e.target as HTMLImageElement).src = '/home-hair-oil.jpg';
+                                                        }}
+                                                    />
+                                                    {item.quantity > 1 && (
+                                                        <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-secondary" style={{ fontSize: '0.6rem' }}>
+                                                            {item.quantity}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
 
-                                    <div className="d-flex gap-3 overflow-auto pb-2" style={{ maxWidth: '100%' }}>
-                                        {(order.products || order.items || []).map((item: any, i: number) => (
-                                            <div key={i} style={{ width: 60, height: 60, flexShrink: 0 }} className="border rounded p-1 position-relative">
-                                                <img
-                                                    src={item.product_image || item.image_url || '/home-hair-oil.jpg'}
-                                                    alt={item.product_title || item.title || 'Product'}
-                                                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                                                    onError={(e) => {
-                                                        (e.target as HTMLImageElement).src = '/home-hair-oil.jpg';
-                                                    }}
-                                                />
-                                                {item.quantity > 1 && (
-                                                    <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-secondary" style={{ fontSize: '0.6rem' }}>
-                                                        {item.quantity}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        ))}
+                                    <div className="d-flex flex-column gap-2" style={{ minWidth: '140px' }}>
+                                        {/* View Details button removed as card is clickable */}
+                                        <Link href={`/contact?orderId=${order.id}`} passHref onClick={(e) => e.stopPropagation()}>
+                                            <Button variant="outline-secondary" size="sm" className="w-100 rounded-pill">Need Help?</Button>
+                                        </Link>
                                     </div>
                                 </div>
-
-                                <div className="d-flex flex-column gap-2" style={{ minWidth: '140px' }}>
-                                    <Button
-                                        variant="primary"
-                                        className="w-100 rounded-pill fw-medium"
-                                        onClick={() => {
-                                            router.push(`/orders/${order.id}`);
-                                        }}
-                                    >
-                                        View Details
-                                    </Button>
-                                    <Link href={`/contact?orderId=${order.id}`} passHref>
-                                        <Button variant="outline-secondary" size="sm" className="w-100 rounded-pill">Need Help?</Button>
-                                    </Link>
-                                </div>
-                            </div>
-                        </Card.Body>
-                    </OrderItem>
-                ))}
+                            </Card.Body>
+                        </OrderItem>
+                    );
+                })}
             </OrdersList>
         );
     };
