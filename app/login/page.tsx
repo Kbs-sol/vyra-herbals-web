@@ -9,19 +9,18 @@ import Link from 'next/link';
 import { Modal, Button } from 'react-bootstrap';
 
 const LoginContent = () => {
-  const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [step, setStep] = useState<'phone' | 'otp'>('phone');
+  const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
   const [name, setName] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [verificationId, setVerificationId] = useState('');
   const [localLoading, setLocalLoading] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [error, setError] = useState('');
 
-  const { login, signUp, user, loading: authLoading } = useAuth();
+  const { sendOtp, verifyOtp, user, loading: authLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectUrl = searchParams.get('next') || '/';
+  const redirectUrl = searchParams?.get('next') || '/';
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -29,30 +28,43 @@ const LoginContent = () => {
     }
   }, [user, authLoading, router, redirectUrl]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocalLoading(true);
     setError('');
 
     try {
-      if (isLogin) {
-        const { error } = await login(email, password);
-        if (error) throw error;
-        // Redirect handled by useEffect
-      } else {
-        const { error } = await signUp(email, password, name);
-        if (error) throw error;
-        setShowSuccessModal(true);
+      const { verificationId, error } = await sendOtp(phone);
+      if (error) throw new Error(error);
+      if (verificationId) {
+        setVerificationId(verificationId);
+        setStep('otp');
       }
     } catch (error: any) {
-      setError(error.message || 'An error occurred');
+      setError(error.message || 'Failed to send OTP');
     } finally {
       setLocalLoading(false);
     }
   };
 
-  // If user is already logged in and we know it, redirect will happen via useEffect
-  // Don't block rendering - show the form immediately
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLocalLoading(true);
+    setError('');
+
+    try {
+      // If it's a new user (optional check or always send name if step 1 wasn't login)
+      // For simplicity, we can ask for name if they want to update it
+      const { error } = await verifyOtp(phone, verificationId, otp, name);
+      if (error) throw new Error(error);
+      // Success is handled by AuthContext (signs in) which triggers useEffect redirect
+    } catch (error: any) {
+      setError(error.message || 'Invalid OTP');
+    } finally {
+      setLocalLoading(false);
+    }
+  };
+
   if (user && !authLoading) {
     return <LoadingWrapper>Redirecting...</LoadingWrapper>;
   }
@@ -60,86 +72,66 @@ const LoginContent = () => {
   return (
     <Container>
       <AuthCard>
-        <Title>{isLogin ? 'Welcome Back' : 'Create Account'}</Title>
+        <Title>Welcome to Vyra</Title>
         <Subtitle>
-          {isLogin
-            ? 'Login to access your personalized shopping experience'
-            : 'Join Vyra Herbals for a better shopping experience'}
+          {step === 'phone'
+            ? 'Login or Sign Up with your mobile number'
+            : 'Enter the 4-digit code sent to your phone'}
         </Subtitle>
 
         {error && <ErrorMessage>{error}</ErrorMessage>}
 
-        <Form onSubmit={handleSubmit}>
-          {!isLogin && (
+        {step === 'phone' ? (
+          <Form onSubmit={handleSendOtp}>
             <FormGroup>
-              <Label>Full Name</Label>
+              <Label>Mobile Number</Label>
               <Input
-                type="text"
-                placeholder="Enter your full name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required={!isLogin}
-              />
-            </FormGroup>
-          )}
-
-          <FormGroup>
-            <Label>Email Address</Label>
-            <Input
-              type="email"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </FormGroup>
-
-          <FormGroup>
-            <Label>Password</Label>
-            <PasswordWrapper>
-              <Input
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                type="tel"
+                placeholder="Enter 10-digit mobile number"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                 required
               />
-              <ToggleIcon onClick={() => setShowPassword(!showPassword)} type="button">
-                {showPassword ? <FaEyeSlash /> : <FaEye />}
-              </ToggleIcon>
-            </PasswordWrapper>
-          </FormGroup>
+            </FormGroup>
 
-          <SubmitButton type="submit" disabled={localLoading}>
-            {localLoading ? 'Processing...' : isLogin ? 'Login' : 'Sign Up'}
-          </SubmitButton>
-        </Form>
+            <SubmitButton type="submit" disabled={localLoading || phone.length !== 10}>
+              {localLoading ? 'Sending...' : 'Get OTP'}
+            </SubmitButton>
+          </Form>
+        ) : (
+          <Form onSubmit={handleVerifyOtp}>
+            <FormGroup>
+              <Label>Full Name (Optional for existing users)</Label>
+              <Input
+                type="text"
+                placeholder="Enter your name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </FormGroup>
+            <FormGroup>
+              <Label>Enter OTP</Label>
+              <Input
+                type="text"
+                placeholder="4-digit OTP"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                required
+              />
+            </FormGroup>
 
-        <SwitchText>
-          {isLogin ? "Don't have an account? " : 'Already have an account? '}
-          <span onClick={() => setIsLogin(!isLogin)}>
-            {isLogin ? 'Sign Up' : 'Login'}
-          </span>
-        </SwitchText>
+            <SubmitButton type="submit" disabled={localLoading || otp.length < 4}>
+              {localLoading ? 'Verifying...' : 'Verify & Login'}
+            </SubmitButton>
+
+            <SwitchText>
+              <span onClick={() => { setStep('phone'); setOtp(''); setError(''); }}>
+                Change Phone Number
+              </span>
+            </SwitchText>
+          </Form>
+        )}
       </AuthCard>
-
-      <StyledModal show={showSuccessModal} onHide={() => setShowSuccessModal(false)} centered backdrop="static" keyboard={false}>
-        <Modal.Header closeButton>
-          <Modal.Title>Check Your Email</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <p>We've sent a confirmation link to <strong>{email}</strong>.</p>
-          <p>Please check your inbox and confirm your email to complete the registration.</p>
-          <div className="alert alert-warning mb-0">
-            <strong>Important:</strong> If you don't see the email, please check your <strong>Spam</strong> or <strong>Junk</strong> folder.
-          </div>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="primary" onClick={() => { setShowSuccessModal(false); setIsLogin(true); }}>
-            OK, I'll Check
-          </Button>
-        </Modal.Footer>
-      </StyledModal>
     </Container>
   );
 };

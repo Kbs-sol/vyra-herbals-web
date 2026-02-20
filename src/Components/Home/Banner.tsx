@@ -48,9 +48,7 @@ const Banner = () => {
   }
 
   const settings = {
-    className: "center",
     infinite: true,
-    centerPadding: "600px",
     slidesToShow: 1,
     slidesToScroll: 1,
     responsive: [
@@ -102,6 +100,9 @@ const Banner = () => {
             </div>
             <div className="banner-list">
               <img src="/assets/images/banner-02.png" alt="product" />
+            </div>
+            <div className="banner-list">
+              <img src="/assets/images/hero-banner.png" alt="Banner" />
             </div>
           </Slider>
         </div>

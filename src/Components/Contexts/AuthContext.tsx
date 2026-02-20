@@ -9,9 +9,9 @@ import { useRouter } from "next/navigation";
 interface AuthContextType {
   user: AppUser | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<{ error: any }>;
+  sendOtp: (phone: string) => Promise<{ verificationId?: string; error?: any }>;
+  verifyOtp: (phone: string, verificationId: string, code: string, name?: string) => Promise<{ error?: any }>;
   logout: () => Promise<void>;
-  signUp: (email: string, password: string, name: string) => Promise<{ error: any }>;
 }
 
 // Create the context
@@ -67,35 +67,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .eq('id', authUser.id)
         .maybeSingle();
 
-      // If no data found by ID (UUID mismatch), try fetching by email
-      if (!data && authUser.email) {
-        console.log('AuthContext: ID lookup failed, trying email:', authUser.email);
-        const emailResult = await supabase
-          .from('users')
-          .select('*')
-          .eq('email', authUser.email)
-          .maybeSingle();
-
-        data = emailResult.data;
-        if (emailResult.error) error = emailResult.error;
-      }
-
       if (data) {
-        // MATCHING STRATEGY: 
-        // We prioritize authUser.id (Auth UUID) because that's what the user is logged in with.
-        // The database 'users' table might have a different UUID if it was created independently.
-        // If orders were created using the Auth UUID, we must use that.
         setUser({
-          id: authUser.id, // KEEP AUTH ID
-          email: authUser.email || '',
+          id: authUser.id,
+          email: data.email || authUser.email || '',
           name: data.name || authUser.user_metadata?.name || '',
           role: data.role,
           created_at: data.created_at,
-          // Store the database ID separately if needed, or ignore it for now to fix order visibility
-          // db_id: data.id 
         });
       } else {
-        // Fallback or just set basic info if profile lookup fails (or trigger hasn't run yet)
         setUser({
           id: authUser.id,
           email: authUser.email || '',
@@ -105,7 +85,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error) {
       console.error("Error fetching user profile:", error);
-      // FALLBACK: Ensure user state is set even if profile fetch fails
       setUser({
         id: authUser.id,
         email: authUser.email || '',
@@ -117,57 +96,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const login = async (email: string, password: string) => {
+  const sendOtp = async (phone: string) => {
     try {
-      console.log("Attempting login for:", email);
-
-      if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        throw new Error('No internet connection. Please check your network.');
-      }
-
-      // Check for config (just existence)
-      if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-        console.error("Supabase URL is missing in client env!");
-      }
-
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const res = await fetch('/api/auth/otp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone }),
       });
-
-      if (error) {
-        console.error("Login error:", error);
-      } else if (data.user) {
-        console.log("Login successful:", data.user.id);
-        // Explicitly fetch user profile to update state immediately
-        await fetchUserProfile(data.user);
-      }
-
-      return { error };
-    } catch (err: any) {
-      console.error("Login exception:", err);
-      // Ensure we return an error object that the UI can display
-      return { error: { message: err.message || "An unexpected error occurred" } };
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      return { verificationId: data.verificationId };
+    } catch (error: any) {
+      return { error: error.message };
     }
   };
 
-  const signUp = async (email: string, password: string, name: string) => {
+  const verifyOtp = async (phone: string, verificationId: string, code: string, name?: string) => {
     try {
-      console.log("Attempting signup for:", email);
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name: name
-          }
-        }
+      const res = await fetch('/api/auth/otp/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, verificationId, code, name }),
       });
-      if (error) console.error("Signup error:", error);
-      return { error };
-    } catch (err) {
-      console.error("Signup exception:", err);
-      return { error: err };
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      // Successfully verified and created/found user
+      // Now sign in with the deterministic credentials
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      });
+
+      if (signInError) throw signInError;
+
+      return { error: null };
+    } catch (error: any) {
+      return { error: error.message };
     }
   };
 
@@ -178,7 +143,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, signUp }}>
+    <AuthContext.Provider value={{ user, loading, sendOtp, verifyOtp, logout }}>
       {children}
     </AuthContext.Provider>
   );

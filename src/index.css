@@ -24,8 +24,7 @@ a:hover {
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
+  display: block;
   min-width: 320px;
   min-height: 100vh;
 }
@@ -76,15 +75,31 @@ button:focus-visible {
   font-size: 28px;
 }
 
-.pt-4{
+.pt-4 {
   padding-top: 50px !important;
 }
 
-.pb-4{
+.pb-4 {
   padding-bottom: 50px !important;
 }
 
 
+
+.baner_sects {
+  width: 100vw !important;
+  max-width: 100vw !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.slider-container,
+.banner-list {
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
 
 .left_icon {
   position: absolute;
@@ -95,15 +110,19 @@ button:focus-visible {
   font-size: 10px !important;
 }
 
-.left_icon svg ,.right_icon svg {
+.left_icon svg,
+.right_icon svg {
   color: #fff !important;
   font-size: 10px !important;
   width: 28px;
   height: 28px;
 }
-.left_icon:hover,.right_icon:hover{
+
+.left_icon:hover,
+.right_icon:hover {
   background-color: #000 !important;
 }
+
 .left_icon {
   position: absolute;
   z-index: 9;
@@ -141,10 +160,16 @@ button:focus-visible {
 }
 
 .banner-list img {
-  width: 100%;
-    /* height: 600px;
-    object-fit: cover;
-    object-position: center; */
+  width: 100% !important;
+  height: 750px !important;
+  object-fit: cover !important;
+  object-position: center !important;
+}
+
+@media (max-width: 768px) {
+  .banner-list img {
+    height: 400px !important;
+  }
 }
 
 .baner_sects .left_icon {
@@ -154,6 +179,7 @@ button:focus-visible {
   align-items: center;
   justify-content: center;
 }
+
 .baner_sects .right_icon {
   top: 300px !important;
   right: 57px !important;
