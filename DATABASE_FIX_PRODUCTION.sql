@@ -412,8 +412,8 @@ CREATE POLICY "Public categories read" ON categories
 
 CREATE TABLE IF NOT EXISTS cart (
   id BIGSERIAL PRIMARY KEY,
-  user_id BIGINT,
-  product_id BIGINT,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  product_id BIGINT REFERENCES products(id) ON DELETE CASCADE,
   quantity INTEGER DEFAULT 1 CHECK (quantity > 0),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(user_id, product_id)
@@ -434,10 +434,10 @@ CREATE POLICY "Service role cart access" ON cart
 -- ========================================
 
 CREATE TABLE IF NOT EXISTS users (
-  id BIGSERIAL PRIMARY KEY,
+  id UUID PRIMARY KEY,
   email TEXT UNIQUE,
   name TEXT,
-  phone BIGINT,
+  phone TEXT,
   password TEXT,
   role BIGINT DEFAULT 1,
   image TEXT,

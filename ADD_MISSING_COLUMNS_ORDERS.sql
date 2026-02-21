@@ -8,12 +8,12 @@
 DO $$ 
 BEGIN
   -- 1. Add user_id column if it doesn't exist
-  -- BIGINT references users(id)
+  -- UUID references users(id)
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns 
     WHERE table_name = 'orders' AND column_name = 'user_id'
   ) THEN
-    ALTER TABLE orders ADD COLUMN user_id BIGINT REFERENCES users(id) ON DELETE SET NULL;
+    ALTER TABLE orders ADD COLUMN user_id UUID REFERENCES users(id) ON DELETE SET NULL;
     RAISE NOTICE 'Added user_id column to orders table';
   END IF;
 

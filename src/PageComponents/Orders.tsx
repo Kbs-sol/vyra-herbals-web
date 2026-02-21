@@ -11,6 +11,7 @@ import { useCart } from "../Components/Contexts/CartContext";
 import OrderTracker from "../Components/Orders/OrderTracker";
 import OrderProductItem from "../Components/Orders/OrderProductItem";
 import { generateInvoice } from "../utils/invoiceGenerator";
+import { supabase } from "@/utils/supabaseClient";
 
 
 interface OrderData {
@@ -68,49 +69,59 @@ const Orders = () => {
     const effectiveOrderId = String(orderId);
     if (!effectiveOrderId) return;
 
-    fetch(`${API_PATH}/orders/info?order_id=${effectiveOrderId}`)
-      .then((response) => response.json())
-      .then((data) => {
-        if (data.status === "success") {
-          // Normalize data
-          const normalizedData = {
-            ...data.data,
-            products: data.data.products || data.data.items || [],
-            status: data.data.status || 'placed',
-            order_amount: data.data.order_amount || data.data.total_amount || 0,
-            courier_name: data.data.courier_name,
-            awb_code: data.data.awb_code,
-            label_url: data.data.label_url,
-            delivery_status: data.data.delivery_status
-          };
-          setOrderData(normalizedData);
+    // Get access token for secure fetching
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const headers: any = { "Content-Type": "application/json" };
+      if (session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
 
-          if (cartItems.length > 0) {
-            const orderProductsMap = new Map(
-              normalizedData.products.map(product => [
-                product.product_id || product.id,
-                Number(product.quantity || product.qty || 1)
-              ])
-            );
-            const isOrderMatching = cartItems.every(cartItem =>
-              orderProductsMap.get(cartItem.product_id || cartItem.id) === Number(cartItem.quantity)
-            );
-
-            if (isOrderMatching) {
-              clearCart();
-            }
-          }
-        } else {
-          console.error("Error fetching order data:", data.message);
-          setOrderData(null);
-        }
-        setLoading(false);
+      fetch(`${API_PATH}/orders/info?order_id=${effectiveOrderId}`, {
+        headers: headers
       })
-      .catch((error) => {
-        console.error("Error fetching order data:", error);
-        setOrderData(null);
-        setLoading(false);
-      });
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.status === "success") {
+            // Normalize data
+            const normalizedData = {
+              ...data.data,
+              products: data.data.products || data.data.items || [],
+              status: data.data.status || 'placed',
+              order_amount: data.data.order_amount || data.data.total_amount || 0,
+              courier_name: data.data.courier_name,
+              awb_code: data.data.awb_code,
+              label_url: data.data.label_url,
+              delivery_status: data.data.delivery_status
+            };
+            setOrderData(normalizedData);
+
+            if (cartItems.length > 0) {
+              const orderProductsMap = new Map(
+                normalizedData.products.map(product => [
+                  product.product_id || product.id,
+                  Number(product.quantity || product.qty || 1)
+                ])
+              );
+              const isOrderMatching = cartItems.every(cartItem =>
+                orderProductsMap.get(cartItem.product_id || cartItem.id) === Number(cartItem.quantity)
+              );
+
+              if (isOrderMatching) {
+                clearCart();
+              }
+            }
+          } else {
+            console.error("Error fetching order data:", data.message);
+            setOrderData(null);
+          }
+          setLoading(false);
+        })
+        .catch((error) => {
+          console.error("Error fetching order data:", error);
+          setOrderData(null);
+          setLoading(false);
+        });
+    });
   };
 
   const formatShippingAddress = (shippingAddress) => {

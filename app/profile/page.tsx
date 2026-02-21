@@ -5,9 +5,15 @@ import { useAuth } from '@/Components/Contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/utils/supabaseClient';
 import styled, { css } from 'styled-components';
-import { Container, Row, Col, Card, Badge, Table, Spinner, Modal, Button, Nav, Tab, Form } from 'react-bootstrap';
-import { FaBoxOpen, FaUser, FaSignOutAlt, FaShoppingBag, FaCog, FaHistory, FaCheckCircle } from 'react-icons/fa';
+import { Container, Row, Col, Card, Badge, Spinner, Modal, Button, Nav, Tab, Form } from 'react-bootstrap';
+import { FaBoxOpen, FaUser, FaSignOutAlt, FaShoppingBag, FaCog, FaHistory, FaCheckCircle, FaHeart, FaMapMarkerAlt, FaPlus, FaTrash, FaEdit, FaCreditCard } from 'react-icons/fa';
 import Link from 'next/link';
+import { useWishlist } from '@/Components/Contexts/WishlistContext';
+import { useCart } from '@/Components/Contexts/CartContext';
+import { toast } from 'react-toastify';
+import LazyImage from '@/Components/Common/LazyImage';
+import Utility from '@/utils/UtilityFunctions';
+import { generateInvoice } from '@/utils/invoiceGenerator';
 
 interface Order {
     id: number;
@@ -22,25 +28,105 @@ interface Order {
     items_count?: number;
 }
 
+interface Address {
+    id: number;
+    full_name: string;
+    phone: string;
+    house_number: string;
+    area: string;
+    landmark: string;
+    city: string;
+    state: string;
+    pincode: string;
+    country: string;
+    is_default: boolean;
+}
+
+interface Transaction {
+    id: number;
+    amount: number;
+    status: string;
+    txn_id: string;
+    created_at: string;
+}
+
 const ProfilePage = () => {
     const { user, loading: authLoading, logout } = useAuth();
     const router = useRouter();
     const [orders, setOrders] = useState<Order[]>([]);
     const [loadingOrders, setLoadingOrders] = useState(false);
+
+    // Addresses state
+    const [addresses, setAddresses] = useState<Address[]>([]);
+    const [loadingAddresses, setLoadingAddresses] = useState(false);
+    const [showAddressModal, setShowAddressModal] = useState(false);
+    const [editingAddress, setEditingAddress] = useState<Address | null>(null);
+    const [addressForm, setAddressForm] = useState<Partial<Address>>({});
+
+    // Transactions state
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [loadingTransactions, setLoadingTransactions] = useState(false);
+
+    // Wishlist from context
+    const { wishlistItems, wishlistCount, removeFromWishlist } = useWishlist();
+    const { addItemToCart, cartItems } = useCart();
+
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [activeTab, setActiveTab] = useState('orders');
 
-    // Fetch orders only when user is available and not already loading
-    // Fetch orders only when user is available
-    // Fetch orders only when user is available and not already loading
-    // Fetch orders only when user is available
     useEffect(() => {
         if (!authLoading && user) {
             fetchOrders();
+            fetchAddresses();
+            fetchTransactions();
         } else if (!authLoading && !user) {
             router.push('/login');
         }
     }, [user?.id, authLoading, router]);
+
+    const fetchAddresses = async () => {
+        if (!user) return;
+        setLoadingAddresses(true);
+        try {
+            const { data, error } = await supabase
+                .from('user_addresses')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('is_default', { ascending: false })
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                // If table doesn't exist yet, just ignore to prevent crash
+                if (error.code !== '42P01') throw error;
+                console.log('User addresses table may not exist yet.');
+            } else {
+                setAddresses(data || []);
+            }
+        } catch (error) {
+            console.error('Error fetching addresses:', error);
+        } finally {
+            setLoadingAddresses(false);
+        }
+    };
+
+    const fetchTransactions = async () => {
+        if (!user?.email) return;
+        setLoadingTransactions(true);
+        try {
+            const { data, error } = await supabase
+                .from('transactions')
+                .select('id, amount, status, txn_id, created_at')
+                .eq('email', user.email)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            setTransactions(data || []);
+        } catch (error) {
+            console.error('Error fetching transactions:', error);
+        } finally {
+            setLoadingTransactions(false);
+        }
+    };
 
     const fetchOrders = async () => {
         if (!user) return;
@@ -104,6 +190,73 @@ const ProfilePage = () => {
         } catch (e) {
             return { name: 'Valued Customer', city: 'India' };
         }
+    };
+
+    const handleAddressSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!user) return;
+
+        try {
+            if (editingAddress) {
+                const { error } = await supabase
+                    .from('user_addresses')
+                    .update({ ...addressForm, updated_at: new Date().toISOString() })
+                    .eq('id', editingAddress.id);
+                if (error) throw error;
+                toast.success('Address updated successfully');
+            } else {
+                const { error } = await supabase
+                    .from('user_addresses')
+                    .insert([{ ...addressForm, user_id: user.id }]);
+                if (error) throw error;
+                toast.success('Address added successfully');
+            }
+
+            setShowAddressModal(false);
+            fetchAddresses();
+        } catch (error) {
+            console.error('Error saving address:', error);
+            toast.error('Failed to save address');
+        }
+    };
+
+    const deleteAddress = async (id: number) => {
+        if (!confirm('Are you sure you want to delete this address?')) return;
+        try {
+            const { error } = await supabase
+                .from('user_addresses')
+                .delete()
+                .eq('id', id);
+            if (error) throw error;
+            toast.success('Address deleted');
+            fetchAddresses();
+        } catch (error) {
+            console.error('Error deleting address:', error);
+            toast.error('Failed to delete address');
+        }
+    };
+
+    const setDefaultAddress = async (id: number) => {
+        try {
+            const { error } = await supabase
+                .from('user_addresses')
+                .update({ is_default: true, updated_at: new Date().toISOString() })
+                .eq('id', id);
+            if (error) throw error;
+            toast.success('Default address set');
+            fetchAddresses();
+        } catch (error) {
+            console.error('Error setting default address:', error);
+            toast.error('Failed to set default address');
+        }
+    };
+
+    const handleAddToCart = async (product: any) => {
+        await addItemToCart(product.id, 1, product);
+    };
+
+    const isInCart = (productId: number) => {
+        return cartItems.some((item) => item.id === productId);
     };
 
     const renderOrdersContent = () => {
@@ -191,7 +344,17 @@ const ProfilePage = () => {
                                     </div>
 
                                     <div className="d-flex flex-column gap-2" style={{ minWidth: '140px' }}>
-                                        {/* View Details button removed as card is clickable */}
+                                        <Button
+                                            variant="dark"
+                                            size="sm"
+                                            className="w-100 rounded-pill"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                generateInvoice(order);
+                                            }}
+                                        >
+                                            Download Invoice
+                                        </Button>
                                         <Link href={`/contact?orderId=${order.id}`} passHref onClick={(e) => e.stopPropagation()}>
                                             <Button variant="outline-secondary" size="sm" className="w-100 rounded-pill">Need Help?</Button>
                                         </Link>
@@ -202,6 +365,217 @@ const ProfilePage = () => {
                     );
                 })}
             </OrdersList>
+        );
+    };
+
+    const renderTransactionsContent = () => {
+        if (loadingTransactions) {
+            return (
+                <div className="text-center py-5">
+                    <Spinner animation="border" variant="secondary" />
+                </div>
+            );
+        }
+
+        if (transactions.length === 0) {
+            return (
+                <EmptyState>
+                    <FaCreditCard size={48} className="mb-3 text-secondary opacity-50" />
+                    <h5>No transactions found</h5>
+                    <p className="text-muted mb-4">You haven't made any online payments yet.</p>
+                </EmptyState>
+            );
+        }
+
+        return (
+            <div className="table-responsive">
+                <table className="table table-hover align-middle">
+                    <thead className="table-light">
+                        <tr>
+                            <th>Date</th>
+                            <th>Transaction ID</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {transactions.map(txn => (
+                            <tr key={txn.id}>
+                                <td>{new Date(txn.created_at).toLocaleDateString("en-IN", { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                                <td><span className="font-monospace text-muted">{txn.txn_id || 'N/A'}</span></td>
+                                <td className="fw-bold">₹{txn.amount}</td>
+                                <td>
+                                    <Badge bg={txn.status === 'success' ? 'success' : txn.status === 'failed' ? 'danger' : 'warning'}>
+                                        {txn.status.toUpperCase()}
+                                    </Badge>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        );
+    };
+
+    const renderWishlistContent = () => {
+        if (wishlistCount === 0) {
+            return (
+                <EmptyState>
+                    <FaHeart size={48} className="mb-3 text-secondary opacity-50" />
+                    <h5>Your wishlist is empty</h5>
+                    <p className="text-muted mb-4">Start adding your favorite products to your wishlist!</p>
+                    <Link href="/search?searchtext=all" passHref>
+                        <Button variant="dark" className="px-4 rounded-pill">Browse Products</Button>
+                    </Link>
+                </EmptyState>
+            );
+        }
+
+        return (
+            <Row className="g-4">
+                {wishlistItems.map((product) => (
+                    <Col md={6} lg={4} key={product.id}>
+                        <Card className="h-100 border-0 shadow-sm wishlist-card">
+                            <div className="position-relative">
+                                <Link href={`/product/${product.handle}`}>
+                                    <div className="product-img-wrapper" style={{ height: '200px', padding: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8f9fa' }}>
+                                        <LazyImage src={product.image_url} alt={product.title} className="img-fluid" style={{ maxHeight: '100%', objectFit: 'contain' }} />
+                                    </div>
+                                </Link>
+                                <Button
+                                    variant="light"
+                                    className="position-absolute top-0 end-0 m-2 rounded-circle p-2 text-danger shadow-sm border"
+                                    onClick={() => removeFromWishlist(product.id)}
+                                    title="Remove from wishlist"
+                                >
+                                    <FaTrash size={12} />
+                                </Button>
+                            </div>
+                            <Card.Body className="d-flex flex-column">
+                                <h6 className="product-title text-truncate mb-2">
+                                    <Link href={`/product/${product.handle}`} className="text-dark text-decoration-none">
+                                        {product.title}
+                                    </Link>
+                                </h6>
+                                <div className="product-price mb-3">
+                                    <span className="fw-bold me-2">₹{product.price}</span>
+                                    {product.regular_price && product.regular_price > product.price && (
+                                        <span className="text-muted small text-decoration-line-through">₹{product.regular_price}</span>
+                                    )}
+                                </div>
+                                <div className="mt-auto">
+                                    {isInCart(product.id) ? (
+                                        <Button
+                                            variant="outline-success"
+                                            className="w-100"
+                                            onClick={() => router.push('/cart')}
+                                        >
+                                            Go to Cart
+                                        </Button>
+                                    ) : (
+                                        <Button
+                                            variant="dark"
+                                            className="w-100"
+                                            onClick={() => handleAddToCart(product)}
+                                        >
+                                            Add to Cart
+                                        </Button>
+                                    )}
+                                </div>
+                            </Card.Body>
+                        </Card>
+                    </Col>
+                ))}
+            </Row>
+        );
+    };
+
+    const renderAddressesContent = () => {
+        return (
+            <>
+                <div className="d-flex justify-content-between align-items-center mb-4">
+                    <SectionTitle className="mb-0">Saved Addresses</SectionTitle>
+                    <Button
+                        variant="dark"
+                        size="sm"
+                        onClick={() => {
+                            setEditingAddress(null);
+                            setAddressForm({});
+                            setShowAddressModal(true);
+                        }}
+                    >
+                        <FaPlus className="me-2" /> Add New Address
+                    </Button>
+                </div>
+
+                {loadingAddresses ? (
+                    <div className="text-center py-5">
+                        <Spinner animation="border" variant="secondary" />
+                    </div>
+                ) : addresses.length === 0 ? (
+                    <EmptyState>
+                        <FaMapMarkerAlt size={48} className="mb-3 text-secondary opacity-50" />
+                        <h5>No saved addresses</h5>
+                        <p className="text-muted mb-4">Add an address for faster checkout.</p>
+                    </EmptyState>
+                ) : (
+                    <Row className="g-4">
+                        {addresses.map((addr) => (
+                            <Col md={6} key={addr.id}>
+                                <Card className={`h-100 border ${addr.is_default ? 'border-primary border-2 shadow-sm' : 'border-light shadow-sm'}`}>
+                                    <Card.Body>
+                                        <div className="d-flex justify-content-between align-items-start mb-2">
+                                            <h6 className="fw-bold mb-0">
+                                                {addr.full_name}
+                                                {addr.is_default && <Badge bg="primary" className="ms-2">Default</Badge>}
+                                            </h6>
+                                        </div>
+                                        <p className="text-muted small mb-3">{addr.phone}</p>
+                                        <p className="mb-1 text-dark small">
+                                            {addr.house_number ? `${addr.house_number}, ` : ''}{addr.area}
+                                        </p>
+                                        {addr.landmark && <p className="mb-1 text-dark small">Landmark: {addr.landmark}</p>}
+                                        <p className="mb-3 text-dark small">
+                                            {addr.city}, {addr.state} - {addr.pincode}
+                                        </p>
+
+                                        <div className="d-flex gap-2 pt-2 border-top">
+                                            <Button
+                                                variant="outline-secondary"
+                                                size="sm"
+                                                onClick={() => {
+                                                    setEditingAddress(addr);
+                                                    setAddressForm(addr);
+                                                    setShowAddressModal(true);
+                                                }}
+                                            >
+                                                <FaEdit className="me-1" /> Edit
+                                            </Button>
+                                            <Button
+                                                variant="outline-danger"
+                                                size="sm"
+                                                onClick={() => deleteAddress(addr.id)}
+                                            >
+                                                <FaTrash />
+                                            </Button>
+                                            {!addr.is_default && (
+                                                <Button
+                                                    variant="link"
+                                                    size="sm"
+                                                    className="ms-auto text-decoration-none"
+                                                    onClick={() => setDefaultAddress(addr.id)}
+                                                >
+                                                    Set as Default
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </Card.Body>
+                                </Card>
+                            </Col>
+                        ))}
+                    </Row>
+                )}
+            </>
         );
     };
 
@@ -241,12 +615,28 @@ const ProfilePage = () => {
                                     <Nav variant="pills" className="flex-column p-2 custom-nav">
                                         <Nav.Item>
                                             <Nav.Link eventKey="orders" className="d-flex align-items-center">
-                                                <FaShoppingBag className="me-3" /> Orders
+                                                <FaBoxOpen className="me-3" /> Purchase History
+                                            </Nav.Link>
+                                        </Nav.Item>
+                                        <Nav.Item>
+                                            <Nav.Link eventKey="payments" className="d-flex align-items-center">
+                                                <FaCreditCard className="me-3" /> Payment History
+                                            </Nav.Link>
+                                        </Nav.Item>
+                                        <Nav.Item>
+                                            <Nav.Link eventKey="wishlist" className="d-flex align-items-center">
+                                                <FaHeart className="me-3" /> Wishlist
+                                                {wishlistCount > 0 && <Badge bg="danger" className="ms-auto" pill>{wishlistCount}</Badge>}
+                                            </Nav.Link>
+                                        </Nav.Item>
+                                        <Nav.Item>
+                                            <Nav.Link eventKey="addresses" className="d-flex align-items-center">
+                                                <FaMapMarkerAlt className="me-3" /> Address Book
                                             </Nav.Link>
                                         </Nav.Item>
                                         <Nav.Item>
                                             <Nav.Link eventKey="settings" className="d-flex align-items-center">
-                                                <FaCog className="me-3" /> Settings
+                                                <FaCog className="me-3" /> Profile Settings
                                             </Nav.Link>
                                         </Nav.Item>
                                     </Nav>
@@ -263,8 +653,22 @@ const ProfilePage = () => {
                         <Col lg={9}>
                             <Tab.Content>
                                 <Tab.Pane eventKey="orders">
-                                    <SectionTitle>Order History</SectionTitle>
+                                    <SectionTitle>Purchase History</SectionTitle>
                                     {renderOrdersContent()}
+                                </Tab.Pane>
+
+                                <Tab.Pane eventKey="payments">
+                                    <SectionTitle>Payment History</SectionTitle>
+                                    {renderTransactionsContent()}
+                                </Tab.Pane>
+
+                                <Tab.Pane eventKey="wishlist">
+                                    <SectionTitle>My Wishlist</SectionTitle>
+                                    {renderWishlistContent()}
+                                </Tab.Pane>
+
+                                <Tab.Pane eventKey="addresses">
+                                    {renderAddressesContent()}
                                 </Tab.Pane>
 
                                 <Tab.Pane eventKey="settings">
@@ -322,6 +726,86 @@ const ProfilePage = () => {
                         </div>
                     </Modal.Body>
                 </StyledModal>
+
+                <Modal show={showAddressModal} onHide={() => setShowAddressModal(false)} centered backdrop="static">
+                    <Modal.Header closeButton>
+                        <Modal.Title>{editingAddress ? 'Edit Address' : 'Add New Address'}</Modal.Title>
+                    </Modal.Header>
+                    <Form onSubmit={handleAddressSubmit}>
+                        <Modal.Body>
+                            <Row className="g-3">
+                                <Col md={6}>
+                                    <Form.Group>
+                                        <Form.Label>Full Name*</Form.Label>
+                                        <Form.Control required type="text" value={addressForm.full_name || ''} onChange={e => setAddressForm({ ...addressForm, full_name: e.target.value })} />
+                                    </Form.Group>
+                                </Col>
+                                <Col md={6}>
+                                    <Form.Group>
+                                        <Form.Label>Mobile Number*</Form.Label>
+                                        <Form.Control required type="tel" pattern="[0-9]{10}" value={addressForm.phone || ''} onChange={e => setAddressForm({ ...addressForm, phone: e.target.value })} />
+                                    </Form.Group>
+                                </Col>
+                                <Col md={12}>
+                                    <Form.Group>
+                                        <Form.Label>House No./Building Name</Form.Label>
+                                        <Form.Control type="text" value={addressForm.house_number || ''} onChange={e => setAddressForm({ ...addressForm, house_number: e.target.value })} />
+                                    </Form.Group>
+                                </Col>
+                                <Col md={12}>
+                                    <Form.Group>
+                                        <Form.Label>Area/Street/Village*</Form.Label>
+                                        <Form.Control required type="text" value={addressForm.area || ''} onChange={e => setAddressForm({ ...addressForm, area: e.target.value })} />
+                                    </Form.Group>
+                                </Col>
+                                <Col md={12}>
+                                    <Form.Group>
+                                        <Form.Label>Landmark</Form.Label>
+                                        <Form.Control type="text" value={addressForm.landmark || ''} onChange={e => setAddressForm({ ...addressForm, landmark: e.target.value })} />
+                                    </Form.Group>
+                                </Col>
+                                <Col md={6}>
+                                    <Form.Group>
+                                        <Form.Label>Pincode*</Form.Label>
+                                        <Form.Control required type="text" pattern="[0-9]{6}" value={addressForm.pincode || ''} onChange={e => setAddressForm({ ...addressForm, pincode: e.target.value })} />
+                                    </Form.Group>
+                                </Col>
+                                <Col md={6}>
+                                    <Form.Group>
+                                        <Form.Label>City/District*</Form.Label>
+                                        <Form.Control required type="text" value={addressForm.city || ''} onChange={e => setAddressForm({ ...addressForm, city: e.target.value })} />
+                                    </Form.Group>
+                                </Col>
+                                <Col md={6}>
+                                    <Form.Group>
+                                        <Form.Label>State*</Form.Label>
+                                        <Form.Control required type="text" value={addressForm.state || ''} onChange={e => setAddressForm({ ...addressForm, state: e.target.value })} />
+                                    </Form.Group>
+                                </Col>
+                                <Col md={6}>
+                                    <Form.Group>
+                                        <Form.Label>Country*</Form.Label>
+                                        <Form.Control required type="text" value={addressForm.country || 'India'} onChange={e => setAddressForm({ ...addressForm, country: e.target.value })} />
+                                    </Form.Group>
+                                </Col>
+                                {!editingAddress?.is_default && (
+                                    <Col md={12}>
+                                        <Form.Check
+                                            type="checkbox"
+                                            label="Make this my default address"
+                                            checked={addressForm.is_default || false}
+                                            onChange={e => setAddressForm({ ...addressForm, is_default: e.target.checked })}
+                                        />
+                                    </Col>
+                                )}
+                            </Row>
+                        </Modal.Body>
+                        <Modal.Footer>
+                            <Button variant="secondary" onClick={() => setShowAddressModal(false)}>Cancel</Button>
+                            <Button variant="dark" type="submit">Save Address</Button>
+                        </Modal.Footer>
+                    </Form>
+                </Modal>
             </Container>
 
         </PageWrapper>

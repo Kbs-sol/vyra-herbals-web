@@ -2,6 +2,7 @@
 
 import React, { createContext, useState, useEffect, useContext, ReactNode } from "react";
 import { supabase } from "@/utils/supabaseClient";
+import CookieUtils from "@/utils/cookieUtils";
 import type { User as AppUser } from "@/types";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
@@ -35,7 +36,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // Check active session
     const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      // 1. Try to get session from memory/localStorage
+      let { data: { session } } = await supabase.auth.getSession();
+
+      // 2. If no session, try to recover from cookie
+      if (!session) {
+        const savedSession = CookieUtils.getCookie('v_auth_session');
+        if (savedSession) {
+          try {
+            const parsedSession = JSON.parse(decodeURIComponent(savedSession));
+            if (parsedSession.access_token && parsedSession.refresh_token) {
+              const { data, error } = await supabase.auth.setSession({
+                access_token: parsedSession.access_token,
+                refresh_token: parsedSession.refresh_token
+              });
+              if (!error && data.session) {
+                session = data.session;
+              }
+            }
+          } catch (e) {
+            console.error("Failed to parse saved session cookie", e);
+            CookieUtils.deleteCookie('v_auth_session');
+          }
+        }
+      }
+
       if (session?.user) {
         await fetchUserProfile(session.user);
       } else {
@@ -45,13 +70,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     getSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
+        // Save session to cookie for 90 days
+        const sessionData = {
+          access_token: session.access_token,
+          refresh_token: session.refresh_token
+        };
+        CookieUtils.setCookie('v_auth_session', encodeURIComponent(JSON.stringify(sessionData)), 90);
         await fetchUserProfile(session.user);
       } else {
+        // Clear cookie on sign out
+        if (event === 'SIGNED_OUT') {
+          CookieUtils.deleteCookie('v_auth_session');
+        }
         setUser(null);
         setLoading(false);
-        // Clear local storage cart if needed, or let CartContext handle it
       }
     });
 

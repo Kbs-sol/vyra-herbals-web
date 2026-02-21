@@ -104,7 +104,7 @@ ALTER TABLE blogs ADD COLUMN IF NOT EXISTS related_posts BIGINT[];
 -- Shopping cart items for logged-in users
 CREATE TABLE IF NOT EXISTS cart (
   id BIGSERIAL PRIMARY KEY,
-  user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   product_id BIGINT REFERENCES products(id) ON DELETE CASCADE,
   quantity INTEGER DEFAULT 1 CHECK (quantity > 0),
   created_at TIMESTAMPTZ DEFAULT NOW(),

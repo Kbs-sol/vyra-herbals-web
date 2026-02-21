@@ -13,6 +13,7 @@ import Cart from "./Cart";
 import CartItem from "../Components/Shared/CartItem";
 import BillSummary from "../Components/Shared/BillSummary";
 import { useAuth } from "../Components/Contexts/AuthContext";
+import { supabase } from "@/utils/supabaseClient";
 
 interface CheckoutFormData {
   fullName: string;
@@ -72,6 +73,10 @@ const Checkout = ({ show, onHide, cartItems, product, quantity = 1 }) => {
   const [hasValidation, setHasValidation] = useState(false);
   const [showOrderSummary, setShowOrderSummary] = useState(false);
   const [isModalOpenedPreviously, setIsModalOpenedPreviously] = useState(false);
+
+  const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
+  const [loadingAddresses, setLoadingAddresses] = useState(false);
+  const [selectedAddressId, setSelectedAddressId] = useState<string>("");
 
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({}); // Store refs dynamically
 
@@ -135,6 +140,68 @@ const Checkout = ({ show, onHide, cartItems, product, quantity = 1 }) => {
       updateOrderedItemsState([{ ...product, quantity }]);
     }
   }, [cartItems, product, quantity]);
+
+  useEffect(() => {
+    if (user && showModal) {
+      fetchSavedAddresses();
+    }
+  }, [user, showModal]);
+
+  const fetchSavedAddresses = async () => {
+    if (!user) return;
+    setLoadingAddresses(true);
+    try {
+      const { data, error } = await supabase
+        .from('user_addresses')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('is_default', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      if (error && error.code !== '42P01') {
+        console.error("Error fetching addresses:", error);
+      } else if (data && data.length > 0) {
+        setSavedAddresses(data);
+        // Pre-select default address if needed
+        const defaultAddr = data.find(a => a.is_default) || data[0];
+        if (!formData.fullName && !formData.phone) {
+          handleAddressSelection(defaultAddr.id, data);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingAddresses(false);
+    }
+  };
+
+  const handleAddressSelection = (addressId, addressesToSearch = savedAddresses) => {
+    setSelectedAddressId(addressId);
+    if (!addressId) {
+      setFormData({ ...defaultFormData });
+      setFormErrors({});
+      setIsApiSuccess(false);
+      return;
+    }
+
+    const addr = addressesToSearch.find(a => a.id.toString() === addressId.toString());
+    if (addr) {
+      setFormData({
+        ...formData,
+        fullName: addr.full_name || '',
+        phone: addr.phone || '',
+        houseNumber: addr.house_number || '',
+        area: addr.area || '',
+        landmark: addr.landmark || '',
+        pincode: addr.pincode || '',
+        city: addr.city || '',
+        state: addr.state || '',
+        country: addr.country || 'India',
+      });
+      setIsApiSuccess(true);
+      setFormErrors({});
+    }
+  };
 
   useEffect(() => {
     if (paymentMethod === "online") {
@@ -576,6 +643,24 @@ const Checkout = ({ show, onHide, cartItems, product, quantity = 1 }) => {
         </center>
 
         <Form className="checkout-form">
+          {savedAddresses.length > 0 && (
+            <Form.Group className="mb-4 form-group bg-light p-3 rounded border">
+              <Form.Label className="fw-bold mb-2">Select a Saved Address</Form.Label>
+              <Form.Select
+                value={selectedAddressId}
+                onChange={(e) => handleAddressSelection(e.target.value)}
+                className="mb-2 shadow-sm"
+              >
+                <option value="">-- Enter New Address --</option>
+                {savedAddresses.map(addr => (
+                  <option key={addr.id} value={addr.id}>
+                    {addr.full_name}, {addr.house_number ? addr.house_number + ', ' : ''}{addr.area} - {addr.pincode}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+          )}
+
           {formFields.map((field) => {
             const hasError = !field.readOnly && isInvalidField(field);
             return (
