@@ -727,7 +727,7 @@ const ProfilePage = () => {
                     </Modal.Body>
                 </StyledModal>
 
-                <Modal show={showAddressModal} onHide={() => setShowAddressModal(false)} centered backdrop="static">
+                <StyledModal show={showAddressModal} onHide={() => setShowAddressModal(false)} centered backdrop="static">
                     <Modal.Header closeButton>
                         <Modal.Title>{editingAddress ? 'Edit Address' : 'Add New Address'}</Modal.Title>
                     </Modal.Header>
@@ -800,12 +800,12 @@ const ProfilePage = () => {
                                 )}
                             </Row>
                         </Modal.Body>
-                        <Modal.Footer>
-                            <Button variant="secondary" onClick={() => setShowAddressModal(false)}>Cancel</Button>
-                            <Button variant="dark" type="submit">Save Address</Button>
+                        <Modal.Footer className="border-0 pb-4 px-4 pt-0">
+                            <Button variant="light" onClick={() => setShowAddressModal(false)} className="rounded-pill px-4">Cancel</Button>
+                            <Button variant="dark" type="submit" className="rounded-pill px-4">Save Address</Button>
                         </Modal.Footer>
                     </Form>
-                </Modal>
+                </StyledModal>
             </Container>
 
         </PageWrapper>
@@ -942,8 +942,75 @@ const StatusChip = styled.span<{ status: string }>`
 
 const StyledModal = styled(Modal)`
     .modal-content {
-        border-radius: 16px;
+        border-radius: 20px;
         border: none;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        box-shadow: 0 15px 50px rgba(0,0,0,0.15);
+        overflow: hidden;
+        background-color: #fff;
+    }
+
+    .modal-header {
+        border-bottom: none;
+        padding: 1.5rem 1.5rem 0.5rem;
+        
+        .modal-title {
+            font-weight: 800;
+            font-size: 1.5rem;
+            color: #1a1a1a;
+        }
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .form-label {
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #718096;
+        margin-bottom: 0.4rem;
+    }
+
+    .form-control {
+        border: 2px solid #edf2f7;
+        border-radius: 12px;
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+        color: #2d3748;
+        transition: all 0.2s ease-in-out;
+        background-color: #f8fafc;
+
+        &:focus {
+            background-color: #fff;
+            border-color: #3182ce;
+            box-shadow: 0 0 0 4px rgba(49, 130, 206, 0.1);
+            outline: none;
+        }
+
+        &::placeholder {
+            color: #a0aec0;
+        }
+    }
+
+    .form-check-input {
+        cursor: pointer;
+        width: 1.25rem;
+        height: 1.25rem;
+        margin-top: 0.15rem;
+        border: 2px solid #cbd5e0;
+
+        &:checked {
+            background-color: #3182ce;
+            border-color: #3182ce;
+        }
+    }
+
+    .form-check-label {
+        font-size: 0.9rem;
+        color: #4a5568;
+        padding-left: 0.5rem;
+        cursor: pointer;
     }
 `;

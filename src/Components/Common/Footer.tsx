@@ -27,7 +27,7 @@ const Footer = () => {
               <div className="col-md-5 text-md-end text-start mt-3 mt-md-0">
                 <div className="marketplace-logos">
                   <a
-                    href="https://www.amazon.in/s?k=Vyra+Herbals"
+                    href="https://www.amazon.in/stores/VyraHerbals/page/C2261B34-C6F6-4EF1-ABD0-8686E06686E8?lp_asin=B0DLPCD26N&ref_=cm_sw_r_apann_ast_store_WAB400E495G0943WH87C"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="market-link"
@@ -36,7 +36,7 @@ const Footer = () => {
                     <img src="/amazon-logo-png_seeklogo-286206.png" alt="Amazon" className="market-logo amazon-logo" />
                   </a>
                   <a
-                    href="https://www.flipkart.com/search?q=Vyra+Herbals"
+                    href="https://dl.flipkart.com/s/2nTQvdNNNN"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="market-link"
@@ -45,7 +45,7 @@ const Footer = () => {
                     <img src="/flipkart-logo-icon-flat-style-png-4.png" alt="Flipkart" className="market-logo flipkart-logo" />
                   </a>
                   <a
-                    href="https://www.meesho.com/VyraHerbals?_ms=1"
+                    href="https://www.meesho.com/VyraHerbals?_ms=3.0.1"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="market-link"

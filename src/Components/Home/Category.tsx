@@ -144,7 +144,6 @@ const Category = () => {
         const list = el.querySelector('.category-list') as HTMLElement | null;
         if (list) {
           try {
-            el.style.overflowX = 'auto';
             list.style.flexWrap = 'nowrap';
             list.style.whiteSpace = 'nowrap';
             const children = Array.from(list.children) as HTMLElement[];
@@ -336,33 +335,30 @@ const StyledCategories = styled.section`
   }
 
   .category-scroll-container {
-    overflow-x: auto;
-    overflow-y: hidden;
-    /* push the native scrollbar visually out of view while keeping functionality */
-    padding-bottom: 18px; /* give space for the scrollbar */
-    margin-bottom: -18px; /* hide that space from layout */
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
     -webkit-overflow-scrolling: touch;
-    -ms-overflow-style: none; /* IE + Edge */
-    scrollbar-width: none !important; /* Firefox */
-    overscroll-behavior-x: contain; /* keep scroll inside this container */
     max-width: 100%;
     box-sizing: border-box;
-    height: fit-content; /* Only take the height needed */
+    height: fit-content;
 
-    /* Make scrollbar visually invisible in all engines (defensive) */
+    /* Hide scrollbars across all browsers */
+    scrollbar-width: none !important; /* Firefox */
+    -ms-overflow-style: none !important; /* IE + Edge */
+
     &::-webkit-scrollbar {
-      height: 0 !important;
+      display: none !important;
       width: 0 !important;
+      height: 0 !important;
       background: transparent !important;
     }
     &::-webkit-scrollbar-track {
+      display: none !important;
       background: transparent !important;
-      height: 0 !important;
     }
     &::-webkit-scrollbar-thumb {
+      display: none !important;
       background: transparent !important;
-      border: 0 !important;
-      height: 0 !important;
     }
 
     /* Force a single horizontal row and prevent external CSS from making items wrap */
@@ -377,6 +373,14 @@ const StyledCategories = styled.section`
       align-items: stretch;
       will-change: scroll-left;
       min-width: 0; /* prevent flex children from forcing parent/page overflow */
+      overflow-y: hidden !important; /* Eliminate vertical bar */
+      
+      /* Hide scrollbars for the list itself */
+      scrollbar-width: none !important;
+      -ms-overflow-style: none !important;
+      &::-webkit-scrollbar {
+        display: none !important;
+      }
 
       @media (min-width: 992px) {
         justify-content: flex-start;
