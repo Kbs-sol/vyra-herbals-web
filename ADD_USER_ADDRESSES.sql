@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS user_addresses (
   state TEXT NOT NULL,
   pincode TEXT NOT NULL,
   country TEXT NOT NULL,
+  address_type TEXT DEFAULT 'home', -- 'home', 'work', 'other'
   is_default BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()

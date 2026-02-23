@@ -39,6 +39,7 @@ interface Address {
     state: string;
     pincode: string;
     country: string;
+    address_type: string;
     is_default: boolean;
 }
 
@@ -62,6 +63,7 @@ const ProfilePage = () => {
     const [showAddressModal, setShowAddressModal] = useState(false);
     const [editingAddress, setEditingAddress] = useState<Address | null>(null);
     const [addressForm, setAddressForm] = useState<Partial<Address>>({});
+    const [savingAddress, setSavingAddress] = useState(false);
 
     // Transactions state
     const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -86,6 +88,7 @@ const ProfilePage = () => {
 
     const fetchAddresses = async () => {
         if (!user) return;
+        console.log("Fetching addresses for user:", user.id);
         setLoadingAddresses(true);
         try {
             const { data, error } = await supabase
@@ -96,10 +99,12 @@ const ProfilePage = () => {
                 .order('created_at', { ascending: false });
 
             if (error) {
+                console.error("Supabase fetch error:", error);
                 // If table doesn't exist yet, just ignore to prevent crash
                 if (error.code !== '42P01') throw error;
                 console.log('User addresses table may not exist yet.');
             } else {
+                console.log("Fetched addresses count:", data?.length || 0);
                 setAddresses(data || []);
             }
         } catch (error) {
@@ -194,21 +199,43 @@ const ProfilePage = () => {
 
     const handleAddressSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!user) return;
+        console.log("handleAddressSubmit triggered");
+        if (!user) {
+            console.error("No user found in handleAddressSubmit");
+            return;
+        }
 
         try {
+            setSavingAddress(true);
+            console.log("Submitting address form:", addressForm);
+
+            // Clean the request data - remove fields that shouldn't be in the payload
+            const { id, created_at, updated_at, user_id, ...submitData } = addressForm as any;
+
             if (editingAddress) {
+                console.log("Updating existing address:", editingAddress.id);
                 const { error } = await supabase
                     .from('user_addresses')
-                    .update({ ...addressForm, updated_at: new Date().toISOString() })
+                    .update({ ...submitData, updated_at: new Date().toISOString() })
                     .eq('id', editingAddress.id);
-                if (error) throw error;
+
+                if (error) {
+                    console.error("Supabase update error:", error);
+                    throw error;
+                }
+                console.log("Update success");
                 toast.success('Address updated successfully');
             } else {
+                console.log("Inserting new address for user:", user.id);
                 const { error } = await supabase
                     .from('user_addresses')
-                    .insert([{ ...addressForm, user_id: user.id }]);
-                if (error) throw error;
+                    .insert([{ ...submitData, user_id: user.id }]);
+
+                if (error) {
+                    console.error("Supabase insert error:", error);
+                    throw error;
+                }
+                console.log("Insert success");
                 toast.success('Address added successfully');
             }
 
@@ -216,7 +243,13 @@ const ProfilePage = () => {
             fetchAddresses();
         } catch (error) {
             console.error('Error saving address:', error);
-            toast.error('Failed to save address');
+            if (error && typeof error === 'object' && 'message' in error) {
+                toast.error(`Failed to save address: ${error.message}`);
+            } else {
+                toast.error('Failed to save address');
+            }
+        } finally {
+            setSavingAddress(false);
         }
     };
 
@@ -500,7 +533,7 @@ const ProfilePage = () => {
                         size="sm"
                         onClick={() => {
                             setEditingAddress(null);
-                            setAddressForm({});
+                            setAddressForm({ address_type: 'home', country: 'India' });
                             setShowAddressModal(true);
                         }}
                     >
@@ -527,6 +560,7 @@ const ProfilePage = () => {
                                         <div className="d-flex justify-content-between align-items-start mb-2">
                                             <h6 className="fw-bold mb-0">
                                                 {addr.full_name}
+                                                <Badge bg="info" className="ms-2 text-uppercase" style={{ fontSize: '0.6rem' }}>{addr.address_type || 'home'}</Badge>
                                                 {addr.is_default && <Badge bg="primary" className="ms-2">Default</Badge>}
                                             </h6>
                                         </div>
@@ -788,6 +822,24 @@ const ProfilePage = () => {
                                         <Form.Control required type="text" value={addressForm.country || 'India'} onChange={e => setAddressForm({ ...addressForm, country: e.target.value })} />
                                     </Form.Group>
                                 </Col>
+                                <Col md={12}>
+                                    <Form.Group>
+                                        <Form.Label className="d-block">Address Type</Form.Label>
+                                        <div className="d-flex gap-3">
+                                            {['home', 'work', 'other'].map((type) => (
+                                                <Form.Check
+                                                    key={type}
+                                                    type="radio"
+                                                    label={type.charAt(0).toUpperCase() + type.slice(1)}
+                                                    name="address_type"
+                                                    id={`type-${type}`}
+                                                    checked={addressForm.address_type === type}
+                                                    onChange={() => setAddressForm({ ...addressForm, address_type: type })}
+                                                />
+                                            ))}
+                                        </div>
+                                    </Form.Group>
+                                </Col>
                                 {!editingAddress?.is_default && (
                                     <Col md={12}>
                                         <Form.Check
@@ -801,8 +853,15 @@ const ProfilePage = () => {
                             </Row>
                         </Modal.Body>
                         <Modal.Footer className="border-0 pb-4 px-4 pt-0">
-                            <Button variant="light" onClick={() => setShowAddressModal(false)} className="rounded-pill px-4">Cancel</Button>
-                            <Button variant="dark" type="submit" className="rounded-pill px-4">Save Address</Button>
+                            <Button variant="light" onClick={() => setShowAddressModal(false)} className="rounded-pill px-4" disabled={savingAddress}>Cancel</Button>
+                            <Button variant="dark" type="submit" className="rounded-pill px-4" disabled={savingAddress}>
+                                {savingAddress ? (
+                                    <>
+                                        <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" className="me-2" />
+                                        Saving...
+                                    </>
+                                ) : 'Save Address'}
+                            </Button>
                         </Modal.Footer>
                     </Form>
                 </StyledModal>
