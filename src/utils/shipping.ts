@@ -77,7 +77,7 @@ export const createShipment = async (orderData: any) => {
         // 2. Map payload for Standard Shipment (Surface)
         // Using x-www-form-urlencoded as per PDF example structure
         const payload = new URLSearchParams();
-        payload.append("pickup_address_id", "1"); // Assuming 1 as default, should be configurable
+        payload.append("pickup_address_id", process.env.ICARRY_PICKUP_ADDRESS_ID || "1"); // Now configurable via environment variables
         payload.append("client_order_id", String(orderData.id)); // Ensure string
         payload.append("consignee[name]", orderData.shipping_data.fullName);
         payload.append("consignee[mobile]", orderData.shipping_data.phone);
