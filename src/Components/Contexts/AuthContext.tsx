@@ -10,8 +10,10 @@ import { useRouter } from "next/navigation";
 interface AuthContextType {
   user: AppUser | null;
   loading: boolean;
+  checkUserExists: (phone: string) => Promise<{ exists: boolean; error?: any }>;
+  loginWithPassword: (phone: string, password: string) => Promise<{ error?: any }>;
   sendOtp: (phone: string) => Promise<{ verificationId?: string; error?: any }>;
-  verifyOtp: (phone: string, verificationId: string, code: string, name?: string) => Promise<{ error?: any }>;
+  verifyOtp: (phone: string, verificationId: string, code: string, password?: string, name?: string) => Promise<{ error?: any }>;
   logout: () => Promise<void>;
 }
 
@@ -32,65 +34,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const router = useRouter();
-
-  useEffect(() => {
-    // Check active session
-    const getSession = async () => {
-      // 1. Try to get session from memory/localStorage
-      let { data: { session } } = await supabase.auth.getSession();
-
-      // 2. If no session, try to recover from cookie
-      if (!session) {
-        const savedSession = CookieUtils.getCookie('v_auth_session');
-        if (savedSession) {
-          try {
-            const parsedSession = JSON.parse(decodeURIComponent(savedSession));
-            if (parsedSession.access_token && parsedSession.refresh_token) {
-              const { data, error } = await supabase.auth.setSession({
-                access_token: parsedSession.access_token,
-                refresh_token: parsedSession.refresh_token
-              });
-              if (!error && data.session) {
-                session = data.session;
-              }
-            }
-          } catch (e) {
-            console.error("Failed to parse saved session cookie", e);
-            CookieUtils.deleteCookie('v_auth_session');
-          }
-        }
-      }
-
-      if (session?.user) {
-        await fetchUserProfile(session.user);
-      } else {
-        setLoading(false);
-      }
-    };
-
-    getSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        // Save session to cookie for 90 days
-        const sessionData = {
-          access_token: session.access_token,
-          refresh_token: session.refresh_token
-        };
-        CookieUtils.setCookie('v_auth_session', encodeURIComponent(JSON.stringify(sessionData)), 90);
-        await fetchUserProfile(session.user);
-      } else {
-        // Clear cookie on sign out
-        if (event === 'SIGNED_OUT') {
-          CookieUtils.deleteCookie('v_auth_session');
-        }
-        setUser(null);
-        setLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
 
   const fetchUserProfile = async (authUser: SupabaseUser) => {
     try {
@@ -130,6 +73,65 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  useEffect(() => {
+    // Check active session
+    const getSession = async () => {
+      let { data: { session } } = await supabase.auth.getSession();
+
+      if (session?.user) {
+        await fetchUserProfile(session.user);
+      } else {
+        setLoading(false);
+      }
+    };
+
+    getSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        await fetchUserProfile(session.user);
+      } else {
+        setUser(null);
+        setLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const checkUserExists = async (phone: string) => {
+    try {
+      const res = await fetch('/api/auth/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      return { exists: data.exists };
+    } catch (error: any) {
+      return { exists: false, error: error.message };
+    }
+  };
+
+  const loginWithPassword = async (phone: string, password: string) => {
+    try {
+      const cleanedPhone = phone.replace(/\D/g, '').slice(-10);
+      const internalEmail = `${cleanedPhone}@phone.internal`;
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: internalEmail,
+        password: password,
+      });
+
+      if (error) throw error;
+      return { error: null };
+    } catch (error: any) {
+      return { error: error.message };
+    }
+  };
+
   const sendOtp = async (phone: string) => {
     try {
       const res = await fetch('/api/auth/otp/send', {
@@ -145,18 +147,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const verifyOtp = async (phone: string, verificationId: string, code: string, name?: string) => {
+  const verifyOtp = async (phone: string, verificationId: string, code: string, password?: string, name?: string) => {
     try {
       const res = await fetch('/api/auth/otp/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, verificationId, code, name }),
+        body: JSON.stringify({ phone, verificationId, code, name, password }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
       // Successfully verified and created/found user
-      // Now sign in with the deterministic credentials
+      // Now sign in with the deterministic or newly set credentials
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
@@ -177,7 +179,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, sendOtp, verifyOtp, logout }}>
+    <AuthContext.Provider value={{ user, loading, checkUserExists, loginWithPassword, sendOtp, verifyOtp, logout }}>
       {children}
     </AuthContext.Provider>
   );

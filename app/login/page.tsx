@@ -4,20 +4,21 @@ import React, { useState, useEffect, Suspense } from 'react';
 import styled from 'styled-components';
 import { useAuth } from '@/Components/Contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { FaEye, FaEyeSlash } from 'react-icons/fa';
-import Link from 'next/link';
-import { Modal, Button } from 'react-bootstrap';
 
 const LoginContent = () => {
-  const [step, setStep] = useState<'phone' | 'otp'>('phone');
+  const [step, setStep] = useState<'phone' | 'password' | 'otp'>('phone');
   const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
   const [otp, setOtp] = useState('');
   const [name, setName] = useState('');
   const [verificationId, setVerificationId] = useState('');
+
+  // UI states
+  const [userExists, setUserExists] = useState(false);
   const [localLoading, setLocalLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const { sendOtp, verifyOtp, user, loading: authLoading } = useAuth();
+  const { checkUserExists, loginWithPassword, sendOtp, verifyOtp, user, loading: authLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectUrl = searchParams?.get('next') || '/';
@@ -28,11 +29,52 @@ const LoginContent = () => {
     }
   }, [user, authLoading, router, redirectUrl]);
 
-  const handleSendOtp = async (e: React.FormEvent) => {
+  // Step 1: Check if phone number exists
+  const handleCheckPhone = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocalLoading(true);
     setError('');
 
+    try {
+      if (phone.length !== 10) throw new Error('Enter a valid 10-digit mobile number');
+      const { exists, error } = await checkUserExists(phone);
+      if (error) throw new Error(error);
+
+      setUserExists(exists);
+      if (exists) {
+        setStep('password');
+      } else {
+        // Automatically send OTP for new users
+        await initiateOtp();
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to check user');
+    } finally {
+      setLocalLoading(false);
+    }
+  };
+
+  // Step 2: Login with Password for existing users
+  const handlePasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLocalLoading(true);
+    setError('');
+
+    try {
+      const { error } = await loginWithPassword(phone, password);
+      if (error) throw new Error("Invalid password");
+      // AuthContext will handle the redirect
+    } catch (err: any) {
+      setError(err.message || 'Login failed');
+    } finally {
+      setLocalLoading(false);
+    }
+  };
+
+  // Start OTP Flow (used for Signup or Forgot Password)
+  const initiateOtp = async () => {
+    setLocalLoading(true);
+    setError('');
     try {
       const { verificationId, error } = await sendOtp(phone);
       if (error) throw new Error(error);
@@ -40,26 +82,27 @@ const LoginContent = () => {
         setVerificationId(verificationId);
         setStep('otp');
       }
-    } catch (error: any) {
-      setError(error.message || 'Failed to send OTP');
+    } catch (err: any) {
+      setError(err.message || 'Failed to send OTP');
     } finally {
       setLocalLoading(false);
     }
   };
 
+  // Step 3: Verify OTP and set new password
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocalLoading(true);
     setError('');
 
     try {
-      // If it's a new user (optional check or always send name if step 1 wasn't login)
-      // For simplicity, we can ask for name if they want to update it
-      const { error } = await verifyOtp(phone, verificationId, otp, name);
+      if (password.length < 6) throw new Error("Password must be at least 6 characters.");
+
+      const { error } = await verifyOtp(phone, verificationId, otp, password, name);
       if (error) throw new Error(error);
-      // Success is handled by AuthContext (signs in) which triggers useEffect redirect
-    } catch (error: any) {
-      setError(error.message || 'Invalid OTP');
+      // AuthContext will handle the redirect
+    } catch (err: any) {
+      setError(err.message || 'Verification failed');
     } finally {
       setLocalLoading(false);
     }
@@ -73,16 +116,12 @@ const LoginContent = () => {
     <Container>
       <AuthCard>
         <Title>Welcome to Vyra</Title>
-        <Subtitle>
-          {step === 'phone'
-            ? 'Login or Sign Up with your mobile number'
-            : 'Enter the 4-digit code sent to your phone'}
-        </Subtitle>
 
         {error && <ErrorMessage>{error}</ErrorMessage>}
 
-        {step === 'phone' ? (
-          <Form onSubmit={handleSendOtp}>
+        {step === 'phone' && (
+          <Form onSubmit={handleCheckPhone}>
+            <Subtitle>Login or Sign Up with your mobile number</Subtitle>
             <FormGroup>
               <Label>Mobile Number</Label>
               <Input
@@ -95,20 +134,79 @@ const LoginContent = () => {
             </FormGroup>
 
             <SubmitButton type="submit" disabled={localLoading || phone.length !== 10}>
-              {localLoading ? 'Sending...' : 'Get OTP'}
+              {localLoading ? 'Checking...' : 'Continue'}
             </SubmitButton>
           </Form>
-        ) : (
-          <Form onSubmit={handleVerifyOtp}>
+        )}
+
+        {step === 'password' && (
+          <Form onSubmit={handlePasswordLogin}>
+            <Subtitle>Welcome back! Enter your password to login</Subtitle>
             <FormGroup>
-              <Label>Full Name (Optional for existing users)</Label>
+              <Label>Password</Label>
               <Input
-                type="text"
-                placeholder="Enter your name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                type="password"
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
               />
             </FormGroup>
+
+            <SubmitButton type="submit" disabled={localLoading || password.length === 0}>
+              {localLoading ? 'Logging in...' : 'Login'}
+            </SubmitButton>
+
+            <SwitchText>
+              <span onClick={() => {
+                setPassword('');
+                initiateOtp();
+              }}>
+                Forgot Password? Login with OTP
+              </span>
+            </SwitchText>
+
+            <SwitchText style={{ marginTop: '0.5rem' }}>
+              <span onClick={() => { setStep('phone'); setError(''); setPassword(''); }}>
+                Change Phone Number
+              </span>
+            </SwitchText>
+          </Form>
+        )}
+
+        {step === 'otp' && (
+          <Form onSubmit={handleVerifyOtp}>
+            <Subtitle>
+              {userExists
+                ? 'Enter the 4-digit code to reset your password'
+                : 'Enter the 4-digit code sent to your phone to create an account'}
+            </Subtitle>
+
+            {!userExists && (
+              <FormGroup>
+                <Label>Full Name (Required)</Label>
+                <Input
+                  type="text"
+                  placeholder="Enter your name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                />
+              </FormGroup>
+            )}
+
+            <FormGroup>
+              <Label>Create a Password</Label>
+              <Input
+                type="password"
+                placeholder="At least 6 characters"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+              />
+            </FormGroup>
+
             <FormGroup>
               <Label>Enter OTP</Label>
               <Input
@@ -120,13 +218,18 @@ const LoginContent = () => {
               />
             </FormGroup>
 
-            <SubmitButton type="submit" disabled={localLoading || otp.length < 4}>
-              {localLoading ? 'Verifying...' : 'Verify & Login'}
+            <SubmitButton type="submit" disabled={localLoading || otp.length < 4 || password.length < 6}>
+              {localLoading ? 'Verifying...' : (userExists ? 'Reset & Login' : 'Verify & Register')}
             </SubmitButton>
 
             <SwitchText>
-              <span onClick={() => { setStep('phone'); setOtp(''); setError(''); }}>
-                Change Phone Number
+              <span onClick={() => {
+                if (userExists) setStep('password');
+                else setStep('phone');
+                setOtp('');
+                setError('');
+              }}>
+                Go Back
               </span>
             </SwitchText>
           </Form>
@@ -210,23 +313,6 @@ const Input = styled.input`
     }
 `;
 
-const PasswordWrapper = styled.div`
-    position: relative;
-`;
-
-const ToggleIcon = styled.button`
-    position: absolute;
-    right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    color: #999;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-`;
-
 const SubmitButton = styled.button`
     background-color: var(--primary);
     color: white;
@@ -283,77 +369,4 @@ const LoadingWrapper = styled.div`
     justify-content: center;
     font-size: 1.2rem;
     color: var(--primary);
-`;
-
-const StyledModal = styled(Modal)`
-    .modal-content {
-        border: none;
-        border-radius: 16px;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.15);
-        background-color: #ffffff !important; /* Force solid white */
-        overflow: hidden;
-    }
-    .modal-header {
-        border-bottom: 1px solid #f0f0f0;
-        padding: 1.5rem 2rem;
-        background-color: #ffffff;
-        
-        .modal-title {
-            font-weight: 700;
-            color: #333;
-            font-size: 1.25rem;
-        }
-        .btn-close {
-            /* Fix invisible close button if needed */
-            opacity: 0.5;
-            &:hover { opacity: 1; }
-        }
-    }
-    .modal-body {
-        padding: 2rem;
-        font-size: 1rem;
-        color: #555;
-        line-height: 1.6;
-        background-color: #ffffff;
-        
-        p {
-            margin-bottom: 1rem;
-        }
-        
-        .alert-warning {
-             background-color: #fff8e1;
-             border-color: #ffe082;
-             color: #d84315;
-             border-radius: 8px;
-             font-size: 0.9rem;
-             padding: 1rem;
-             margin-top: 1.5rem;
-        }
-    }
-    .modal-footer {
-        border-top: none;
-        background-color: #f9fafb;
-        padding: 1rem 2rem 1.5rem;
-        justify-content: center;
-        
-        button {
-             background-color: var(--primary);
-             border: none;
-             border-radius: 50px; /* Pillow shape for aesthetic */
-             padding: 0.75rem 2.5rem;
-             font-weight: 600;
-             letter-spacing: 0.5px;
-             box-shadow: 0 4px 12px rgba(var(--primary-rgb, 112, 74, 13), 0.3);
-             transition: all 0.2s ease;
-             
-             &:hover {
-                background-color: var(--primary-dark, #5a3b0a);
-                transform: translateY(-1px);
-                box-shadow: 0 6px 16px rgba(var(--primary-rgb, 112, 74, 13), 0.4);
-             }
-             &:active {
-                 transform: translateY(0);
-             }
-        }
-    }
 `;

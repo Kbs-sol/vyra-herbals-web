@@ -2,7 +2,7 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  
+
   // Image optimization
   images: {
     remotePatterns: [
@@ -23,12 +23,12 @@ const nextConfig: NextConfig = {
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
-  
+
   // Styled components configuration
   compiler: {
     styledComponents: true,
   },
-  
+
   // Caching and compression headers
   async headers() {
     return [
@@ -76,8 +76,8 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  
-  
+
+
   // Optimize bundle size
   webpack: (config, { isServer }) => {
     if (!isServer && config.optimization && config.optimization.splitChunks) {
@@ -100,13 +100,13 @@ const nextConfig: NextConfig = {
     }
     return config;
   },
-  
+
   // ESLint configuration
   eslint: {
     // Allow build to succeed even with ESLint warnings
     ignoreDuringBuilds: false,
   },
-  
+
   // TypeScript configuration
   typescript: {
     // Ignore type errors from auto-generated validator files
