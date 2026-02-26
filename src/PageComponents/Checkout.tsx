@@ -205,11 +205,6 @@ const Checkout = ({ show, onHide, cartItems, product, quantity = 1 }) => {
 
   useEffect(() => {
     if (paymentMethod === "online") {
-      // comment this and uncomment below code to if you want 100 early charges for COD
-      // if (paymentMethod === "cod") {
-      // setTransactionPrice((prevPrice) => prevPrice * 0.25);
-      // setTransactionPrice(100);
-      // } else {
       const totalPrice = cartItems
         ? cartItems.reduce(
           (total, item) => total + item.quantity * item.price,
@@ -217,6 +212,8 @@ const Checkout = ({ show, onHide, cartItems, product, quantity = 1 }) => {
         )
         : product.price * quantity;
       setTransactionPrice(totalPrice);
+    } else if (paymentMethod === "cod") {
+      setTransactionPrice(100);
     }
   }, [paymentMethod, cartItems, product, quantity]);
 
@@ -400,17 +397,16 @@ const Checkout = ({ show, onHide, cartItems, product, quantity = 1 }) => {
   const handlePayment = async () => {
     setLoading(true);
     let accessKey = null;
-    if (paymentMethod !== "cod") {
-      const responseData = await getAccessKey();
-      if (!responseData || !responseData.paymentUrl) {
-        console.log("Failed to get payment URL. Please try again..");
-        notifyError("Failed to initiate payment. Please check configuration or try COD.");
-        setLoading(false);
-        return;
-      }
-      accessKey = responseData.data;
-      var paymentUrl = responseData.paymentUrl;
+
+    const responseData = await getAccessKey();
+    if (!responseData || !responseData.paymentUrl) {
+      console.log("Failed to get payment URL. Please try again..");
+      notifyError("Failed to initiate payment. Please check configuration.");
+      setLoading(false);
+      return;
     }
+    accessKey = responseData.data;
+    var paymentUrl = responseData.paymentUrl;
 
     // Extract product titles with quantity
     const productDetails = (orderedItems || [])
@@ -419,7 +415,7 @@ const Checkout = ({ show, onHide, cartItems, product, quantity = 1 }) => {
 
     const orderData = {
       orderItems: orderedItems,
-      totalAmount: totalPriceOfCartProducts,
+      totalAmount: totalPriceOfCartProducts + (paymentMethod === "cod" ? COD_Charges : 0),
       transactionPrice: transactionPrice,
       shippingMethod: "standard",
       shippingData: {
@@ -428,64 +424,26 @@ const Checkout = ({ show, onHide, cartItems, product, quantity = 1 }) => {
       },
       paymentMethod: paymentMethod,
       userId: user?.id,
-      // orderId: txnId
     };
 
-    // console.log(txnId, orderData);
-
-    // if (paymentMethod === "cod") {
-    //   orderData.transactionPrice = COD_Charges;
-    //   orderData.totalAmount = COD_Charges;
-    // }
-
-    if (paymentMethod === "cod") {
-      orderData.totalAmount += COD_Charges;
-      orderData.transactionPrice = 0;
-      // For COD payment, call the COD API
-      fetch(`${API_PATH}/payment/cod`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ orderData }),
+    fetch(`${API_PATH}/payment/session`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ txnId, orderData }),
+    })
+      .then((res) => {
+        // Proceed with payment redirection using the URL from backend
+        if (paymentUrl) window.open(paymentUrl, "_self");
+        else notifyError("Payment URL not found.");
       })
-        .then((res) => res.json())
-        .then((data) => {
-          // let data = JSON.parse(res.replace(/^[^{]*/, ""));
-          if (data?.order_id) {
-            notify("Order Placed Successfully!");
-            setTimeout(() => {
-              router.push(`/orders/${data.order_id}`);
-            }, 1000);
-          }
-          clearCart(); // Clear cart after successful COD order
-        })
-        .catch((err) => {
-          notifyError("Failed to process COD order. Please try again.");
-          console.log("Failed to process COD order.", err);
-        })
-        .finally(() => setLoading(false));
-    } else if (paymentMethod === "online") {
-      // For Prepaid payment, call the Prepaid API
-      fetch(`${API_PATH}/payment/session`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ txnId, orderData }),
+      .catch((err) => {
+        notifyError("Failed to save order session. Please try again.");
+        console.log("Failed to save order session.", err);
+        return;
       })
-        .then((res) => {
-          // Proceed with Prepaid payment redirection using the URL from backend
-          if (paymentUrl) window.open(paymentUrl, "_self");
-          else notifyError("Payment URL not found.");
-        })
-        .catch((err) => {
-          notifyError("Failed to save order session. Please try again.");
-          console.log("Failed to save order session.", err);
-          return;
-        })
-        .finally(() => setLoading(false));
-    }
+      .finally(() => setLoading(false));
   };
 
   const getAccessKey = async () => {
@@ -725,8 +683,7 @@ const Checkout = ({ show, onHide, cartItems, product, quantity = 1 }) => {
                       Cash on Delivery
                     </label>
                     <p className="method-info">
-                      (For COD orders, there's an extra ₹69 charge that you need
-                      to pay first. The remaining amount can be paid when your
+                      (For COD orders, you have to pay a ₹100 advance payment before booking. The remaining amount + ₹69 COD charge can be paid when your
                       order is delivered)
                     </p>
                   </>

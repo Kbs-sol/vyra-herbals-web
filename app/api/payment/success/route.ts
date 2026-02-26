@@ -67,7 +67,7 @@ export async function POST(req: Request) {
             total_amount: orderData.totalAmount || formData.get('amount') || 0,
             transaction_price: orderData.transactionPrice || 0,
             shipping_data: orderData.shippingData,
-            payment_method: 'online',
+            payment_method: orderData.paymentMethod || 'online',
             status: 'placed',
             txn_id: String(txnid),
             user_id: orderData.userId,
@@ -118,7 +118,7 @@ export async function POST(req: Request) {
             status: 'success',
             txn_id: String(txnid),
             order_id: generatedOrderId, // Link the order ID we just created
-            payment_method: 'online'
+            payment_method: orderData.paymentMethod || 'online'
         }).eq('txn_id', String(txnid));
 
         // 6. Redirect to Order page or Profile
