@@ -74,20 +74,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
-    // Check active session
+    let mounted = true;
+
     const getSession = async () => {
-      let { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!mounted) return;
 
       if (session?.user) {
         await fetchUserProfile(session.user);
       } else {
+        setUser(null);
         setLoading(false);
       }
     };
 
+    // Initial check
     getSession();
 
+    // Listen for auth events (e.g., login/logout in this tab or sync events from Supabase)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
       if (session?.user) {
         await fetchUserProfile(session.user);
       } else {
@@ -96,7 +102,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     });
 
-    return () => subscription.unsubscribe();
+    // Cross-tab synchronization: re-check session when tab becomes visible/focused
+    const handleFocus = () => {
+      if (document.visibilityState === 'visible') {
+        getSession();
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('visibilitychange', handleFocus);
+      window.addEventListener('focus', handleFocus);
+    }
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('visibilitychange', handleFocus);
+        window.removeEventListener('focus', handleFocus);
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

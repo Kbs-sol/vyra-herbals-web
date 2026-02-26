@@ -11,56 +11,7 @@ export const supabase = createClient(
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
-      storage: {
-        getItem: (key) => {
-          if (typeof window === 'undefined') return null;
-          let i = 0;
-          let chunk = CookieUtils.getCookie(`${key}-${i}`);
-
-          if (!chunk) {
-            // Fallback for an existing non-chunked session
-            const val = CookieUtils.getCookie(key);
-            return val ? decodeURIComponent(val) : null;
-          }
-
-          let result = '';
-          while (chunk) {
-            result += chunk;
-            i++;
-            chunk = CookieUtils.getCookie(`${key}-${i}`);
-          }
-          return decodeURIComponent(result);
-        },
-        setItem: (key, value) => {
-          if (typeof window === 'undefined') return;
-          const encoded = encodeURIComponent(value);
-          const chunkSize = 3000; // Safe beneath 4096 cookie limit
-          let i = 0;
-
-          // Clear legacy non-chunked cookie just in case
-          CookieUtils.deleteCookie(key);
-
-          for (let start = 0; start < encoded.length; start += chunkSize) {
-            CookieUtils.setCookie(`${key}-${i}`, encoded.substring(start, start + chunkSize), 90);
-            i++;
-          }
-
-          // Clean up any old overflow chunks
-          while (CookieUtils.getCookie(`${key}-${i}`)) {
-            CookieUtils.deleteCookie(`${key}-${i}`);
-            i++;
-          }
-        },
-        removeItem: (key) => {
-          if (typeof window === 'undefined') return;
-          CookieUtils.deleteCookie(key);
-          let i = 0;
-          while (CookieUtils.getCookie(`${key}-${i}`)) {
-            CookieUtils.deleteCookie(`${key}-${i}`);
-            i++;
-          }
-        }
-      }
+      storage: typeof window !== 'undefined' ? window.localStorage : undefined
     }
   }
 );
