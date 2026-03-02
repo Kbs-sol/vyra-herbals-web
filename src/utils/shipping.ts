@@ -72,16 +72,23 @@ export const createShipment = async (orderData: any) => {
         if (!apiToken) {
             return { success: false, message: "Shipping authentication failed" };
         }
-        const stateCode = stateMapping[orderData.shipping_data.state] || "AP"; // Fallback to AP if not found
+        const inputState = (orderData.shipping_data.state || "").trim().toLowerCase();
+        let stateCode = "AP"; // Default fallback
+        
+        for (const [stateName, code] of Object.entries(stateMapping)) {
+            if (stateName.toLowerCase() === inputState) {
+                stateCode = code;
+                break;
+            }
+        }
 
         // 2. Map payload for Standard Shipment (Surface)
-        // Using x-www-form-urlencoded as per PDF example structure
         const payload = new URLSearchParams();
-        payload.append("pickup_address_id", process.env.ICARRY_PICKUP_ADDRESS_ID || "1"); // Now configurable via environment variables
-        payload.append("client_order_id", String(orderData.id)); // Ensure string
+        payload.append("pickup_address_id", process.env.ICARRY_PICKUP_ADDRESS_ID || "1");
+        payload.append("client_order_id", String(orderData.id));
         payload.append("consignee[name]", orderData.shipping_data.fullName);
         payload.append("consignee[mobile]", orderData.shipping_data.phone);
-        payload.append("consignee[address]", `${orderData.shipping_data.houseNumber}, ${orderData.shipping_data.area}, ${orderData.shipping_data.landmark}`);
+        payload.append("consignee[address]", `${orderData.shipping_data.houseNumber || ''}, ${orderData.shipping_data.area || ''}, ${orderData.shipping_data.landmark || ''}`.replace(/^, /, ''));
         payload.append("consignee[city]", orderData.shipping_data.city);
         payload.append("consignee[pincode]", orderData.shipping_data.pincode);
         payload.append("consignee[state]", stateCode);
@@ -98,7 +105,12 @@ export const createShipment = async (orderData: any) => {
         payload.append("parcel[dimensions][height]", "10");
         payload.append("parcel[dimensions][unit]", "cm");
 
-        const apiUrl = `https://www.icarry.in/api_add_shipment_surface&api_token=${apiToken}`;
+        const apiUrl = `https://www.icarry.in/api_add_shipment_surface?api_token=${apiToken}`;
+
+        console.log("iCarry.in Request:", {
+            url: apiUrl,
+            payload: Object.fromEntries(payload.entries())
+        });
 
         const response = await fetch(apiUrl, {
             method: "POST",

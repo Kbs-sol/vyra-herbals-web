@@ -96,10 +96,11 @@ export async function POST(req: Request) {
         try {
             const { createShipment } = await import('@/utils/shipping');
             const shipmentResult = await createShipment({ ...orderPayload, id: inserted.id });
+            console.log(`[Payment Success] Shipment creation result for order ${inserted.id}:`, shipmentResult);
             if (shipmentResult.success) {
                 trackingId = shipmentResult.trackingId || '';
                 // Update order with tracking ID and other details
-                await supabase.from('orders').update({
+                const { error: updateError } = await supabase.from('orders').update({
                     tracking_id: trackingId,
                     shipment_id: shipmentResult.shipment_id,
                     awb_code: shipmentResult.awb_code,
@@ -107,9 +108,15 @@ export async function POST(req: Request) {
                     label_url: shipmentResult.label_url,
                     delivery_status: 'Booked'
                 }).eq('id', inserted.id);
+
+                if (updateError) {
+                    console.error(`[Payment Success] Failed to update order ${inserted.id} with tracking info:`, updateError);
+                }
+            } else {
+                console.error(`[Payment Success] Shipment creation failed for order ${inserted.id}:`, shipmentResult.message);
             }
         } catch (shipError) {
-            console.error('Shipment creation failed:', shipError);
+            console.error('[Payment Success] Shipment creation exception:', shipError);
         }
 
         // 5. Update transaction status

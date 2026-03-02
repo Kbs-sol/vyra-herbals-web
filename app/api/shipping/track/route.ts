@@ -15,7 +15,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: 0, message: 'Shipping authentication failed' }, { status: 501 });
     }
 
-    const apiUrl = `https://www.icarry.in/api_track_shipment&api_token=${apiToken}`;
+    const apiUrl = `https://www.icarry.in/api_track_shipment?api_token=${apiToken}`;
 
     // Using x-www-form-urlencoded as per PDF example
     const payload = new URLSearchParams();
