@@ -13,7 +13,41 @@ export async function POST(req: Request) {
     if (!orderData) return NextResponse.json({ error: 'orderData required' }, { status: 400 });
 
     const supabase = createServerSupabase();
-    // Insert a new order with payment_method = cod
+
+    // --- Welcome Coupon Server-Side Validation ---
+    let welcomeCouponApplied = false;
+    let welcomeCouponDiscount = 0;
+
+    if (orderData.welcomeCouponApplied && orderData.userId) {
+      // 1. Check if welcome coupon is enabled
+      const { data: settingsRow } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'welcome_coupon')
+        .maybeSingle();
+
+      const couponConfig = settingsRow?.value;
+
+      // 2. Check if user has zero previous orders
+      const { count: orderCount } = await supabase
+        .from('orders')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', orderData.userId);
+
+      if (couponConfig?.enabled && (orderCount || 0) === 0) {
+        const discountPercent = couponConfig.discount_percent || 10;
+        // Recalculate discount server-side from items
+        const itemsTotal = (orderData.orderItems || []).reduce(
+          (sum: number, item: any) => sum + (item.price * item.quantity), 0
+        );
+        welcomeCouponDiscount = Math.round(itemsTotal * discountPercent / 100);
+        welcomeCouponApplied = true;
+        console.log(`[COD] Welcome coupon applied: ${discountPercent}% = ₹${welcomeCouponDiscount} off`);
+      } else {
+        console.log('[COD] Welcome coupon validation failed - user has orders or coupon disabled');
+      }
+    }
+
     // Generate IDs manually since DB defaults seem missing
     const now = new Date();
     const generatedId = now.getTime(); // Simple unique int8
@@ -30,7 +64,9 @@ export async function POST(req: Request) {
       status: 'placed',
       user_id: orderData.userId,
       created_at: now.toISOString(),
-      order_date: now.toISOString() // Populate order_date as well
+      order_date: now.toISOString(),
+      welcome_coupon_applied: welcomeCouponApplied,
+      welcome_coupon_discount: welcomeCouponDiscount
     };
     const { data: inserted, error } = await supabase.from('orders').insert([orderPayload]).select();
     if (error) {

@@ -4,7 +4,7 @@ import React, { useMemo } from "react";
 import { COD_Charges } from "../../constants";
 import styled from "styled-components";
 
-const BillSummary = ({ items, isCOD = false }) => {
+const BillSummary = ({ items, isCOD = false, welcomeDiscount = 0, welcomeDiscountPercent = 0 }) => {
   const totalMRP = useMemo(() => {
     return items.reduce(
       (total, item) => total + item.quantity * item.regular_price,
@@ -19,6 +19,9 @@ const BillSummary = ({ items, isCOD = false }) => {
     );
     return price;
   }, [items]);
+
+  const finalPrice = totalPrice - welcomeDiscount;
+
   return (
     <StyledBillSummary>
       <div className="fw-bold bill-heading">Bill Summary:</div>
@@ -33,6 +36,14 @@ const BillSummary = ({ items, isCOD = false }) => {
             - ₹{totalMRP - totalPrice}
           </span>
         </p>
+        {welcomeDiscount > 0 && (
+          <p className="text-lg font-semibold mb-0 d-flex justify-content-between px-3" style={{ color: '#059669' }}>
+            <span>🎉 Welcome Coupon ({welcomeDiscountPercent}%)</span>
+            <span className="text-lg fw-bold ms-1">
+              - ₹{welcomeDiscount}
+            </span>
+          </p>
+        )}
         <p className="text-lg font-semibold mb-0 d-flex justify-content-between px-3">
           <span>Delivery Fee</span>
           <span className="ms-1">
@@ -49,7 +60,7 @@ const BillSummary = ({ items, isCOD = false }) => {
         <p className="text-lg fw-bold mt-1 pt-1 d-flex justify-content-between px-3 border-top">
           <span>Total Amount</span>
           <span className="ms-1 ">
-            ₹{isCOD ? COD_Charges + totalPrice : totalPrice}
+            ₹{isCOD ? COD_Charges + finalPrice : finalPrice}
           </span>
         </p>
       </div>
@@ -60,3 +71,4 @@ const BillSummary = ({ items, isCOD = false }) => {
 export default BillSummary;
 
 const StyledBillSummary = styled.div``;
+

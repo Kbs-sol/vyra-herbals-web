@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     if (!orderData) return NextResponse.json({ error: 'orderData required' }, { status: 400 });
 
     const supabase = createServerSupabase();
-    // Save order session
+    // Save order session (orderData includes welcomeCouponApplied & welcomeCouponDiscount if applicable)
     const { data: inserted, error } = await supabase.from('order_sessions').insert([{ txn_id: txnId, payload: orderData }]).select();
     if (error) {
       console.error('Payment session error:', error);

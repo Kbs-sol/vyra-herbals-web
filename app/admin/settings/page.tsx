@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AdminLayoutWrapper from '../components/AdminLayoutWrapper';
 
 export default function SettingsPage() {
@@ -36,21 +36,75 @@ export default function SettingsPage() {
     googleAnalyticsId: '',
   });
 
+  // Welcome coupon state (separate from general settings since it's DB-backed)
+  const [welcomeCouponEnabled, setWelcomeCouponEnabled] = useState(true);
+  const [welcomeDiscountPercent, setWelcomeDiscountPercent] = useState(10);
+  const [loadingSettings, setLoadingSettings] = useState(false);
+
+  // Fetch welcome coupon settings from DB on mount
+  useEffect(() => {
+    fetchWelcomeCouponSettings();
+  }, []);
+
+  const fetchWelcomeCouponSettings = async () => {
+    try {
+      setLoadingSettings(true);
+      const res = await fetch('/api/admin/settings?key=welcome_coupon');
+      const result = await res.json();
+      if (result.success && result.data?.value) {
+        const val = result.data.value;
+        setWelcomeCouponEnabled(val.enabled ?? true);
+        setWelcomeDiscountPercent(val.discount_percent ?? 10);
+      }
+    } catch (e) {
+      console.error('Failed to fetch welcome coupon settings:', e);
+    } finally {
+      setLoadingSettings(false);
+    }
+  };
+
   const handleChange = (key: string, value: any) => {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
 
   const handleSave = async () => {
     setSaving(true);
-    // Simulate save
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setSaving(false);
-    alert('Settings saved successfully!');
+    try {
+      // Save welcome coupon settings to DB
+      if (activeTab === 'coupons') {
+        const res = await fetch('/api/admin/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            key: 'welcome_coupon',
+            value: {
+              enabled: welcomeCouponEnabled,
+              discount_percent: welcomeDiscountPercent
+            }
+          })
+        });
+        const result = await res.json();
+        if (result.success) {
+          alert('Coupon settings saved successfully!');
+        } else {
+          alert('Error saving settings: ' + (result.error || 'Unknown error'));
+        }
+      } else {
+        // Simulate save for other tabs (no DB for them yet)
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        alert('Settings saved successfully!');
+      }
+    } catch (err) {
+      alert('Failed to save settings. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const tabs = [
     { id: 'general', label: 'General', icon: '⚙️' },
     { id: 'business', label: 'Business', icon: '💼' },
+    { id: 'coupons', label: 'Coupons', icon: '🎟️' },
     { id: 'notifications', label: 'Notifications', icon: '🔔' },
     { id: 'seo', label: 'SEO', icon: '🔍' },
   ];
@@ -219,6 +273,81 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Coupons Settings */}
+          {activeTab === 'coupons' && (
+            <div className="settings-section">
+              <div className="section-header">
+                <h2>Coupon Settings</h2>
+                <p>Configure welcome coupon for first-time buyers</p>
+              </div>
+
+              {loadingSettings ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
+                  Loading coupon settings...
+                </div>
+              ) : (
+                <>
+                  <div className="form-group">
+                    <div className="toggle-group vertical">
+                      <div className="toggle-item">
+                        <label className="toggle">
+                          <input
+                            type="checkbox"
+                            checked={welcomeCouponEnabled}
+                            onChange={(e) => setWelcomeCouponEnabled(e.target.checked)}
+                          />
+                          <span className="slider"></span>
+                        </label>
+                        <div className="toggle-info">
+                          <span className="toggle-title">Welcome Coupon</span>
+                          <span className="toggle-desc">Automatically apply a discount coupon for first-time buyers during checkout</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {welcomeCouponEnabled && (
+                    <div className="form-group">
+                      <label>Discount Percentage (%)</label>
+                      <input
+                        type="number"
+                        value={welcomeDiscountPercent}
+                        onChange={(e) => {
+                          const val = Math.min(100, Math.max(1, Number(e.target.value) || 1));
+                          setWelcomeDiscountPercent(val);
+                        }}
+                        min={1}
+                        max={100}
+                        placeholder="e.g. 10"
+                      />
+                      <span className="char-count" style={{ color: '#059669', fontWeight: 500 }}>
+                        First-time buyers will get {welcomeDiscountPercent}% off their order
+                      </span>
+                    </div>
+                  )}
+
+                  <div style={{
+                    background: '#f0fdf4',
+                    border: '1px solid #bbf7d0',
+                    borderRadius: '12px',
+                    padding: '16px 20px',
+                    marginTop: '8px',
+                    fontSize: '14px',
+                    color: '#166534',
+                    lineHeight: 1.6
+                  }}>
+                    <strong>ℹ️ How it works:</strong>
+                    <ul style={{ margin: '8px 0 0', paddingLeft: '20px' }}>
+                      <li>The welcome coupon is automatically applied to users who have never placed an order</li>
+                      <li>The discount is validated server-side to prevent abuse</li>
+                      <li>Once a user places their first order, they can no longer use this coupon</li>
+                    </ul>
+                  </div>
+                </>
+              )}
             </div>
           )}
 

@@ -54,6 +54,37 @@ export async function POST(req: Request) {
 
         const orderData = sessions.payload;
 
+        // --- Welcome Coupon Server-Side Validation ---
+        let welcomeCouponApplied = false;
+        let welcomeCouponDiscount = 0;
+
+        if (orderData.welcomeCouponApplied && orderData.userId) {
+            const { data: settingsRow } = await supabase
+                .from('site_settings')
+                .select('value')
+                .eq('key', 'welcome_coupon')
+                .maybeSingle();
+
+            const couponConfig = settingsRow?.value;
+
+            const { count: orderCount } = await supabase
+                .from('orders')
+                .select('id', { count: 'exact', head: true })
+                .eq('user_id', orderData.userId);
+
+            if (couponConfig?.enabled && (orderCount || 0) === 0) {
+                const discountPercent = couponConfig.discount_percent || 10;
+                const itemsTotal = (orderData.orderItems || []).reduce(
+                    (sum: number, item: any) => sum + (item.price * item.quantity), 0
+                );
+                welcomeCouponDiscount = Math.round(itemsTotal * discountPercent / 100);
+                welcomeCouponApplied = true;
+                console.log(`[Payment Success] Welcome coupon applied: ${discountPercent}% = ₹${welcomeCouponDiscount} off`);
+            } else {
+                console.log('[Payment Success] Welcome coupon validation failed');
+            }
+        }
+
         // 2. Insert into orders
         const now = new Date();
         const generatedId = now.getTime(); // Match COD logic
@@ -72,7 +103,9 @@ export async function POST(req: Request) {
             txn_id: String(txnid),
             user_id: orderData.userId,
             created_at: now.toISOString(),
-            order_date: now.toISOString()
+            order_date: now.toISOString(),
+            welcome_coupon_applied: welcomeCouponApplied,
+            welcome_coupon_discount: welcomeCouponDiscount
         };
 
         const { data: inserted, error: insertError } = await supabase
