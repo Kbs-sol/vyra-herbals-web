@@ -151,6 +151,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
 
       if (error) throw error;
+
+      if (data?.session?.user) {
+        await fetchUserProfile(data.session.user);
+      }
+
       return { error: null };
     } catch (error: any) {
       return { error: error.message };
@@ -184,12 +189,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       // Successfully verified and created/found user
       // Now sign in with the deterministic or newly set credentials
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
       });
 
       if (signInError) throw signInError;
+
+      if (signInData?.session?.user) {
+        await fetchUserProfile(signInData.session.user);
+      }
 
       return { error: null };
     } catch (error: any) {

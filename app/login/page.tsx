@@ -25,9 +25,9 @@ const LoginContent = () => {
 
   useEffect(() => {
     if (!authLoading && user) {
-      router.replace(redirectUrl);
+      window.location.href = redirectUrl;
     }
-  }, [user, authLoading, router, redirectUrl]);
+  }, [user, authLoading, redirectUrl]);
 
   // Step 1: Check if phone number exists
   const handleCheckPhone = async (e: React.FormEvent) => {
@@ -62,8 +62,8 @@ const LoginContent = () => {
 
     try {
       const { error } = await loginWithPassword(phone, password);
-      if (error) throw new Error("Invalid password");
-      // AuthContext will handle the redirect
+      if (error) throw new Error(error);
+      window.location.href = redirectUrl;
     } catch (err: any) {
       setError(err.message || 'Login failed');
     } finally {
@@ -100,7 +100,7 @@ const LoginContent = () => {
 
       const { error } = await verifyOtp(phone, verificationId, otp, password, name);
       if (error) throw new Error(error);
-      // AuthContext will handle the redirect
+      window.location.href = redirectUrl;
     } catch (err: any) {
       setError(err.message || 'Verification failed');
     } finally {
