@@ -115,14 +115,43 @@ const ProfilePage = () => {
     };
 
     const fetchTransactions = async () => {
-        if (!user?.email) return;
+        if (!user) return;
         setLoadingTransactions(true);
         try {
+            let phoneToMatch = user.phone;
+            // If phone isn't explicitly set, try to extract from dummy email
+            if (!phoneToMatch && user.email?.includes('@phone.internal')) {
+                phoneToMatch = user.email.split('@')[0];
+            }
+
+            let orQuery = [];
+            if (user.email) orQuery.push(`email.eq.${user.email}`);
+
+            if (phoneToMatch) {
+                // Strip non-digits and optional +91 code
+                const cleanPhone = phoneToMatch.replace(/^\+?91/, '').replace(/\D/g, '');
+                if (cleanPhone) {
+                    orQuery.push(`phone.eq.${cleanPhone}`);
+                    // Check variations just in case it was saved differently
+                    orQuery.push(`phone.eq.+91${cleanPhone}`);
+                    orQuery.push(`phone.eq.91${cleanPhone}`);
+                }
+            }
+
+            const queryStr = orQuery.join(',');
+
+            // Default to empty array if no query fields
+            if (!queryStr) {
+                setTransactions([]);
+                setLoadingTransactions(false);
+                return;
+            }
+
             const { data, error } = await supabase
                 .from('transactions')
                 .select('id, amount, status, txn_id, created_at')
-                .eq('email', user.email)
-                .order('created_at', { ascending: false });
+                .or(queryStr)
+                .order('id', { ascending: false });
 
             if (error) throw error;
             setTransactions(data || []);
@@ -432,18 +461,47 @@ const ProfilePage = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        {transactions.map(txn => (
-                            <tr key={txn.id}>
-                                <td>{new Date(txn.created_at).toLocaleDateString("en-IN", { day: 'numeric', month: 'short', year: 'numeric' })}</td>
-                                <td><span className="font-monospace text-muted">{txn.txn_id || 'N/A'}</span></td>
-                                <td className="fw-bold">₹{txn.amount}</td>
-                                <td>
-                                    <Badge bg={txn.status === 'success' ? 'success' : txn.status === 'failed' ? 'danger' : 'warning'}>
-                                        {txn.status.toUpperCase()}
-                                    </Badge>
-                                </td>
-                            </tr>
-                        ))}
+                        {transactions.map((txn, index) => {
+                            // Cross-reference with orders to find "true" success
+                            // Legitimate orders store the transaction.id in their txn_id column
+                            const matchedOrder = orders.find(o =>
+                                String(o.txn_id) === String(txn.id) ||
+                                (txn.txn_id && String(o.txn_id) === String(txn.txn_id))
+                            );
+
+                            const isSuccessful = txn.status === 'success' || !!matchedOrder;
+                            const displayStatus = isSuccessful ? 'success' : txn.status;
+                            const displayTxnId = txn.txn_id || (matchedOrder ? matchedOrder.order_id : null);
+
+                            return (
+                                <tr key={txn.id ?? `txn-${index}`}>
+                                    <td>
+                                        {txn.created_at
+                                            ? new Date(txn.created_at).toLocaleDateString("en-IN", { day: 'numeric', month: 'short', year: 'numeric' })
+                                            : '—'}
+                                    </td>
+                                    <td>
+                                        <div className="d-flex flex-column">
+                                            <span className="font-monospace text-muted" style={{ fontSize: '0.75rem' }}>{displayTxnId || '—'}</span>
+                                            {matchedOrder && <small className="text-primary" style={{ fontSize: '0.65rem' }}>Order: {matchedOrder.order_id}</small>}
+                                        </div>
+                                    </td>
+                                    <td className="fw-bold">₹{txn.amount}</td>
+                                    <td>
+                                        <Badge bg={
+                                            displayStatus === 'success' ? 'success' :
+                                                displayStatus === 'failed' ? 'danger' :
+                                                    displayStatus === 'created' ? 'warning' : 'secondary'
+                                        }>
+                                            {displayStatus === 'success' ? 'Paid' :
+                                                displayStatus === 'failed' ? 'Failed' :
+                                                    displayStatus === 'created' ? 'Initiated' :
+                                                        (displayStatus || 'Unknown').toUpperCase()}
+                                        </Badge>
+                                    </td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>

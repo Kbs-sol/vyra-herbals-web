@@ -152,14 +152,14 @@ export async function POST(req: Request) {
             console.error('[Payment Success] Shipment creation exception:', shipError);
         }
 
-        // 5. Update transaction status
         // 5. Update transaction status and link to order
+        // We match by 'id' because that's what we sent as 'txnid' to Easebuzz
         await supabase.from('transactions').update({
             status: 'success',
             txn_id: String(txnid),
-            order_id: generatedOrderId, // Link the order ID we just created
+            order_id: generatedOrderId,
             payment_method: orderData.paymentMethod || 'online'
-        }).eq('txn_id', String(txnid));
+        }).eq('id', Number(txnid));
 
         // 6. Redirect to Order page or Profile
         return NextResponse.redirect(`${appUrl}/profile#orders`, 303);
