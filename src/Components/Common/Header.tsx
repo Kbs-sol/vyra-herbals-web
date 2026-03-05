@@ -92,8 +92,7 @@ const Header = () => {
   }, [pathname, searchParams]);
 
   const [isSticky, setIsSticky] = useState(false);
-  const [isHidden, setIsHidden] = useState(false);
-  const [lastScrollY, setLastScrollY] = useState(0);
+
 
   useEffect(() => {
     const handleScroll = () => {
@@ -101,27 +100,17 @@ const Header = () => {
 
       if (currentScrollY > 100) {
         setIsSticky(true);
-        if (currentScrollY > lastScrollY) {
-          // Scrolling down
-          setIsHidden(true);
-        } else {
-          // Scrolling up
-          setIsHidden(false);
-        }
       } else {
-        // At the top
         setIsSticky(false);
-        setIsHidden(false);
       }
-      setLastScrollY(currentScrollY);
     };
 
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
 
     return () => {
       window.removeEventListener("scroll", handleScroll);
     };
-  }, [lastScrollY]);
+  }, []);
 
   return (
     <>
@@ -142,7 +131,8 @@ const Header = () => {
           </div>
         </div>
       </section>
-      <StyledHeader className={`header-part ${isSticky ? 'fixed-header' : ''} ${isHidden ? 'hidden' : ''}`}>
+      <StyledHeader className={`header-part ${isSticky ? 'fixed-header' : ''}`}>
+
         <div className="container">
           <div className="header-content">
             <div className="header-media-group">
@@ -452,9 +442,6 @@ const StyledHeader = styled.section`
       transform: translateY(0);
     }
 
-    &.hidden {
-      transform: translateY(-100%);
-    }
 
     .header-logo-and-list {
       display: flex;
