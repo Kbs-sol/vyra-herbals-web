@@ -27,6 +27,7 @@ export default function ProductsPage() {
   const [formData, setFormData] = useState({
     title: '',
     handle: '',
+    sku: '',
     description: '',
     price: '',
     regular_price: '',
@@ -235,6 +236,7 @@ export default function ProductsPage() {
     setFormData({
       title: '',
       handle: '',
+      sku: '',
       description: '',
       price: '',
       regular_price: '',
@@ -258,6 +260,7 @@ export default function ProductsPage() {
     setFormData({
       title: product.title || '',
       handle: product.handle || '',
+      sku: product.sku || '',
       description: product.description || '',
       price: product.price?.toString() || '',
       regular_price: product.regular_price?.toString() || '',
@@ -296,6 +299,7 @@ export default function ProductsPage() {
       const payload = {
         ...formData,
         handle: formData.handle || slugify(formData.title),
+        sku: formData.sku || slugify(formData.title),
         images: mergedImages,
         image_url: formData.image_url || mergedImages[0] || null,
         price: parseFloat(formData.price),
@@ -453,6 +457,7 @@ export default function ProductsPage() {
                         <div className="product-info">
                           <h4>{product.title}</h4>
                           <p className="handle">{product.handle}</p>
+                          {product.sku && <p className="handle" style={{ color: '#666', marginTop: '4px' }}>SKU: {product.sku}</p>}
                         </div>
                       </div>
                     </td>
@@ -548,6 +553,18 @@ export default function ProductsPage() {
                         type="text"
                         value={formData.handle}
                         onChange={(e) => setFormData({ ...formData, handle: e.target.value })}
+                        placeholder="auto-generated-from-title"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>SKU (Stock Keeping Unit)</label>
+                      <input
+                        type="text"
+                        value={formData.sku || ''}
+                        onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
                         placeholder="auto-generated-from-title"
                       />
                     </div>

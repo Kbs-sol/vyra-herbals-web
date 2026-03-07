@@ -3,6 +3,7 @@
 export interface Product {
   id: number | string;
   handle?: string;                    // URL-friendly slug
+  sku?: string;                       // Stock keeping unit
   title: string;
   description?: string;
   price: number;

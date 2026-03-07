@@ -449,9 +449,9 @@ const Checkout = ({ show, onHide, cartItems, product, quantity = 1 }) => {
     accessKey = responseData.data;
     var paymentUrl = responseData.paymentUrl;
 
-    // Extract product titles with quantity
+    // Extract product titles with quantity and sku
     const productDetails = (orderedItems || [])
-      .map((item) => `${item.quantity} x ${item.title}`)
+      .map((item) => `${item.quantity}X${item.sku || item.handle || item.title}`)
       .join(", ");
 
     const discountedTotal = totalPriceOfCartProducts - welcomeDiscount;

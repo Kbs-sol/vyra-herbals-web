@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = createServerSupabase();
     const searchParams = request.nextUrl.searchParams;
-    
+
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
     const search = searchParams.get('search') || '';
@@ -75,6 +75,14 @@ export async function POST(request: NextRequest) {
         .replace(/(^-|-$)/g, '');
     }
 
+    // Generate sku from title if not provided
+    if (!body.sku && body.title) {
+      body.sku = body.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+    }
+
     if (!body.image_url && images.length) {
       body.image_url = images[0];
     }
@@ -122,6 +130,13 @@ export async function PUT(request: NextRequest) {
 
     if (!updateData.handle && updateData.title) {
       updateData.handle = updateData.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+    }
+
+    if (!updateData.sku && updateData.title) {
+      updateData.sku = updateData.title
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '');
