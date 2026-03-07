@@ -21,12 +21,13 @@ import Certificate from "../Components/Home/Certificate";
 import BestSeller from "../Components/Home/BestSeller";
 import Video from "../Components/Home/Video";
 import OurJourney from "../Components/Home/OurJourney";
+import HairConcernBar from "../Components/Home/HairConcernBar";
 
 // Smooth fade-out loader
 const PageLoader = ({ isVisible }: { isVisible: boolean }) => (
-  <div 
-    className="loader_out" 
-    style={{ 
+  <div
+    className="loader_out"
+    style={{
       opacity: isVisible ? 1 : 0,
       pointerEvents: isVisible ? 'auto' : 'none',
       transition: 'opacity 0.3s ease-out'
@@ -101,6 +102,9 @@ const Home = () => {
           <section id="customerTestimonials">
             <Testimonial />
           </section>
+        </ErrorBoundary>
+        <ErrorBoundary>
+          <HairConcernBar />
         </ErrorBoundary>
         <ErrorBoundary>
           <Follow />
