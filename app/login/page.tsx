@@ -25,9 +25,9 @@ const LoginContent = () => {
 
   useEffect(() => {
     if (!authLoading && user) {
-      window.location.href = redirectUrl;
+      router.push(redirectUrl || '/');
     }
-  }, [user, authLoading, redirectUrl]);
+  }, [user, authLoading, redirectUrl, router]);
 
   // Step 1: Check if phone number exists
   const handleCheckPhone = async (e: React.FormEvent) => {
@@ -63,10 +63,15 @@ const LoginContent = () => {
     try {
       const { error } = await loginWithPassword(phone, password);
       if (error) throw new Error(error);
-      window.location.href = redirectUrl;
+
+      // Navigate efficiently without full page reload
+      router.push(redirectUrl || '/');
+
+      // We purposefully don't setLocalLoading(false) immediately
+      // to avoid visual flicker while page transitions.
+      return;
     } catch (err: any) {
       setError(err.message || 'Login failed');
-    } finally {
       setLocalLoading(false);
     }
   };
@@ -100,10 +105,11 @@ const LoginContent = () => {
 
       const { error } = await verifyOtp(phone, verificationId, otp, password, name);
       if (error) throw new Error(error);
-      window.location.href = redirectUrl;
+
+      router.push(redirectUrl || '/');
+      return;
     } catch (err: any) {
       setError(err.message || 'Verification failed');
-    } finally {
       setLocalLoading(false);
     }
   };
@@ -116,6 +122,12 @@ const LoginContent = () => {
     <Container>
       <AuthCard>
         <Title>Welcome to Vyra</Title>
+
+        {searchParams?.get('toast') === 'order_success' && (
+          <SuccessMessage>
+            Payment successful! Your order has been placed securely. Please login below to view your account.
+          </SuccessMessage>
+        )}
 
         {error && <ErrorMessage>{error}</ErrorMessage>}
 
@@ -360,6 +372,18 @@ const ErrorMessage = styled.div`
     font-size: 0.9rem;
     text-align: center;
     border: 1px solid #ef9a9a;
+`;
+
+const SuccessMessage = styled.div`
+    background-color: #e8f5e9;
+    color: #2e7d32;
+    padding: 1rem;
+    border-radius: 6px;
+    margin-bottom: 1.5rem;
+    font-size: 0.95rem;
+    text-align: center;
+    border: 1px solid #a5d6a7;
+    font-weight: 500;
 `;
 
 const LoadingWrapper = styled.div`

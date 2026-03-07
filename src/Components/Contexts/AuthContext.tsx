@@ -20,6 +20,14 @@ interface AuthContextType {
 // Create the context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Timeout utility to prevent hanging promises
+const withTimeout = <T,>(promise: Promise<T>, ms: number, fallbackError: string): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(fallbackError)), ms))
+  ]);
+};
+
 // Create a custom hook to use the AuthContext
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
@@ -37,12 +45,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchUserProfile = async (authUser: SupabaseUser) => {
     try {
-      // First try to get profile from public.users
-      let { data, error } = await supabase
+      // First try to get profile from public.users with an explicit timeout
+      const profilePromise = supabase
         .from('users')
         .select('*')
         .eq('id', authUser.id)
         .maybeSingle();
+
+      let { data, error } = await withTimeout(
+        Promise.resolve(profilePromise),
+        15000,
+        "Timeout while fetching user profile"
+      ) as any;
 
       if (data) {
         setUser({
@@ -77,14 +91,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     let mounted = true;
 
     const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!mounted) return;
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        console.log('[AuthContext] getSession initial check. Session exists?', !!session, 'Error?', error);
+        if (!mounted) return;
 
-      if (session?.user) {
-        await fetchUserProfile(session.user);
-      } else {
-        setUser(null);
-        setLoading(false);
+        if (error) {
+          console.error("[AuthContext] Supabase getSession error:", error);
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
+        if (session?.user) {
+          console.log('[AuthContext] getSession found user:', session.user.id);
+          await fetchUserProfile(session.user);
+        } else {
+          console.log('[AuthContext] getSession found no session, setting user to null');
+          setUser(null);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("[AuthContext] Unexpected error in getSession:", err);
+        if (mounted) {
+          setUser(null);
+          setLoading(false);
+        }
       }
     };
 
@@ -93,10 +125,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     // Listen for auth events (e.g., login/logout in this tab or sync events from Supabase)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log(`[AuthContext] onAuthStateChange event: ${event}. Session exists?`, !!session);
       if (!mounted) return;
-      if (session?.user) {
-        await fetchUserProfile(session.user);
-      } else {
+      try {
+        if (session?.user) {
+          await fetchUserProfile(session.user);
+        } else {
+          setUser(null);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("[AuthContext] Auth state change error:", err);
         setUser(null);
         setLoading(false);
       }
@@ -145,19 +184,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const cleanedPhone = phone.replace(/\D/g, '').slice(-10);
       const internalEmail = `${cleanedPhone}@phone.internal`;
 
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: internalEmail,
-        password: password,
-      });
+      console.log('Initiating Supabase authentication...');
+      const { data, error } = await withTimeout(
+        supabase.auth.signInWithPassword({
+          email: internalEmail,
+          password: password,
+        }),
+        15000,
+        "Sign in request timed out. Please check your internet connection."
+      ) as any;
 
-      if (error) throw error;
+      console.log('Supabase sign in response:', { data, error });
 
-      if (data?.session?.user) {
-        await fetchUserProfile(data.session.user);
+      if (error) {
+        // Look for specific confirmation errors
+        if (error.message.includes('Email not confirmed') || error.message.includes('credential')) {
+          console.error('Login Error detail:', error);
+        }
+        throw error;
       }
 
+      if (data?.session?.user || data?.user) {
+        const authUser = data.session?.user || data.user;
+        console.log('Authentication successful, fetching profile for:', authUser.id);
+        await fetchUserProfile(authUser);
+      } else {
+        console.warn('No session or user returned from Supabase sign in');
+        throw new Error("Unable to create user session. Please try again.");
+      }
+
+      console.log('Login fully resolved with null error');
       return { error: null };
     } catch (error: any) {
+      console.error('Login error caught in AuthContext:', error);
       return { error: error.message };
     }
   };

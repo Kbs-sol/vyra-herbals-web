@@ -81,8 +81,20 @@ const ProfilePage = () => {
             fetchOrders();
             fetchAddresses();
             fetchTransactions();
+
+            // Display success toast if redirected from payment
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('toast') === 'order_success') {
+                toast.success('Payment successful! Your order has been placed.');
+
+                // Remove the query param gracefully
+                const newUrl = window.location.pathname + window.location.hash;
+                window.history.replaceState({}, document.title, newUrl);
+            }
         } else if (!authLoading && !user) {
-            router.push('/login');
+            const urlParams = new URL(window.location.href).searchParams;
+            const isSuccessMsg = urlParams.get('toast') === 'order_success';
+            router.push(`/login${isSuccessMsg ? '?toast=order_success' : ''}`);
         }
     }, [user?.id, authLoading, router]);
 
@@ -671,7 +683,18 @@ const ProfilePage = () => {
         );
     };
 
-    if (authLoading) {
+    const [stuckLoading, setStuckLoading] = useState(false);
+
+    useEffect(() => {
+        if (authLoading) {
+            const timer = setTimeout(() => {
+                setStuckLoading(true);
+            }, 5000); // 5 seconds threshold
+            return () => clearTimeout(timer);
+        }
+    }, [authLoading]);
+
+    if (authLoading && !stuckLoading) {
         return (
             <LoadingContainer>
                 <Spinner animation="border" role="status" variant="secondary">
@@ -679,6 +702,14 @@ const ProfilePage = () => {
                 </Spinner>
             </LoadingContainer>
         );
+    }
+
+    if (stuckLoading && !user) {
+        // Force redirect if stuck loading and no user
+        const urlParams = new URLSearchParams(window.location.search);
+        const isSuccessMsg = urlParams.get('toast') === 'order_success';
+        router.push(`/login?redirected=auth_timeout${isSuccessMsg ? '&toast=order_success' : ''}`);
+        return null;
     }
 
     if (!user) return null;

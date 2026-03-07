@@ -11,7 +11,8 @@ export async function POST(req: Request) {
         if (status !== 'success') {
             const origin = new URL(req.url).origin;
             const appUrl = process.env.NEXT_PUBLIC_APP_URL || origin;
-            return NextResponse.redirect(`${appUrl}/cart?error=payment_failed`, 303);
+            let errorMsg = formData.get('error_Message') || formData.get('error') || 'Payment failed or cancelled';
+            return NextResponse.redirect(`${appUrl}/payment-failed?order_id=${txnid || ''}&reason=${encodeURIComponent(String(errorMsg))}`, 303);
         }
 
         const supabase = createServerSupabase();
@@ -162,7 +163,7 @@ export async function POST(req: Request) {
         }).eq('id', Number(txnid));
 
         // 6. Redirect to Order page or Profile
-        return NextResponse.redirect(`${appUrl}/profile#orders`, 303);
+        return NextResponse.redirect(`${appUrl}/profile?toast=order_success#orders`, 303);
 
     } catch (err) {
         console.error('Payment success exception:', err);
