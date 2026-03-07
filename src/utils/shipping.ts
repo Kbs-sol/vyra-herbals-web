@@ -54,12 +54,22 @@ export const getIcarryToken = async () => {
     try {
         const loginRes = await fetch("https://www.icarry.in/api_login", {
             method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "application/json, text/plain, */*"
+            },
             body: new URLSearchParams({ username, Key: key }),
         });
 
-        const loginData = await loginRes.json();
-        return loginData.api_token || null;
+        const text = await loginRes.text();
+        try {
+            const loginData = JSON.parse(text);
+            return loginData.api_token || null;
+        } catch (parseError) {
+            console.error("iCarry.in token error (Not JSON):", text.substring(0, 150));
+            return null;
+        }
     } catch (err) {
         console.error("iCarry.in token error:", err);
         return null;
@@ -74,7 +84,7 @@ export const createShipment = async (orderData: any) => {
         }
         const inputState = (orderData.shipping_data.state || "").trim().toLowerCase();
         let stateCode = "AP"; // Default fallback
-        
+
         for (const [stateName, code] of Object.entries(stateMapping)) {
             if (stateName.toLowerCase() === inputState) {
                 stateCode = code;
@@ -114,11 +124,23 @@ export const createShipment = async (orderData: any) => {
 
         const response = await fetch(apiUrl, {
             method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "application/json, text/plain, */*"
+            },
             body: payload,
         });
 
-        const result = await response.json();
+        const textResponse = await response.text();
+        let result;
+        try {
+            result = JSON.parse(textResponse);
+        } catch (e) {
+            console.error("iCarry.in Result Error (Not JSON):", textResponse.substring(0, 150));
+            return { success: false, message: "Invalid API response from shipping provider" };
+        }
+
         console.log("iCarry.in Result:", result);
 
         if (result.success && result.shipment_id) {
