@@ -577,17 +577,43 @@ const StyledHeader = styled.section`
   //bootstrap break-point: md
   @media (max-width: 576px) {
     &.header-part {
-      overflow-x: hidden !important;
+      padding: 0.4rem 0;
+      
       .header-content {
-        margin-bottom: 2.4rem;
+        margin-bottom: 2.8rem; /* Increased to accommodate search bar */
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+
+        .header-logo-and-list {
+          .header-logo {
+            margin-right: 1rem;
+            img {
+              height: 2.2rem;
+            }
+          }
+        }
+
         .search-section {
           position: absolute;
-          bottom: 0.6rem;
-          left: 0.6rem;
-          right: 0.6rem;
+          bottom: 0.4rem;
+          left: 0.75rem;
+          right: 0.75rem;
+          width: calc(100% - 1.5rem);
         }
+
         .header-widget-group {
-          margin-right: 1.2rem;
+          margin-right: 0;
+          gap: 8px;
+
+          .header-widget {
+            margin-left: 8px;
+          }
+
+          .login-btn {
+            padding: 4px 8px;
+            font-size: 0.85rem;
+          }
         }
       }
     }

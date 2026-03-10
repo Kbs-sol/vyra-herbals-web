@@ -196,6 +196,12 @@ const AboutContainer = styled.section`
 
   //bootstrap break-point: md
   @media (max-width: 576px) {
+    h3 {
+      font-size: 24px;
+    }
+    .mini-heading {
+      font-size: 20px;
+    }
     p {
       margin-bottom: 14px;
       font-size: 16px;

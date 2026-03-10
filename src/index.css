@@ -168,7 +168,11 @@ button:focus-visible {
 
 @media (max-width: 768px) {
   .banner-list img {
-    height: 400px !important;
+    height: auto !important;
+    min-height: 250px !important;
+    object-fit: contain !important;
+    background: #fdf6f0;
+    /* Match typical banner background color */
   }
 }
 

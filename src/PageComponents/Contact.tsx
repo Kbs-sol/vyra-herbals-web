@@ -228,10 +228,29 @@ const StyledContact = styled.section`
     }
   }
 
+  @media (max-width: 768px) {
+    padding: 1rem;
+    .contact-form {
+      padding: 1.5rem;
+      h2 {
+        font-size: 1.8rem;
+      }
+      .form-group {
+        input, textarea {
+          font-size: 1.2rem;
+        }
+      }
+    }
+  }
+
   .contact-wrapper {
     display: flex;
     flex-direction: column;
     justify-content: center;
+    @media (max-width: 768px) {
+      margin-top: 2rem;
+      padding: 0 1rem;
+    }
     .contact-list {
       a {
         color: #000;

@@ -44,15 +44,15 @@ const ProductCard = ({ product, isImageLazy = true }) => {
             </Link>
           </h6>
           <div className="details-rating">
-            {!!ratingDetails.average && (
+            {(ratingDetails as any)?.average && (
               <StarRatings
-                rating={ratingDetails.average}
+                rating={(ratingDetails as any).average}
                 className="me-1 mb-1"
               />
             )}
             <Link href={`/product/${product.handle}#reviews`}>
-              ({ratingDetails.count || "No"}{" "}
-              {ratingDetails.count === 1 ? "review" : "reviews"})
+              ({(ratingDetails as any)?.count || "No"}{" "}
+              {(ratingDetails as any)?.count === 1 ? "review" : "reviews"})
             </Link>
           </div>
           <h6 className="product-price">
@@ -66,7 +66,7 @@ const ProductCard = ({ product, isImageLazy = true }) => {
             </span>
             <span className="discount ms-2 text-success">
               {Math.floor(
-                Utility.calculateDiscount(product.price, product.regular_price)
+                Number(Utility.calculateDiscount(product.price, product.regular_price))
               )}
               % Off
             </span>
@@ -178,10 +178,33 @@ export const StyledProduct = styled.section`
       margin-bottom: 8px;
     }
     .product-name {
-      font-size: 15px;
-      line-height: 22px;
+      font-size: 14px;
+      line-height: 20px;
+      min-height: 3.8rem;
       a {
-        font-size: 16px !important;
+        font-size: 15px !important;
+      }
+    }
+    .product-price {
+      .price {
+        font-size: 1.15rem !important;
+      }
+      .text-muted {
+        font-size: 0.9rem !important;
+      }
+      .discount {
+        font-size: 0.8rem !important;
+      }
+    }
+  }
+
+  @media (max-width: 360px) {
+    .product-name a {
+      font-size: 14px !important;
+    }
+    .product-price {
+      .price {
+        font-size: 1.05rem !important;
       }
     }
   }

@@ -17,7 +17,7 @@ const SearchBar = (props) => {
   const [loopNum, setLoopNum] = useState(0);
   const [typingSpeed, setTypingSpeed] = useState(150);
   const [isInputFocus, setInputFocus] = useState(false);
-  const inputRef = useRef();
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const placeholderPhrases = [
     "Search for Hair Oil",
@@ -57,7 +57,9 @@ const SearchBar = (props) => {
 
   const clearSearch = () => {
     setSearchTerm("");
-    inputRef.current.focus();
+    if (inputRef.current) {
+      (inputRef.current as HTMLInputElement).focus();
+    }
     onClear?.();
   };
 
@@ -100,16 +102,43 @@ const StyledSearchBar = styled.section`
     border-radius: 4px;
 
     .animated-search-input {
-      width: 12rem;
+      width: 100%;
+      max-width: 12rem;
       height: 2.4rem;
       padding: 0 0.5rem;
       padding-right: 1.5rem;
-      font-size: 0.8rem;
-      line-height: 4.4rem;
+      font-size: 0.85rem;
+      line-height: normal;
       flex-grow: 1;
+
+      .product-name {
+        text-transform: capitalize;
+        min-height: 4.2rem;
+        a {
+          width: 100%;
+          color: var(--sub-heading);
+          transition: all linear 0.3s;
+          -webkit-transition: all linear 0.3s;
+          -moz-transition: all linear 0.3s;
+          -ms-transition: all linear 0.3s;
+          -o-transition: all linear 0.3s;
+          font-size: 17px;
+          display: block;
+          &:hover {
+            color: var(--primary);
+          }
+        }
+      }
+
       &::placeholder {
         text-transform: none;
         font-size: 0.8rem;
+        opacity: 0.7;
+      }
+
+      @media (max-width: 576px) {
+        max-width: none;
+        font-size: 0.9rem;
       }
     }
 

@@ -398,7 +398,8 @@ const StyledCategories = styled.section`
     box-sizing: border-box;
 
     @media (max-width: 991px) {
-       flex: 0 0 200px !important; /* Standard mobile width */
+       flex: 0 0 160px !important; /* Smaller mobile width for better fit */
+       min-width: 140px !important;
     }
 
     &:hover {
