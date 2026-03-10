@@ -3,14 +3,14 @@
 import React, { useEffect, useRef } from "react";
 
 const Video = () => {
-  const videoRef = useRef(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    const handleIntersection = (entries) => {
+    const handleIntersection = (entries: IntersectionObserverEntry[]) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting && videoRef.current) {
           videoRef.current.play();
-        } else {
+        } else if (videoRef.current) {
           videoRef.current.pause();
         }
       });

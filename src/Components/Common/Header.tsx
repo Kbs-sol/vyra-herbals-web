@@ -11,10 +11,201 @@ import { useWishlist } from "../Contexts/WishlistContext";
 import { useAuth } from "../Contexts/AuthContext";
 import Slider from "react-slick";
 import SearchBar from "../Shared/SearchBar";
-import styled from "styled-components";
+import styled, { createGlobalStyle } from "styled-components";
 import { FaShoppingCart, FaUserCircle, FaHeart } from "react-icons/fa";
 import { Accordion, Dropdown } from "react-bootstrap";
 import { Category } from "@/types";
+
+const GlobalMobileMenuStyle = createGlobalStyle`
+  .styled-offcanvas {
+    width: 300px !important;
+    background-color: #fff !important;
+    
+    .offcanvas-header {
+      border-bottom: 1px solid #f1f1f1 !important;
+      /* Align close button with hamburger menu toggle (X=21px, Y=61.6px) */
+      padding: 62px 0 15px 23px !important; 
+      display: flex !important;
+      justify-content: flex-start !important;
+      
+      .btn-close {
+        font-size: 0.9rem !important;
+        opacity: 0.8 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        &:focus {
+          box-shadow: none !important;
+        }
+      }
+    }
+
+    .offcanvas-body {
+      padding: 0 !important;
+    }
+
+    .mobile-menu {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+
+      .header-top-list {
+        padding: 1rem 0 !important;
+        list-style: none !important;
+        margin: 0 !important;
+
+        li {
+          margin: 0 !important;
+          border-bottom: 1px solid #f8f8f8 !important;
+          width: 100% !important;
+          
+          &:last-child {
+             border-bottom: none !important;
+          }
+          
+          & > a {
+            display: block !important;
+            padding: 14px 24px !important;
+            font-size: 0.95rem !important;
+            font-weight: 500 !important;
+            color: #333 !important;
+            letter-spacing: 0.2px !important;
+            text-transform: capitalize !important;
+            transition: all 0.2s ease !important;
+            text-decoration: none !important;
+
+            &:hover, &:active {
+              color: #704a0d !important;
+              background-color: rgba(112, 74, 13, 0.04) !important;
+            }
+          }
+        }
+      }
+
+      .social-container-wrapper {
+        margin-top: auto !important;
+        padding: 2rem 1.5rem !important;
+        border-top: 1px solid #f1f1f1 !important;
+        background: #fff !important;
+      }
+
+      .social-container {
+        display: flex !important;
+        justify-content: center !important;
+        gap: 1.2rem !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        list-style: none !important;
+
+        li {
+          border: none !important;
+          width: auto !important;
+        }
+
+        li a {
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          width: 42px !important;
+          height: 42px !important;
+          border-radius: 50% !important;
+          background: #f8f8f8 !important;
+          color: #555 !important;
+          font-size: 1.2rem !important;
+          transition: all 0.3s ease !important;
+          text-decoration: none !important;
+
+          &:hover {
+            background: #704a0d !important;
+            color: #fff !important;
+            transform: translateY(-3px) !important;
+            box-shadow: 0 4px 12px rgba(112, 74, 13, 0.15) !important;
+          }
+        }
+      }
+    }
+
+    /* Accordion Overrides */
+    .accordion {
+      width: 100% !important;
+    }
+    
+    .accordion-item {
+      border: none !important;
+      border-radius: 0 !important;
+      background: transparent !important;
+      margin: 0 !important;
+
+      .accordion-header {
+        padding: 0 !important;
+        border: none !important;
+        margin: 0 !important;
+        
+        .accordion-button {
+          padding: 14px 24px !important;
+          font-size: 0.95rem !important;
+          font-weight: 500 !important;
+          color: #333 !important;
+          background-color: transparent !important;
+          box-shadow: none !important;
+          display: flex !important;
+          justify-content: space-between !important;
+          align-items: center !important;
+          border: none !important;
+          text-decoration: none !important;
+          width: 100% !important;
+
+          &::after {
+            width: 0.8rem !important;
+            height: 0.8rem !important;
+            background-size: 0.8rem !important;
+            transition: transform 0.3s ease !important;
+            opacity: 0.4 !important;
+            margin-left: auto !important;
+          }
+
+          &:not(.collapsed) {
+            color: #704a0d !important;
+            background-color: rgba(112, 74, 13, 0.04) !important;
+            
+            &::after {
+              opacity: 0.8 !important;
+              transform: rotate(-180deg) !important;
+            }
+          }
+          
+          &:focus {
+            box-shadow: none !important;
+            background-color: rgba(112, 74, 13, 0.04) !important;
+          }
+        }
+      }
+
+      .accordion-body {
+        padding: 0 !important;
+        background-color: #fcfcfc !important;
+        display: flex !important;
+        flex-direction: column !important;
+        border: none !important;
+
+        a {
+          padding: 10px 48px !important;
+          font-size: 0.9rem !important;
+          color: #666 !important;
+          text-decoration: none !important;
+          transition: all 0.2s ease !important;
+          display: block !important;
+          width: 100% !important;
+
+          &:hover, &:active {
+            color: #704a0d !important;
+            background-color: rgba(112, 74, 13, 0.02) !important;
+          }
+        }
+      }
+    }
+  }
+`;
 
 const Header = () => {
   const [showMenu, setShowMenu] = useState(false);
@@ -114,6 +305,7 @@ const Header = () => {
 
   return (
     <>
+      <GlobalMobileMenuStyle />
       <div className="backdrop"></div>
       <section className="header-top">
         <div className="container">
@@ -307,9 +499,9 @@ const Header = () => {
       </StyledHeader>
 
       <OffCanvasWrapper>
-        <Offcanvas className="styled-offcanvas" show={showMenu} onHide={hideMobileCanvas} placement="end">
+        <Offcanvas className="styled-offcanvas" show={showMenu} onHide={hideMobileCanvas} placement="start">
           {/* Replace Offcanvas.Header to avoid React 19 "element.ref" access inside library components */}
-          <div className="offcanvas-header" style={{ display: 'flex', justifyContent: 'flex-end', padding: '0.75rem 1rem' }}>
+          <div className="offcanvas-header">
             <button type="button" className="btn-close" aria-label="Close" onClick={hideMobileCanvas}></button>
           </div>
           <Offcanvas.Body>
@@ -320,99 +512,111 @@ const Header = () => {
                     Home
                   </Link>
                 </li>
-                <StyledAccordion>
-                  <Accordion.Item eventKey="0">
-                    <Accordion.Header>Shop</Accordion.Header>
-                    <Accordion.Body>
-                      <Link href="/search?searchtext=all" onClick={hideMobileCanvas}>
-                        All Products
-                      </Link>
+                <li>
+                  <StyledAccordion>
+                    <Accordion.Item eventKey="0">
+                      <Accordion.Header>Shop</Accordion.Header>
+                      <Accordion.Body>
+                        <Link href="/search?searchtext=all" onClick={hideMobileCanvas}>
+                          All Products
+                        </Link>
 
-                      {categories.map((cat, index) => (
+                        {categories.map((cat, index) => (
+                          <Link
+                            key={cat.id || index}
+                            href={`/category/${cat.slug || cat.handle || ""}`}
+                            onClick={hideMobileCanvas}
+                          >
+                            {cat.name}
+                          </Link>
+                        ))}
+                      </Accordion.Body>
+                    </Accordion.Item>
+                  </StyledAccordion>
+                </li>
+                <li>
+                  <StyledAccordion>
+                    <Accordion.Item eventKey="1">
+                      <Accordion.Header>Reviews</Accordion.Header>
+                      <Accordion.Body>
                         <Link
-                          key={cat.id || index}
-                          href={`/category/${cat.slug || cat.handle || ""}`}
+                          href="/#customerStoriesSection"
                           onClick={hideMobileCanvas}
                         >
-                          {cat.name}
+                          Customer Stories
                         </Link>
-                      ))}
-                    </Accordion.Body>
-                  </Accordion.Item>
-                  <Accordion.Item eventKey="1">
-                    <Accordion.Header>Reviews</Accordion.Header>
-                    <Accordion.Body>
-                      <Link
-                        href="/#customerStoriesSection"
-                        onClick={hideMobileCanvas}
-                      >
-                        Customer Stories
-                      </Link>
-                      <Link
-                        href="/#customerTestimonials"
-                        onClick={hideMobileCanvas}
-                      >
-                        Customer Testimonials
-                      </Link>
-                      <Link href="/testimonials#images" onClick={hideMobileCanvas}>
-                        Before & After Images
-                      </Link>
-                    </Accordion.Body>
-                  </Accordion.Item>
-                  <li>
-                    <Link href="/about" onClick={hideMobileCanvas}>
-                      About Us
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="/blogs" onClick={hideMobileCanvas}>
-                      Blog
-                    </Link>
-                  </li>
-                  <Accordion.Item eventKey="2">
-                    <Accordion.Header>Help</Accordion.Header>
-                    <Accordion.Body>
-                      <Link href="/contact" onClick={hideMobileCanvas}>
-                        Contact Us
-                      </Link>
-                      <Link href="/faqs" onClick={hideMobileCanvas}>
-                        FAQs
-                      </Link>
-                    </Accordion.Body>
-                  </Accordion.Item>
-                  <li>
-                    <Link href="/track-order" onClick={hideMobileCanvas}>
-                      Track Order
-                    </Link>
-                  </li>
-                </StyledAccordion>
-              </ul>
-              <ul className="social-container">
-                <li>
-                  <a
-                    target="_blank"
-                    rel="noopener"
-                    href="https://www.facebook.com/vyraherbals"
-                    className="icofont-facebook"
-                  ></a>
+                        <Link
+                          href="/#customerTestimonials"
+                          onClick={hideMobileCanvas}
+                        >
+                          Customer Testimonials
+                        </Link>
+                        <Link href="/testimonials#images" onClick={hideMobileCanvas}>
+                          Before & After Images
+                        </Link>
+                      </Accordion.Body>
+                    </Accordion.Item>
+                  </StyledAccordion>
                 </li>
                 <li>
-                  <a
-                    target="_blank"
-                    rel="noopener"
-                    href="https://www.instagram.com/vyraherbals"
-                    className="icofont-instagram"
-                  ></a>
+                  <Link href="/about" onClick={hideMobileCanvas}>
+                    About Us
+                  </Link>
                 </li>
                 <li>
-                  <a
-                    target="_blank"
-                    rel="noopener"
-                    href="https://www.youtube.com/@vyraherbals"
-                    className="fab fa-youtube"
-                  />
+                  <Link href="/blogs" onClick={hideMobileCanvas}>
+                    Blog
+                  </Link>
+                </li>
+                <li>
+                  <StyledAccordion>
+                    <Accordion.Item eventKey="2">
+                      <Accordion.Header>Help</Accordion.Header>
+                      <Accordion.Body>
+                        <Link href="/contact" onClick={hideMobileCanvas}>
+                          Contact Us
+                        </Link>
+                        <Link href="/faqs" onClick={hideMobileCanvas}>
+                          FAQs
+                        </Link>
+                      </Accordion.Body>
+                    </Accordion.Item>
+                  </StyledAccordion>
+                </li>
+                <li>
+                  <Link href="/track-order" onClick={hideMobileCanvas}>
+                    Track Order
+                  </Link>
                 </li>
               </ul>
+              <div className="social-container-wrapper">
+                <ul className="social-container">
+                  <li>
+                    <a
+                      target="_blank"
+                      rel="noopener"
+                      href="https://www.facebook.com/vyraherbals"
+                      className="icofont-facebook"
+                    ></a>
+                  </li>
+                  <li>
+                    <a
+                      target="_blank"
+                      rel="noopener"
+                      href="https://www.instagram.com/vyraherbals"
+                      className="icofont-instagram"
+                    ></a>
+                  </li>
+                  <li>
+                    <a
+                      target="_blank"
+                      rel="noopener"
+                      href="https://www.youtube.com/@vyraherbals"
+                      className="fab fa-youtube"
+                    />
+                  </li>
+                </ul>
+              </div>
             </div>
           </Offcanvas.Body>
         </Offcanvas>
@@ -635,105 +839,11 @@ const StyledHeader = styled.section`
 
 // Use a wrapper to style Offcanvas via a class to avoid ref access issues in React 19
 const OffCanvasWrapper = styled.div`
-  .styled-offcanvas {
-    .mobile-menu {
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-
-      .social-container {
-        display: flex;
-        justify-content: end;
-        gap: 0.5rem;
-        border-top: 1px solid var(--primary);
-      }
-      .header-top-list {
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-
-        li {
-          margin-left: 20px;
-          a {
-            font-size: 1rem;
-            color: var(--white);
-            letter-spacing: 0.3px;
-            white-space: nowrap;
-            text-transform: capitalize;
-            transition: all linear 0.3s;
-            -webkit-transition: all linear 0.3s;
-            -moz-transition: all linear 0.3s;
-            -ms-transition: all linear 0.3s;
-            -o-transition: all linear 0.3s;
-            &:hover {
-              color: var(--green-chalk);
-            }
-          }
-        }
-      }
-    }
-
-    @media (max-width: 991px) {
-      ul.header-top-list li {
-        a {
-          font-size: 1rem;
-          padding: 10px 15px;
-          border-bottom: 1px solid rgb(130 85 62);
-          width: 100%;
-          color: #000 !important;
-        }
-        &:last-child {
-          a:last-child {
-            border-bottom: none;
-          }
-        }
-      }
-      .header-top-list li {
-        margin-left: 0px !important;
-      }
-      .offcanvas-body {
-        padding-top: 0px !important;
-      }
-    }
-  }
+  /* Handled by GlobalMobileMenuStyle */
 `;
 
 const StyledAccordion = styled(Accordion)`
-  .accordion-item {
-    border: none;
-    border-radius: 0;
-    margin-bottom: 0;
-    .accordion-header {
-      border-bottom: 1px solid var(--primary);
-      padding: 0 15px;
-      .accordion-button {
-        padding: 0;
-        border-radius: 0;
-        background-color: transparent;
-        &:not(.collapsed),
-        &:focus {
-          color: var(--text);
-          box-shadow: none;
-          border: none;
-        }
-      }
-    }
-    .accordion-body {
-      border-bottom: 1px solid var(--primary);
-      padding: 0.4rem 1rem;
-      display: flex;
-      flex-direction: column;
-      a {
-        font-size: 14px;
-        padding: 0.1rem 1.5rem;
-        color: var(--text);
-        &:last-child {
-          border: none !important;
-        }
-      }
-    }
-  }
+  /* Handled by GlobalMobileMenuStyle */
 `;
 
 const StyledDropdownToggle = styled(Dropdown.Toggle)`

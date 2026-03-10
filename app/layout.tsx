@@ -78,7 +78,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning={true}>
       <head>
         {/* Google Tag Manager */}
         <Script id="google-tag-manager" strategy="afterInteractive">
@@ -93,7 +93,7 @@ export default function RootLayout({
 
         {/* External Stylesheets are now imported at the top of the file as per Next.js best practices */}
       </head>
-      <body className={openSans.className}>
+      <body className={openSans.className} suppressHydrationWarning={true}>
         {/* Google Tag Manager (noscript) */}
         <noscript>
           <iframe
