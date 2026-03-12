@@ -4,15 +4,19 @@ import React from "react";
 import { API_PATH } from "../../constants";
 import { useState, useEffect } from "react";
 import ProductCard2 from "../Shared/ProductCard2";
+import { ProductCard2Skeleton } from "../Common/SkeletonComponents";
 
 import { Product } from "@/types";
 
 const BestSeller = () => {
   const [handpickedProducts, setHandpickedProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
   // Fetch first 4 best seller products
   useEffect(() => {
     const fetchFeaturedProducts = async () => {
       try {
+        setIsLoading(true);
         // 1. Fetch featured selection
         const featuredRes = await fetch('/api/featured');
         const featuredData = await featuredRes.json();
@@ -62,6 +66,8 @@ const BestSeller = () => {
 
       } catch (error) {
         console.error("Error fetching featured products:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -80,11 +86,13 @@ const BestSeller = () => {
         </div>
 
         <div className="row row-cols-1 row-cols-md-1 row-cols-lg-2 row-cols-xl-2">
-          {handpickedProducts.length > 0
-            ? handpickedProducts.map((product, index) => (
+          {isLoading ? (
+            Array(2).fill(0).map((_, i) => <ProductCard2Skeleton key={i} />)
+          ) : handpickedProducts.length > 0 ? (
+            handpickedProducts.map((product, index) => (
               <ProductCard2 key={product.id ?? `bestseller-${index}`} product={product} />
             ))
-            : null}
+          ) : null}
         </div>
       </div>
     </section>

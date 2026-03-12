@@ -1,8 +1,6 @@
-'use client';
-
-import React, { useState } from "react";
-import { useInView } from "react-intersection-observer";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
+import { shimmer } from "./SkeletonComponents";
 
 const LazyImage = ({
   src,
@@ -11,11 +9,7 @@ const LazyImage = ({
   isLazy = true,
   ...props
 }) => {
-  // useInView hook to track the visibility of the image
-  const { ref, inView } = useInView({
-    triggerOnce: true, // Image loads only once when in view
-    threshold: 0.2, // Trigger when 20% of the image is visible
-  });
+  const [isLoaded, setIsLoaded] = useState(false);
   const [isError, setIsError] = useState(false);
 
   // Helper to get proper image URL
@@ -37,41 +31,73 @@ const LazyImage = ({
 
   return (
     <StyledImage $isAltText={isError} className="lazy-image">
-      {isLazy ? (
-        <img
-          ref={ref} // Assigning ref to the image element to observe
-          src={inView ? imageSrc : placeholder} // Load actual image only when in view
-          alt={alt || "image"}
-          {...props}
-          className={inView ? "loaded" : ""}
-          onError={() => setIsError(true)}
-        />
-      ) : (
-        <img
-          src={imageSrc}
-          alt={alt || "image"}
-          {...props}
-          className={"loaded"}
-          onError={() => setIsError(true)}
-        />
-      )}
+      {!isLoaded && !isError && <Skeleton />}
+      <img
+        src={imageSrc}
+        alt={alt || "image"}
+        {...props}
+        className={isLoaded ? "loaded" : "loading"}
+        onLoad={() => setIsLoaded(true)}
+        onError={() => {
+          setIsError(true);
+          setIsLoaded(true);
+        }}
+      />
     </StyledImage>
   );
 };
 
 export default LazyImage;
 
-const StyledImage = styled.section`
-  transition: transform 0.2s ease-in-out;
+const Skeleton = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #f6f7f8;
+  background-image: linear-gradient(
+    to right,
+    #f6f7f8 0%,
+    #edeef1 20%,
+    #f6f7f8 40%,
+    #f6f7f8 100%
+  );
+  background-repeat: no-repeat;
+  background-size: 800px 100%;
+  display: inline-block;
+  animation: ${shimmer} 1.2s linear infinite forwards;
+  z-index: 1;
+`;
+
+const StyledImage = styled.section<{ $isAltText?: boolean }>`
+  position: relative;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  
   img {
-    transition: transform 1s ease-in-out;
-    transform: ${({ $isAltText }) => ($isAltText ? "scale(1)" : "scale(1.5)")};
+    width: 100%;
+    height: auto;
+    display: block;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+    
     &.loaded {
-      transform: scale(1);
+      opacity: 1;
+    }
+    
+    &.loading {
+      position: absolute;
+      width: 0;
+      height: 0;
     }
   }
+
   &:hover {
-    transform: scale(1.05);
+    transform: scale(1.02);
+    transition: transform 0.3s ease;
   }
 `;

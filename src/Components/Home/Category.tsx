@@ -7,9 +7,11 @@ import styled from "styled-components";
 import { useEffect, useState, useRef } from "react";
 import { Category as CategoryType } from "@/types";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import { CategorySkeleton } from "../Common/SkeletonComponents";
 
 const Category = () => {
   const [categories, setCategories] = useState<CategoryType[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const transformRef = useRef<number>(0); // used for transform fallback when native scroll isn't available
 
@@ -117,6 +119,7 @@ const Category = () => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
+        setIsLoading(true);
         const response = await fetch('/api/data', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -128,6 +131,8 @@ const Category = () => {
         }
       } catch (error) {
         console.error('Error fetching categories:', error);
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchCategories();
@@ -225,12 +230,14 @@ const Category = () => {
           <div className="col-lg-12">
             <div className="category-scroll-container" ref={scrollRef}>
               <div className="category-list d-flex flex-nowrap">
-                {categories.map((cat) => {
+                {isLoading ? (
+                  Array(6).fill(0).map((_, i) => <CategorySkeleton key={i} />)
+                ) : categories.map((cat, index) => {
                   const imgs = getCategoryImages(cat.slug || "", cat.name || "");
                   return (
                     <div
                       className="category-wrap"
-                      key={cat.id}
+                      key={cat.id || index}
                       style={{ flex: '0 0 220px', minWidth: '151px', width: 'auto' }}
                     >
                       <Link href={`/category/${cat.slug || cat.handle || ""}`}>
