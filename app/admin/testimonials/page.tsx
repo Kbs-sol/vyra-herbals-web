@@ -20,6 +20,11 @@ export default function TestimonialsPage() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<number | null>(null);
 
+  // Reviews state for importing
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+  const [showReviewPicker, setShowReviewPicker] = useState(false);
+
   // Form state
   const [formData, setFormData] = useState({
     name: '',
@@ -38,7 +43,23 @@ export default function TestimonialsPage() {
 
   useEffect(() => {
     fetchTestimonials();
+    fetchApprovedReviews();
   }, [currentPage]);
+
+  const fetchApprovedReviews = async () => {
+    setLoadingReviews(true);
+    try {
+      const res = await fetch('/api/admin/reviews?status=1&limit=50');
+      const data = await res.json();
+      if (data.success) {
+        setReviews(data.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching reviews:', error);
+    } finally {
+      setLoadingReviews(false);
+    }
+  };
 
   const fetchTestimonials = async () => {
     setLoading(true);
@@ -73,14 +94,14 @@ export default function TestimonialsPage() {
     }
   };
 
-  const handleAdd = () => {
+  const handleAdd = (initialData?: any) => {
     setEditingTestimonial(null);
     setFormData({
-      name: '',
-      designation: '',
-      comment: '',
-      image: '',
-      rating: 5,
+      name: initialData?.reviewer_name || '',
+      designation: initialData?.designation || '',
+      comment: initialData?.review_text || '',
+      image: initialData?.image || '',
+      rating: initialData?.rating || 5,
       status: 'active',
     });
     setShowModal(true);
@@ -244,7 +265,47 @@ export default function TestimonialsPage() {
             </svg>
             Add Testimonial
           </button>
+          <button className="import-btn" onClick={() => setShowReviewPicker(!showReviewPicker)}>
+             <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
+              <path d="M12 5V19" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              <path d="M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+            {showReviewPicker ? 'Close Reviews' : 'Import from Reviews'}
+          </button>
         </div>
+
+        {/* Review Picker Section */}
+        {showReviewPicker && (
+          <div className="review-picker-section">
+            <div className="section-header">
+              <h3>Approved User Reviews</h3>
+              <p>Quickly add these reviews to your testimonials</p>
+            </div>
+            <div className="reviews-horizontal-scroll">
+              {loadingReviews ? (
+                <div className="mini-loading">Loading reviews...</div>
+              ) : reviews.length === 0 ? (
+                <div className="mini-empty">No approved reviews found</div>
+              ) : (
+                reviews.map((review) => (
+                  <div key={review.id} className="mini-review-card">
+                    <div className="review-meta">
+                      <span className="reviewer">{review.reviewer_name}</span>
+                      <span className="rating">{review.rating} ★</span>
+                    </div>
+                    <p className="text">{review.review_text}</p>
+                    <button 
+                      className="add-to-testimonials-btn"
+                      onClick={() => handleAdd(review)}
+                    >
+                      Use as Testimonial
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Testimonials Grid */}
         <div className="testimonials-grid">
@@ -521,6 +582,118 @@ export default function TestimonialsPage() {
           .add-btn:hover {
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+          }
+
+          .import-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            background: white;
+            color: #10b981;
+            border: 1px solid #10b981;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-left: 12px;
+          }
+
+          .import-btn:hover {
+            background: #f0fdf4;
+          }
+
+          .review-picker-section {
+            background: #f9fafb;
+            padding: 24px;
+            border-radius: 16px;
+            margin-bottom: 24px;
+            border: 1px dashed #d1d5db;
+          }
+
+          .section-header h3 {
+            margin: 0 0 4px 0;
+            font-size: 18px;
+            color: #111827;
+          }
+
+          .section-header p {
+            margin: 0 0 16px 0;
+            font-size: 14px;
+            color: #6b7280;
+          }
+
+          .reviews-horizontal-scroll {
+            display: flex;
+            gap: 16px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+          }
+
+          .mini-review-card {
+            min-width: 300px;
+            max-width: 300px;
+            background: white;
+            padding: 16px;
+            border-radius: 12px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+          }
+
+          .review-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+
+          .reviewer {
+            font-weight: 600;
+            font-size: 14px;
+            color: #374151;
+          }
+
+          .mini-review-card .rating {
+            color: #f59e0b;
+            font-weight: 700;
+            font-size: 14px;
+          }
+
+          .mini-review-card .text {
+            margin: 0;
+            font-size: 13px;
+            color: #4b5563;
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            font-style: italic;
+          }
+
+          .add-to-testimonials-btn {
+            padding: 8px;
+            background: #ecfdf5;
+            color: #059669;
+            border: 1px solid #d1fae5;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+          }
+
+          .add-to-testimonials-btn:hover {
+            background: #10b981;
+            color: white;
+          }
+
+          .mini-loading, .mini-empty {
+            padding: 20px;
+            color: #6b7280;
+            font-style: italic;
           }
 
           .testimonials-grid {

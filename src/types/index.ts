@@ -98,3 +98,14 @@ export interface Blog {
   updated_at?: string;
   [key: string]: any;
 }
+
+export interface Testimonial {
+  id?: number | string;
+  name: string;
+  designation?: string;
+  comment: string;
+  image?: string;
+  rating: number;
+  status: 'active' | 'inactive';
+  created_at?: string;
+}
