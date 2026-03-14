@@ -71,17 +71,21 @@ const Home = () => {
         <ErrorBoundary>
           <OurProducts />
         </ErrorBoundary>
+
+        
+        <ErrorBoundary>
+          <HairConcernBar />
+        </ErrorBoundary>
+
+
         <ErrorBoundary>
           <section id="customerStoriesSection">
             <Stories />
           </section>
         </ErrorBoundary>
-        <ErrorBoundary>
-          <ShipingImage />
-        </ErrorBoundary>
 
         <ErrorBoundary>
-          <HairConcernBar />
+          <ShipingImage />
         </ErrorBoundary>
 
         <ErrorBoundary>

@@ -24,6 +24,8 @@ const SearchBar = (props) => {
     "Search for Shampoo",
     "Search for Neem Combs",
     "Search for Scalp Massager",
+    "Search for Herbal Hair Mask Powder",
+    "Search for Rosemary Leaves",
   ];
 
   // Handle typing and deleting effect
