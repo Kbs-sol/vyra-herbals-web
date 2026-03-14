@@ -23,7 +23,7 @@ const beforeAfterImages = [
   "/assets/images/testimonials/test_10.webp",
 ];
 
-const AllTestimonials = () => {
+const AllTestimonials = ({ isHomePage = false }: { isHomePage?: boolean }) => {
   const Tabs = { TextReviews: 1, ImageReviews: 2 };
   const [activeTab, setActiveTab] = useState(Tabs.TextReviews); // Active tab state
   const [currentPage, setCurrentPage] = useState(1); // Pagination state
@@ -36,8 +36,10 @@ const AllTestimonials = () => {
 
   // Handle tab switch
   const handleTabChange = (tab) => {
-    if (tab === Tabs.TextReviews) router.push("/testimonials");
-    else router.push("#images");
+    if (!isHomePage) {
+      if (tab === Tabs.TextReviews) router.push("/testimonials");
+      else router.push("#images");
+    }
     setActiveTab(tab);
     setCurrentPage(1); // Reset page when switching tabs
   };
@@ -56,8 +58,10 @@ const AllTestimonials = () => {
   };
 
   useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [currentPage]);
+    if (!isHomePage) {
+      window.scrollTo(0, 0);
+    }
+  }, [currentPage, isHomePage]);
 
   useEffect(() => {
     const hash = window.location.hash;
@@ -128,7 +132,7 @@ const AllTestimonials = () => {
 
       <section className="tab-content d-grid">
         {isLoading ? (
-          <LoadingIndicator />
+          <LoadingIndicator variant="circular" />
         ) : (
           <>
             {activeTab === Tabs.TextReviews ? (
@@ -169,7 +173,7 @@ const AllTestimonials = () => {
 
 export default AllTestimonials;
 
-const TabButton = styled.button`
+const TabButton = styled.button<{ $active?: boolean }>`
   padding: 0.5rem 1rem;
   background-color: ${(props) =>
     props.$active ? "var(--btn-green)" : "var(--primary)"};

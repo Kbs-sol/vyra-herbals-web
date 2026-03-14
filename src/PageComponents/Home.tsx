@@ -22,6 +22,7 @@ import BestSeller from "../Components/Home/BestSeller";
 import Video from "../Components/Home/Video";
 import OurJourney from "../Components/Home/OurJourney";
 import HairConcernBar from "../Components/Home/HairConcernBar";
+import AllTestimonials from "../Components/Reviews/AllTestimonials";
 
 // Smooth fade-out loader
 const PageLoader = ({ isVisible }: { isVisible: boolean }) => (
@@ -114,6 +115,10 @@ const Home = () => {
         </ErrorBoundary>
         <ErrorBoundary>
           <Features />
+        </ErrorBoundary>
+
+        <ErrorBoundary>
+          <AllTestimonials isHomePage={true} />
         </ErrorBoundary>
       </ErrorBoundary>
     </>
