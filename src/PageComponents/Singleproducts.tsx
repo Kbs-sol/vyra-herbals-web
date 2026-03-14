@@ -219,9 +219,7 @@ const Singleproducts = () => {
     const hasAssignedRelated = product.related_products && Array.isArray(product.related_products) && product.related_products.length > 0;
 
     const postData: any = {
-      tbl_name: "products",
-      // Only fetch fields needed for product cards
-      fields: 'id, handle, title, price, regular_price, image_url, category',
+      // Only fetch products with reviews
     };
 
     if (hasAssignedRelated) {
@@ -235,7 +233,7 @@ const Singleproducts = () => {
         body: JSON.stringify(postData),
       };
 
-      fetch(`${API_PATH}/data`, requestOptions)
+      fetch(`${API_PATH}/products/with-reviews`, requestOptions)
         .then((response) => {
           if (!response.ok) {
             throw new Error("Failed to fetch related products");

@@ -22,8 +22,7 @@ const SearchResult = () => {
   useEffect(() => {
     // Optimized: fetch only fields needed for product cards
     let postData: any = {
-      tbl_name: "products",
-      fields: 'id, handle, title, description, price, regular_price, image_url, category',
+      extra_condition: word === "all" ? " ORDER BY featured_order ASC" : "",
     };
     
     const requestOptions = {
@@ -35,8 +34,8 @@ const SearchResult = () => {
     };
 
     setIsLoading(true);
-    // Fetch products with optimized fields
-    fetch(`${API_PATH}/data`, requestOptions)
+    // Fetch products with reviews
+    fetch(`${API_PATH}/products/with-reviews`, requestOptions)
       .then((response) => {
         if (!response.ok) {
           throw new Error("Failed to fetch products");
