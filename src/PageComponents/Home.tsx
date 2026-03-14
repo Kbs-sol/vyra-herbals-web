@@ -78,6 +78,11 @@ const Home = () => {
         <ErrorBoundary>
           <ShipingImage />
         </ErrorBoundary>
+
+        <ErrorBoundary>
+          <HairConcernBar />
+        </ErrorBoundary>
+
         <ErrorBoundary>
           <section id="bestSellers">
             <BestSeller />
@@ -103,9 +108,7 @@ const Home = () => {
             <Testimonial />
           </section>
         </ErrorBoundary>
-        <ErrorBoundary>
-          <HairConcernBar />
-        </ErrorBoundary>
+        
         <ErrorBoundary>
           <Follow />
         </ErrorBoundary>
