@@ -157,10 +157,20 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const { error } = await supabase
-      .from('categories')
-      .delete()
-      .eq('id', id);
+    // Try to parse as number
+    const numericId = parseInt(id);
+    const isIdNumeric = !isNaN(numericId) && numericId.toString() === id;
+
+    let query = supabase.from('categories').delete();
+
+    if (isIdNumeric) {
+      query = query.eq('id', numericId);
+    } else {
+      // Fallback: search by slug if ID is not numeric
+      query = query.eq('slug', id);
+    }
+
+    const { error } = await query;
 
     if (error) throw error;
 

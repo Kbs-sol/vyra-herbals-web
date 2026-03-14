@@ -23,6 +23,9 @@ export default function ProductsPage() {
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [addingCategory, setAddingCategory] = useState(false);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [deletingCatId, setDeletingCatId] = useState<number | string | null>(null);
+  const [isDeletingCat, setIsDeletingCat] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -128,6 +131,32 @@ export default function ProductsPage() {
       alert('Failed to create category');
     } finally {
       setAddingCategory(false);
+    }
+  };
+
+  const handleDeleteCategory = async (id: number | string) => {
+    setIsDeletingCat(true);
+    try {
+      const res = await fetch(`/api/admin/categories?id=${id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success) {
+        await fetchCategories();
+        // If the deleted category was selected, clear it
+        const deletedCat = categories.find(c => c.id === id);
+        if (deletedCat && formData.category === deletedCat.slug) {
+          setFormData(prev => ({ ...prev, category: '' }));
+        }
+        setDeletingCatId(null);
+      } else {
+        alert(data.error || 'Failed to delete category');
+      }
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      alert('Failed to delete category');
+    } finally {
+      setIsDeletingCat(false);
     }
   };
 
@@ -674,26 +703,72 @@ export default function ProductsPage() {
 
                   <div className="form-group">
                     <label>Category *</label>
-                    <div className="category-selector">
-                      <select
-                        value={formData.category}
-                        onChange={(e) => {
-                          if (e.target.value === '__add_new__') {
-                            setShowAddCategory(true);
-                          } else {
-                            setFormData({ ...formData, category: e.target.value });
-                          }
-                        }}
-                        required
+                    <div className="category-selector-wrapper">
+                      <div 
+                        className={`custom-category-select ${showCategoryDropdown ? 'active' : ''}`}
+                        onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
                       >
-                        <option value="">Select Category</option>
-                        {categories.map((cat) => (
-                          <option key={cat.slug} value={cat.slug}>
-                            {cat.name}
-                          </option>
-                        ))}
-                        <option value="__add_new__">+ Add New Category</option>
-                      </select>
+                        <div className="selected-value">
+                          {formData.category ? 
+                            categories.find(c => c.slug === formData.category)?.name || formData.category : 
+                            'Select Category'}
+                        </div>
+                        <svg viewBox="0 0 24 24" fill="none" width="18" height="18" className="dropdown-icon">
+                          <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </div>
+
+                      {showCategoryDropdown && (
+                        <div className="category-dropdown-menu">
+                          <div className="category-options">
+                            {categories.map((cat) => (
+                              <div key={cat.slug} className="category-option-item">
+                                <div 
+                                  className="option-label"
+                                  onClick={() => {
+                                    setFormData({ ...formData, category: cat.slug });
+                                    setShowCategoryDropdown(false);
+                                  }}
+                                >
+                                  {cat.name}
+                                </div>
+                                <button 
+                                  type="button" 
+                                  className="delete-cat-icon-btn"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    const catId = cat.id;
+                                    if (!catId) {
+                                      console.error('Category ID is missing for:', cat.name);
+                                      // Fallback to slug if ID is absolutely missing, but backend must support it
+                                      setDeletingCatId(cat.slug);
+                                    } else {
+                                      setDeletingCatId(catId);
+                                    }
+                                    setShowCategoryDropdown(false);
+                                  }}
+                                  title="Delete Category"
+                                >
+                                  <svg viewBox="0 0 24 24" fill="none" width="14" height="14">
+                                    <path d="M3 6H5H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                    <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                  </svg>
+                                </button>
+                              </div>
+                            ))}
+                            <div 
+                              className="category-option-item add-new"
+                              onClick={() => {
+                                setShowAddCategory(true);
+                                setShowCategoryDropdown(false);
+                              }}
+                            >
+                              + Add New Category
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     {showAddCategory && (
                       <div className="inline-category-add">
@@ -1611,7 +1686,146 @@ export default function ProductsPage() {
             font-size: 14px;
             cursor: pointer;
           }
+
+          /* Custom Category Dropdown Styles */
+          .category-selector-wrapper {
+            position: relative;
+            width: 100%;
+          }
+
+          .custom-category-select {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 16px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-height: 44px;
+          }
+
+          .custom-category-select:hover {
+            border-color: #10b981;
+          }
+
+          .custom-category-select.active {
+            border-color: #10b981;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+          }
+
+          .selected-value {
+            font-size: 14px;
+            color: #1f2937;
+          }
+
+          .dropdown-icon {
+            transition: transform 0.2s;
+            color: #6b7280;
+          }
+
+          .custom-category-select.active .dropdown-icon {
+            transform: rotate(180deg);
+          }
+
+          .category-dropdown-menu {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            z-index: 1000;
+            max-height: 300px;
+            overflow-y: auto;
+          }
+
+          .category-option-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+            border-bottom: 1px solid #f3f4f6;
+          }
+
+          .category-option-item:last-child {
+            border-bottom: none;
+          }
+
+          .category-option-item:hover {
+            background: #f9fafb;
+          }
+
+          .option-label {
+            flex: 1;
+            font-size: 14px;
+            color: #374151;
+          }
+
+          .category-option-item.add-new {
+            color: #10b981;
+            font-weight: 500;
+            border-top: 1px solid #e5e7eb;
+            background: #f0fdfa;
+          }
+
+          .category-option-item.add-new:hover {
+            background: #ccfbf1;
+          }
+
+          .delete-cat-icon-btn {
+            background: transparent;
+            border: none;
+            color: #9ca3af;
+            padding: 6px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+          }
+
+          .delete-cat-icon-btn:hover {
+            color: #ef4444;
+            background: #fee2e2;
+          }
         `}</style>
+
+        {/* Category Delete Confirmation Modal */}
+        {deletingCatId !== null && (
+          <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={() => setDeletingCatId(null)}>
+            <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="confirm-icon">
+                <svg viewBox="0 0 24 24" fill="none" width="32" height="32">
+                  <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <h3>Delete Category?</h3>
+              <p>Are you sure you want to remove this category? Products using this category will become uncategorized.</p>
+              <div className="confirm-actions">
+                <button 
+                  className="cancel-btn" 
+                  onClick={() => setDeletingCatId(null)}
+                  disabled={isDeletingCat}
+                >
+                  Cancel
+                </button>
+                <button 
+                  className="delete-btn" 
+                  onClick={() => handleDeleteCategory(deletingCatId)}
+                  disabled={isDeletingCat}
+                >
+                  {isDeletingCat ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </AdminLayoutWrapper>
   );
