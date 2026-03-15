@@ -94,8 +94,8 @@ button:focus-visible {
   overflow: hidden;
 }
 
-.slider-container,
-.banner-list {
+.baner_sects .slider-container,
+.baner_sects .banner-list {
   width: 100% !important;
   margin: 0 !important;
   padding: 0 !important;

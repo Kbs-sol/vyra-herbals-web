@@ -59,7 +59,7 @@ const AllTestimonials = ({ isHomePage = false }: { isHomePage?: boolean }) => {
 
   const sliderSettings = {
     dots: true,
-    infinite: false,
+    infinite: true,
     speed: 500,
     slidesToShow: 3,
     slidesToScroll: 1,
@@ -158,7 +158,7 @@ const StyledReviews = styled.section`
 
   .slider-container {
     max-width: 1100px;
-    margin: 0 auto;
+    margin: 0 auto !important;
     padding: 0 20px;
 
     .slide-wrapper {
