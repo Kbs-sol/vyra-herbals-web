@@ -231,6 +231,8 @@ const StyledReviews = styled.section`
       border-radius: 1rem;
       overflow: hidden;
       width: clamp(120px, 20%, 200px);
+      aspect-ratio: 1 / 1;
+      min-height: 150px;
       box-shadow: 0 4px 10px rgba(0,0,0,0.05);
 
       img {
@@ -246,7 +248,8 @@ const StyledReviews = styled.section`
     .image-reviews {
       gap: 1rem;
       .image-wrapper {
-        width: clamp(100px, 30%, 150px);
+        width: clamp(120px, 30%, 180px);
+        min-height: 120px;
       }
     }
   }

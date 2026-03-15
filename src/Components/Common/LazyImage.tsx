@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import styled from "styled-components";
 import { shimmer } from "./SkeletonComponents";
 
@@ -7,10 +7,13 @@ const LazyImage = ({
   alt,
   placeholder = "/assets/images/vyra_placeholder.png",
   isLazy = true,
+  minHeight = "auto",
+  aspectRatio = "auto",
   ...props
 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isError, setIsError] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
 
   // Helper to get proper image URL
   const getImageUrl = (imageUrl: string | undefined | null) => {
@@ -29,19 +32,42 @@ const LazyImage = ({
 
   const imageSrc = isError ? placeholder : getImageUrl(src);
 
+  useEffect(() => {
+    // Reset state when src changes
+    setIsLoaded(false);
+    setIsError(false);
+
+    // Check if image is already in cache
+    if (imgRef.current && imgRef.current.complete) {
+      handleLoad();
+    }
+  }, [src]);
+
+  const handleLoad = () => {
+    setIsLoaded(true);
+  };
+
+  const handleError = () => {
+    setIsError(true);
+    setIsLoaded(true);
+  };
+
   return (
-    <StyledImage $isAltText={isError} className="lazy-image">
+    <StyledImage 
+      $isAltText={isError} 
+      $minHeight={minHeight} 
+      $aspectRatio={aspectRatio} 
+      className="lazy-image"
+    >
       {!isLoaded && !isError && <Skeleton />}
       <img
+        ref={imgRef}
         src={imageSrc}
         alt={alt || "image"}
         {...props}
         className={isLoaded ? "loaded" : "loading"}
-        onLoad={() => setIsLoaded(true)}
-        onError={() => {
-          setIsError(true);
-          setIsLoaded(true);
-        }}
+        onLoad={handleLoad}
+        onError={handleError}
       />
     </StyledImage>
   );
@@ -70,13 +96,15 @@ const Skeleton = styled.div`
   z-index: 1;
 `;
 
-const StyledImage = styled.section<{ $isAltText?: boolean }>`
+const StyledImage = styled.section<{ $isAltText?: boolean; $minHeight?: string; $aspectRatio?: string }>`
   position: relative;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
+  min-height: ${(props) => props.$minHeight || "auto"};
+  aspect-ratio: ${(props) => props.$aspectRatio || "auto"};
   
   img {
     width: 100%;
