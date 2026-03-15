@@ -3,12 +3,12 @@
 import React, { useEffect, useState } from "react";
 import { API_PATH } from "../../constants";
 import styled from "styled-components";
-import LazyImage from "../Common/LazyImage";
-import { usePathname, useRouter } from "next/navigation";
 import LoadingIndicator from "../Common/LoadingIndicator";
 import ReviewCard from "./ReviewCard";
-import Pagination from "../Common/Pagination";
-import Utility from "../../utils/UtilityFunctions";
+import Slider from "react-slick";
+import LazyImage from "../Common/LazyImage";
+import "slick-carousel/slick/slick.css";
+import "slick-carousel/slick/slick-theme.css";
 
 const beforeAfterImages = [
   "/assets/images/testimonials/test_01.webp",
@@ -24,49 +24,8 @@ const beforeAfterImages = [
 ];
 
 const AllTestimonials = ({ isHomePage = false }: { isHomePage?: boolean }) => {
-  const Tabs = { TextReviews: 1, ImageReviews: 2 };
-  const [activeTab, setActiveTab] = useState(Tabs.TextReviews); // Active tab state
-  const [currentPage, setCurrentPage] = useState(1); // Pagination state
   const [testimonials, setTestimonials] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const reviewsPerPage = 8;
-
-  const pathname = usePathname();
-  const router = useRouter();
-
-  // Handle tab switch
-  const handleTabChange = (tab) => {
-    if (!isHomePage) {
-      if (tab === Tabs.TextReviews) router.push("/testimonials");
-      else router.push("#images");
-    }
-    setActiveTab(tab);
-    setCurrentPage(1); // Reset page when switching tabs
-  };
-
-  // Get current testimonials for pagination
-  const indexOfLastReview = currentPage * reviewsPerPage;
-  const indexOfFirstReview = indexOfLastReview - reviewsPerPage;
-  const currentReviews = testimonials?.slice(
-    indexOfFirstReview,
-    indexOfLastReview
-  );
-
-  // Handle pagination
-  const paginate = (pageNumber) => {
-    setCurrentPage(pageNumber);
-  };
-
-  useEffect(() => {
-    if (!isHomePage) {
-      window.scrollTo(0, 0);
-    }
-  }, [currentPage, isHomePage]);
-
-  useEffect(() => {
-    const hash = window.location.hash;
-    if (hash === "#images") setActiveTab(Tabs.ImageReviews);
-  }, [pathname]);
 
   useEffect(() => {
     setIsLoading(true);
@@ -74,16 +33,14 @@ const AllTestimonials = ({ isHomePage = false }: { isHomePage?: boolean }) => {
       tbl_name: "reviews",
     };
 
-    // Define the fetch options
     const requestOptions = {
       method: "POST",
       headers: {
-        "Content-Type": "application/json", // Specify the content type as JSON
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(postData), // Convert the data to JSON format
+      body: JSON.stringify(postData),
     };
 
-    // Replace the placeholder URL with your actual API endpoint
     fetch(`${API_PATH}/data`, requestOptions)
       .then((response) => {
         if (!response.ok) {
@@ -92,8 +49,6 @@ const AllTestimonials = ({ isHomePage = false }: { isHomePage?: boolean }) => {
         return response.json();
       })
       .then((data) => {
-        // Update the state with the fetched handpicked products data
-        console.log("All Testimonials data:", data);
         setTestimonials(data);
       })
       .catch((error) => {
@@ -102,70 +57,64 @@ const AllTestimonials = ({ isHomePage = false }: { isHomePage?: boolean }) => {
       .finally(() => setIsLoading(false));
   }, []);
 
+  const sliderSettings = {
+    dots: true,
+    infinite: false,
+    speed: 500,
+    slidesToShow: 3,
+    slidesToScroll: 1,
+    responsive: [
+      {
+        breakpoint: 1024,
+        settings: {
+          slidesToShow: 2,
+        }
+      },
+      {
+        breakpoint: 768,
+        settings: {
+          slidesToShow: 1,
+          dots: true,
+          arrows: false
+        }
+      }
+    ]
+  };
+
   return (
     <StyledReviews>
-      <section className="disclaimer">
-        <b>Authentic Reviews from Real Customers!</b>
-        <p>
-          We pride ourselves on genuine feedback—no fake reviews or stock images
-          here.
-        </p>
-        <p>
-          Each review is a heartfelt testimonial from our customers, given
-          freely without any incentives.
-        </p>
-      </section>
-      <section className="container tabs-container">
-        <TabButton
-          $active={activeTab === Tabs.TextReviews}
-          onClick={() => handleTabChange(Tabs.TextReviews)}
-        >
-          Customer Testimonials
-        </TabButton>
-        <TabButton
-          $active={activeTab === Tabs.ImageReviews}
-          onClick={() => handleTabChange(Tabs.ImageReviews)}
-        >
-          Before & After Images
-        </TabButton>
+      <section className="header-section">
+        <h2 className="section-title">CUSTOMER STORIES</h2>
+        <div className="title-divider"></div>
       </section>
 
-      <section className="tab-content d-grid">
+      <section className="slider-container">
         {isLoading ? (
-          <LoadingIndicator variant="circular" />
+          <div className="loading-wrapper">
+            <LoadingIndicator variant="circular" />
+          </div>
         ) : (
-          <>
-            {activeTab === Tabs.TextReviews ? (
-              <>
-                <section id="textReviewList" className="text-review-list row">
-                  {/* List of customer testimonials in grid layout */}
-                  {currentReviews.map((review, index) => (
-                    <ReviewCard
-                      review={review}
-                      key={"review-card-" + index}
-                      className={"card col-10 col-md-5"}
-                    />
-                  ))}
-                </section>
-                {/* Pagination */}
-                <Pagination
-                  totalPages={Math.ceil(testimonials.length / reviewsPerPage)}
-                  onPageChange={paginate}
-                  currentPage={currentPage}
-                />
-              </>
-            ) : (
-              <section className="image-reviews">
-                {/* List of before & after images */}
-                {beforeAfterImages.map((src, index) => (
-                  <div className="image-wrapper" key={index}>
-                    <LazyImage src={src} alt={`Before & After ${index + 1}`} />
-                  </div>
-                ))}
-              </section>
-            )}
-          </>
+          <Slider {...sliderSettings}>
+            {testimonials.map((review, index) => (
+              <div key={"story-" + index} className="slide-wrapper">
+                <ReviewCard review={review} className="slider-review-card" />
+              </div>
+            ))}
+          </Slider>
         )}
+      </section>
+
+      <section className="header-section" style={{ marginTop: '4rem' }}>
+        <h2 className="section-title">BEFORE & AFTER</h2>
+        <div className="title-divider"></div>
+      </section>
+
+      <section className="image-reviews">
+        {beforeAfterImages.map((src, index) => (
+          <div className="image-wrapper" key={index}>
+            <LazyImage src={src} alt={`Before & After ${index + 1}`} />
+          </div>
+        ))}
       </section>
     </StyledReviews>
   );
@@ -173,98 +122,142 @@ const AllTestimonials = ({ isHomePage = false }: { isHomePage?: boolean }) => {
 
 export default AllTestimonials;
 
-const TabButton = styled.button<{ $active?: boolean }>`
-  padding: 0.5rem 1rem;
-  background-color: ${(props) =>
-    props.$active ? "var(--btn-green)" : "var(--primary)"};
-  box-shadow: ${(props) =>
-    props.$active ? "0px 0px 4px 4px #888888" : "none"};
-  color: #fff;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-weight: bold;
-  &:hover {
-    background-color: var(--btn-green);
-    color: white;
-  }
-`;
-
 const StyledReviews = styled.section`
-  margin-top: 2rem;
-  .disclaimer {
+  margin-top: 3rem;
+  margin-bottom: 4rem;
+  padding: 0 1rem;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+  
+  .header-section {
     text-align: center;
-    margin-bottom: 2rem;
+    margin-bottom: 2.5rem;
+    
+    .section-title {
+      font-size: 2rem;
+      font-weight: 500;
+      letter-spacing: 1px;
+      margin-bottom: 0.8rem;
+      text-transform: uppercase;
+    }
+    
+    .title-divider {
+      height: 3px;
+      width: 150px;
+      background-color: #556b2f; /* Dark olive green */
+      margin: 0 auto;
+    }
   }
-  .tabs-container {
+
+  .loading-wrapper {
     display: flex;
     justify-content: center;
-    margin-bottom: 1rem;
-    padding-right: 1.6rem;
-    gap: 3rem;
+    padding: 3rem 0;
   }
-  .tab-content {
-    justify-items: center;
-    .text-review-list {
-      justify-content: center;
-      gap: 1rem;
-      width: 100%;
-      .card {
-        padding: 15px;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        .card-title {
-          margin: 0;
+
+  .slider-container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 20px;
+
+    .slide-wrapper {
+      padding: 10px;
+      height: 100%;
+    }
+
+    .slider-review-card {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 20px;
+      height: 100%;
+      background: white;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+      display: flex;
+      flex-direction: column;
+      
+      .card-title {
+        margin: 0;
+        font-size: 14px;
+        font-weight: bold;
+      }
+      .reviewer-text {
+        font-size: 14px;
+        color: #555;
+        margin-top: 10px;
+      }
+    }
+
+    /* Override slick dots */
+    .slick-dots {
+      bottom: -40px;
+      li {
+        margin: 0 4px;
+        button:before {
           font-size: 14px;
-          font-weight: bold;
+          color: #111;
         }
-        .reviewer-text {
-          font-size: 14px;
-          color: #555;
+        &.slick-active button:before {
+          color: #000;
         }
       }
     }
-    .image-reviews {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(100px, 1fr));
-      width: 80%;
-      margin: 1rem auto;
-      gap: 1rem;
-      .image-wrapper {
-        border: 1px solid var(--border);
-        border-radius: 1rem;
-        overflow: hidden;
-        img {
-          width: 100%;
-          height: auto;
-          border-radius: 5px;
-        }
+    
+    /* Ensure all slides stretch to same height */
+    .slick-track {
+      display: flex !important;
+    }
+    .slick-slide {
+      height: inherit !important;
+      display: flex;
+      justify-content: center;
+      > div {
+        width: 100%;
+        display: flex;
       }
     }
   }
 
-  /* sm: 480px,
-  md: 768px,
-  lg: 1024px */
+  .image-reviews {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    max-width: 1000px;
+    margin: 1rem auto;
+    gap: 1.5rem;
+    
+    .image-wrapper {
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      overflow: hidden;
+      width: clamp(120px, 20%, 200px);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+
+      img {
+        width: 100%;
+        height: auto;
+        border-radius: 5px;
+        display: block;
+      }
+    }
+  }
 
   @media screen and (max-width: 768px) {
-    .tab-content {
-      .image-reviews {
-        grid-template-columns: repeat(3, minmax(100px, 1fr));
+    .image-reviews {
+      gap: 1rem;
+      .image-wrapper {
+        width: clamp(100px, 30%, 150px);
       }
     }
   }
+  
   @media screen and (max-width: 480px) {
-    .disclaimer {
-      p {
-        margin: 0.6rem 0;
-      }
-    }
-    .tab-content {
-      .image-reviews {
-        width: 94%;
-        grid-template-columns: repeat(2, minmax(100px, 1fr));
+    .image-reviews {
+      width: 94%;
+      .image-wrapper {
+        width: 45%;
       }
     }
   }
 `;
+

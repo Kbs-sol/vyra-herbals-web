@@ -108,6 +108,7 @@ const Home = () => {
         <ErrorBoundary>
           <OurJourney />
         </ErrorBoundary>
+        
         <ErrorBoundary>
           <section id="customerTestimonials">
             <Testimonial />
