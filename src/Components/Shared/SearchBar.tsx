@@ -22,9 +22,9 @@ const SearchBar = (props) => {
   const placeholderPhrases = [
     "Search for Hair Oil",
     "Search for Shampoo",
-    "Search for Neem Combs",
     "Search for Scalp Massager",
-    "Search for Herbal Hair Mask Powder",
+    "Search for Hair Mask Powder",
+    "Search for Neem Combs",
     "Search for Rosemary Leaves",
   ];
 

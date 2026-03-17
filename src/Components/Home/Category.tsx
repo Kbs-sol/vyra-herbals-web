@@ -117,6 +117,17 @@ const Category = () => {
   };
 
   useEffect(() => {
+    const CATEGORY_ORDER = [
+      "Hair Oil",
+      "Shampoo",
+      "Scalp Massager",
+      "Herbal Hair Mask Powder",
+      "Neem Combs",
+      "Rosemary Leaves",
+      "Combo's",
+      "Kits"
+    ];
+
     const fetchCategories = async () => {
       try {
         setIsLoading(true);
@@ -127,7 +138,15 @@ const Category = () => {
         });
         const data = await response.json();
         if (Array.isArray(data)) {
-          setCategories(data);
+          const sortedCategories = [...data].sort((a, b) => {
+            const indexA = CATEGORY_ORDER.indexOf(a.name);
+            const indexB = CATEGORY_ORDER.indexOf(b.name);
+            if (indexA === -1 && indexB === -1) return a.name.localeCompare(b.name);
+            if (indexA === -1) return 1;
+            if (indexB === -1) return -1;
+            return indexA - indexB;
+          });
+          setCategories(sortedCategories);
         }
       } catch (error) {
         console.error('Error fetching categories:', error);
@@ -247,7 +266,7 @@ const Category = () => {
                         </div>
                         <div className="category-meta">
                           <h4>
-                            {cat.name}
+                            {cat.name === "Herbal Hair Mask Powder" ? "Hair Mask Powder" : cat.name}
                             <FaArrowRight />
                           </h4>
                         </div>

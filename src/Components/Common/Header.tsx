@@ -218,6 +218,16 @@ const Header = () => {
   const searchParams = useSearchParams();
   const [currentSearchingTerm, setCurrentSearchingTerm] = useState("all");
   const [categories, setCategories] = useState<Category[]>([]);
+  const CATEGORY_ORDER = [
+    "Hair Oil",
+    "Shampoo",
+    "Scalp Massager",
+    "Herbal Hair Mask Powder", // Renamed in UI but kept for sorting
+    "Neem Combs",
+    "Rosemary Leaves",
+    "Combo's",
+    "Kits"
+  ];
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -229,7 +239,15 @@ const Header = () => {
         });
         const data = await response.json();
         if (Array.isArray(data)) {
-          setCategories(data);
+          const sortedCategories = [...data].sort((a, b) => {
+            const indexA = CATEGORY_ORDER.indexOf(a.name);
+            const indexB = CATEGORY_ORDER.indexOf(b.name);
+            if (indexA === -1 && indexB === -1) return a.name.localeCompare(b.name);
+            if (indexA === -1) return 1;
+            if (indexB === -1) return -1;
+            return indexA - indexB;
+          });
+          setCategories(sortedCategories);
         }
       } catch (error) {
         console.error('Error fetching categories:', error);
@@ -365,7 +383,7 @@ const Header = () => {
                           className="dropdown-item"
                           onClick={() => router.push(`/category/${cat.slug || cat.handle || ""}`)}
                         >
-                          {cat.name}
+                          {cat.name === "Herbal Hair Mask Powder" ? "Hair Mask Powder" : cat.name}
                         </button>
                       </li>
                     ))}
@@ -527,7 +545,7 @@ const Header = () => {
                             href={`/category/${cat.slug || cat.handle || ""}`}
                             onClick={hideMobileCanvas}
                           >
-                            {cat.name}
+                            {cat.name === "Herbal Hair Mask Powder" ? "Hair Mask Powder" : cat.name}
                           </Link>
                         ))}
                       </Accordion.Body>
