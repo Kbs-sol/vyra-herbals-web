@@ -38,6 +38,7 @@ export default StarRatings;
 StarRatings.propTypes = {
   rating: PropTypes.oneOfType([PropTypes.number, PropTypes.string]).isRequired,
   onChange: PropTypes.func,
+  className: PropTypes.string,
 };
 
 const StyledStars = styled.div`

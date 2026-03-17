@@ -180,7 +180,7 @@ const Testimonial = () => {
             </Slider>
           ) : (
             <section className="loader">
-              <LoadingIndicator />
+              <LoadingIndicator variant="circular" />
             </section>
           )}
         </div>
@@ -210,17 +210,21 @@ const StyledTestimonials = styled.section`
     .card-test {
       max-width: 920px; /* limit width so the card isn't too long */
       margin: 0 auto;   /* center the card */
-      height: 14rem;
-      padding: 1.6rem;
+      min-height: 15rem;
+      padding: 2rem;
       border-radius: 14px;
       box-sizing: border-box;
       overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
       &:hover {
         cursor: pointer;
       }
       &,
       .read-more-btn {
         color: #fff;
+        font-size: 1rem;
       }
     }
     .loader {

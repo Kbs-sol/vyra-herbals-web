@@ -57,25 +57,39 @@ const AllTestimonials = ({ isHomePage = false }: { isHomePage?: boolean }) => {
       .finally(() => setIsLoading(false));
   }, []);
 
-  const sliderSettings = {
-    dots: true,
+  const beforeAfterSliderSettings = {
+    dots: false,
     infinite: true,
-    speed: 500,
-    slidesToShow: 3,
+    speed: 1000,
+    slidesToShow: 5,
     slidesToScroll: 1,
+    autoplay: true,
+    autoplaySpeed: 3000,
+    pauseOnHover: false,
+    arrows: false,
     responsive: [
+      {
+        breakpoint: 1200,
+        settings: {
+          slidesToShow: 4,
+        }
+      },
       {
         breakpoint: 1024,
         settings: {
-          slidesToShow: 2,
+          slidesToShow: 3,
         }
       },
       {
         breakpoint: 768,
         settings: {
+          slidesToShow: 2,
+        }
+      },
+      {
+        breakpoint: 480,
+        settings: {
           slidesToShow: 1,
-          dots: true,
-          arrows: false
         }
       }
     ]
@@ -83,38 +97,22 @@ const AllTestimonials = ({ isHomePage = false }: { isHomePage?: boolean }) => {
 
   return (
     <StyledReviews>
-      <section className="header-section">
-        <h2 className="section-title">CUSTOMER STORIES</h2>
-        <div className="title-divider"></div>
-      </section>
-
-      <section className="slider-container">
-        {isLoading ? (
-          <div className="loading-wrapper">
-            <LoadingIndicator variant="circular" />
-          </div>
-        ) : (
-          <Slider {...sliderSettings}>
-            {testimonials.map((review, index) => (
-              <div key={"story-" + index} className="slide-wrapper">
-                <ReviewCard review={review} className="slider-review-card" />
-              </div>
-            ))}
-          </Slider>
-        )}
-      </section>
-
+  
       <section className="header-section" style={{ marginTop: '4rem' }}>
         <h2 className="section-title">BEFORE & AFTER</h2>
         <div className="title-divider"></div>
       </section>
 
-      <section className="image-reviews">
-        {beforeAfterImages.map((src, index) => (
-          <div className="image-wrapper" key={index}>
-            <LazyImage src={src} alt={`Before & After ${index + 1}`} />
-          </div>
-        ))}
+      <section className="image-reviews-slider">
+        <Slider {...beforeAfterSliderSettings}>
+          {beforeAfterImages.map((src, index) => (
+            <div className="image-slide-wrapper" key={index}>
+              <div className="image-wrapper">
+                <LazyImage src={src} alt={`Before & After ${index + 1}`} />
+              </div>
+            </div>
+          ))}
+        </Slider>
       </section>
     </StyledReviews>
   );
@@ -218,47 +216,35 @@ const StyledReviews = styled.section`
     }
   }
 
-  .image-reviews {
-    display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
-    max-width: 1000px;
-    margin: 1rem auto;
-    gap: 1.5rem;
+  .image-reviews-slider {
+    max-width: 1400px;
+    margin: 2rem auto;
     
+    .image-slide-wrapper {
+      padding: 0 10px;
+    }
+
     .image-wrapper {
       border: 1px solid var(--border);
       border-radius: 1rem;
       overflow: hidden;
-      width: clamp(120px, 20%, 200px);
+      width: 100%;
       aspect-ratio: 1 / 1;
-      min-height: 150px;
       box-shadow: 0 4px 10px rgba(0,0,0,0.05);
 
       img {
         width: 100%;
-        height: auto;
-        border-radius: 5px;
+        height: 100%;
+        object-fit: cover;
         display: block;
       }
     }
   }
 
   @media screen and (max-width: 768px) {
-    .image-reviews {
-      gap: 1rem;
-      .image-wrapper {
-        width: clamp(120px, 30%, 180px);
-        min-height: 120px;
-      }
-    }
-  }
-  
-  @media screen and (max-width: 480px) {
-    .image-reviews {
-      width: 94%;
-      .image-wrapper {
-        width: 45%;
+    .image-reviews-slider {
+      .image-slide-wrapper {
+        padding: 0 5px;
       }
     }
   }

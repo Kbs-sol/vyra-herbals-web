@@ -39,10 +39,7 @@ body {
   border-radius: 8px;
 }
 .about-testimonial {
-  background: url(../../images/testimonial-shape.png);
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: cover;
+  background: #faf0e6;
   padding: 50px 0px 50px;
   margin-bottom: 0px !important;
 }

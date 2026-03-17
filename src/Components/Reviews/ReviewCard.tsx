@@ -25,15 +25,16 @@ const ReviewCard = ({ review, className }) => {
                 <span>{(review.reviewer_name || 'A').charAt(0)}</span>
               )}
             </div>
-            <div className="card-title">
-              {review.reviewer_name || "Anonymous"}
-              <span className="review-date">
-                {Utility.formatDate(review.created_at)}
-              </span>
+            <div className="card-info">
+              <div className="card-title-row">
+                <span className="reviewer-name">{review.reviewer_name || "Anonymous"}</span>
+                <span className="review-date">
+                  {Utility.formatDate(review.created_at)}
+                </span>
+              </div>
+              <StarRatings rating={review.rating} className={"rating"} />
             </div>
           </div>
-
-          <StarRatings rating={review.rating} className={"rating"} />
 
           <div className="reviewer-text">
             <EllipsisControl
@@ -45,6 +46,7 @@ const ReviewCard = ({ review, className }) => {
           </div>
         </div>
       </StyledReviewCard>
+      {/* ... modal remains same ... */}
 
       <StyledModal show={showModal} onHide={onModalClose}>
         <Modal.Header closeButton style={{ backgroundColor: "white" }}>
@@ -78,12 +80,12 @@ const StyledReviewCard = styled.section`
   .card-head {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 8px;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
   }
   .avatar {
-    width: 48px;
-    height: 48px;
+    width: 65px;
+    height: 65px;
     border-radius: 50%;
     overflow: hidden;
     background: #f3f4f6;
@@ -92,24 +94,44 @@ const StyledReviewCard = styled.section`
     justify-content: center;
     font-weight: 600;
     flex-shrink: 0;
+    color: #444;
+    font-size: 1.5rem;
   }
   .avatar img {
     width: 100%;
     height: 100%;
     object-fit: cover;
   }
-  .rating {
-    display: inline-block;
-    margin-right: 1rem;
+  .card-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
   }
-  .review-date {
-    font-size: 0.6rem;
-  }
-  .card-title {
+  .card-title-row {
     display: flex;
     justify-content: space-between;
-    line-height: 1;
+    align-items: center;
     width: 100%;
+  }
+  .reviewer-name {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #fff;
+  }
+  .review-date {
+    font-size: 0.8rem;
+    color: #fff;
+    opacity: 0.8;
+  }
+  .rating {
+    display: flex;
+    margin-top: 2px;
+  }
+  .reviewer-text {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: #fff;
   }
 `;
 

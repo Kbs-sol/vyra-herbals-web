@@ -114,6 +114,11 @@ const Home = () => {
             <Testimonial />
           </section>
         </ErrorBoundary>
+
+        
+        <ErrorBoundary>
+          <AllTestimonials isHomePage={true} />
+        </ErrorBoundary>
         
         <ErrorBoundary>
           <Follow />
@@ -122,9 +127,6 @@ const Home = () => {
           <Features />
         </ErrorBoundary>
 
-        <ErrorBoundary>
-          <AllTestimonials isHomePage={true} />
-        </ErrorBoundary>
       </ErrorBoundary>
     </>
   );
