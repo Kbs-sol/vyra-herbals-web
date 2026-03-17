@@ -1,7 +1,7 @@
 'use client';
 
-import AllTestimonials from '@/Components/Reviews/AllTestimonials';
+import TestimonialPage from "@/Components/Reviews/TestimonialPage";
 
 export default function TestimonialsPage() {
-  return <AllTestimonials />;
+  return <TestimonialPage />;
 }

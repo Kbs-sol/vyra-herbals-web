@@ -5,6 +5,7 @@ import { API_PATH } from "../../constants";
 import styled from "styled-components";
 import LoadingIndicator from "../Common/LoadingIndicator";
 import ReviewCard from "./ReviewCard";
+import Link from "next/link";
 import Slider from "react-slick";
 import LazyImage from "../Common/LazyImage";
 import "slick-carousel/slick/slick.css";
@@ -99,7 +100,12 @@ const AllTestimonials = ({ isHomePage = false }: { isHomePage?: boolean }) => {
     <StyledReviews>
   
       <section className="header-section" style={{ marginTop: '4rem' }}>
-        <h2 className="section-title">BEFORE & AFTER</h2>
+        <div className="title-container">
+          <h2 className="section-title">BEFORE & AFTER</h2>
+          <Link href="/testimonials#images" className="view-all-btn">
+            View All
+          </Link>
+        </div>
         <div className="title-divider"></div>
       </section>
 
@@ -131,13 +137,41 @@ const StyledReviews = styled.section`
   .header-section {
     text-align: center;
     margin-bottom: 2.5rem;
+    position: relative;
     
+    .title-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      margin-bottom: 0.8rem;
+    }
+
     .section-title {
       font-size: 2rem;
       font-weight: 500;
       letter-spacing: 1px;
-      margin-bottom: 0.8rem;
+      margin-bottom: 0;
       text-transform: uppercase;
+    }
+
+    .view-all-btn {
+      position: absolute;
+      right: 0;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #556b2f;
+      text-decoration: none;
+      border: 1px solid #556b2f;
+      padding: 0.4rem 1.2rem;
+      border-radius: 2rem;
+      transition: all 0.3s ease;
+      text-transform: capitalize;
+
+      &:hover {
+        background-color: #556b2f;
+        color: white;
+      }
     }
     
     .title-divider {
@@ -145,6 +179,18 @@ const StyledReviews = styled.section`
       width: 150px;
       background-color: #556b2f; /* Dark olive green */
       margin: 0 auto;
+    }
+
+    @media screen and (max-width: 768px) {
+      .title-container {
+        flex-direction: column;
+        gap: 1rem;
+      }
+      
+      .view-all-btn {
+        position: static;
+        margin-top: 0.5rem;
+      }
     }
   }
 
