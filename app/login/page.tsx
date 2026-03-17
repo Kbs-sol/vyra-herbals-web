@@ -25,6 +25,7 @@ const LoginContent = () => {
 
   useEffect(() => {
     if (!authLoading && user) {
+      router.refresh();
       router.push(redirectUrl || '/');
     }
   }, [user, authLoading, redirectUrl, router]);
@@ -65,6 +66,7 @@ const LoginContent = () => {
       if (error) throw new Error(error);
 
       // Navigate efficiently without full page reload
+      router.refresh();
       router.push(redirectUrl || '/');
 
       // We purposefully don't setLocalLoading(false) immediately
@@ -106,6 +108,7 @@ const LoginContent = () => {
       const { error } = await verifyOtp(phone, verificationId, otp, password, name);
       if (error) throw new Error(error);
 
+      router.refresh();
       router.push(redirectUrl || '/');
       return;
     } catch (err: any) {
