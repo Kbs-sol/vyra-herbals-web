@@ -9,202 +9,98 @@ import { Category as CategoryType } from "@/types";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { CategorySkeleton } from "../Common/SkeletonComponents";
 
+const HARDCODED_CATEGORIES = [
+  { 
+    id: 1, 
+    name: "Hair Oil", 
+    slug: "hair-oil", 
+    image_url: "/category-images/Hair Oil.png",
+    hover_url: "https://obbohecegyagnqufelpx.supabase.co/storage/v1/object/public/images/hair-oil-100ml/1769794807906-zgf6vtn.jpg"
+  },
+  { 
+    id: 2, 
+    name: "Shampoo", 
+    slug: "shampoo", 
+    image_url: "/category-images/Shampo.jpeg",
+    hover_url: "https://obbohecegyagnqufelpx.supabase.co/storage/v1/object/public/images/herbal-shampoo-200ml/1769795134812-b9j9hng.jpg"
+  },
+  { 
+    id: 3, 
+    name: "Scalp Massager", 
+    slug: "scalp-massager", 
+    image_url: "/category-images/scalp.jpg",
+    hover_url: "https://obbohecegyagnqufelpx.supabase.co/storage/v1/object/public/images/scalp-massager/1771935718696-hz94vln.jpg"
+  },
+  { 
+    id: 4, 
+    name: "Herbal Hair Mask Powder", 
+    slug: "hair-mask-powder", 
+    image_url: "/category-images/Hair Mask.jpeg",
+    hover_url: "https://obbohecegyagnqufelpx.supabase.co/storage/v1/object/public/images/herbal-hair-mask-powder/1771663039180-wsclkdq.jpeg"
+  },
+  { 
+    id: 5, 
+    name: "Neem Combs", 
+    slug: "neem-combs", 
+    image_url: "/assets/images/cat/coomb.jpg",
+    hover_url: "https://obbohecegyagnqufelpx.supabase.co/storage/v1/object/public/images/neem-combs-combo-2/1769797623158-lx3krar.jpg"
+  },
+  { 
+    id: 6, 
+    name: "Rosemary Leaves", 
+    slug: "rosemary-leaves", 
+    image_url: "/category-images/Rosemary Leaves.jpeg",
+    hover_url: "https://obbohecegyagnqufelpx.supabase.co/storage/v1/object/public/images/rosemary-leaves/1771662946547-x0yeozh.jpeg"
+  },
+];
+
 const Category = () => {
-  const [categories, setCategories] = useState<CategoryType[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [categories] = useState<CategoryType[]>(HARDCODED_CATEGORIES);
+  const [isLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const transformRef = useRef<number>(0); // used for transform fallback when native scroll isn't available
+  const transformRef = useRef<number>(0);
 
   const scroll = (direction: 'left' | 'right') => {
     // prefer the ref, fallback to querying the DOM to be resilient
     const el = scrollRef.current || document.querySelector('.category-scroll-container') as HTMLElement | null;
-    console.log('[Category] scroll() called — direction:', direction, 'ref:', !!scrollRef.current, 'el-found:', !!el);
-    if (!el) {
-      console.warn('[Category] scroll() — no scroll container found');
-      return;
-    }
+    if (!el) return;
 
     const scrollAmount = Math.round(el.clientWidth * 0.8);
     const current = el.scrollLeft;
     const max = el.scrollWidth - el.clientWidth;
     const target = direction === 'left' ? Math.max(0, current - scrollAmount) : Math.min(max, current + scrollAmount);
 
-    console.log('[Category] scroll parameters — clientWidth:', el.clientWidth, 'scrollWidth:', el.scrollWidth, 'current:', current, 'max:', max, 'target:', target);
-
-    // If there's no overflow, attempt to enforce inline layout (global CSS may be preventing overflow)
-    if (max <= 0) {
-      console.warn('[Category] detected no horizontal overflow (max=0) — enforcing inline layout before scrolling');
-      const list = el.querySelector('.category-list') as HTMLElement | null;
-      if (list) {
-        try {
-          list.style.setProperty('flex-wrap', 'nowrap', 'important');
-          list.style.setProperty('white-space', 'nowrap', 'important');
-          Array.from(list.children).forEach((ch: Element, idx) => {
-            const e = ch as HTMLElement;
-            e.style.setProperty('flex', '0 0 220px', 'important');
-            e.style.setProperty('min-width', '151px', 'important');
-            const cs = window.getComputedStyle(e);
-            console.log('[Category] enforcement (scroll) child', idx, 'offsetWidth:', e.offsetWidth, 'computedWidth:', cs.width, 'flexBasis:', cs.flexBasis, 'priority-flex:', e.style.getPropertyPriority('flex'));
-          });
-
-          // ensure inner list expands to children total width so native scroll becomes available
-          try {
-            const childrenArr = Array.from(list.children) as HTMLElement[];
-            const total = childrenArr.reduce((s, c) => s + c.offsetWidth, 0) + Math.max(0, (childrenArr.length - 1) * 20);
-            list.style.setProperty('min-width', `${total}px`, 'important');
-            list.style.setProperty('width', `${total}px`, 'important');
-            console.log('[Category] enforcement (scroll) set list width ->', total);
-          } catch (err) {
-            console.error('[Category] failed to expand list width during enforcement', err);
-          }
-        } catch (err) {
-          console.error('[Category] enforcement inside scroll failed', err);
-        }
-      }
-      // recompute sizes after enforcement
-      const newMax = el.scrollWidth - el.clientWidth;
-      console.log('[Category] after enforcement — clientWidth:', el.clientWidth, 'scrollWidth:', el.scrollWidth, 'newMax:', newMax);
-      if (newMax <= 0) {
-        console.warn('[Category] still nothing to scroll after enforcement — using transform fallback');
-        // final visual fallback: translate the inner list as a carousel when native scrolling is not possible
-        const listEl = el.querySelector('.category-list') as HTMLElement | null;
-        if (!listEl) {
-          console.error('[Category] transform fallback failed — .category-list not found');
-          return;
-        }
-
-        // compute total width of children
-        const childrenArr = Array.from(listEl.children) as HTMLElement[];
-        const totalWidth = childrenArr.reduce((sum, c) => sum + c.offsetWidth, 0) + Math.max(0, (childrenArr.length - 1) * 20);
-        const visibleWidth = el.clientWidth;
-        const minTranslate = Math.min(0, visibleWidth - totalWidth); // negative or 0
-
-        const current = transformRef.current || 0; // negative or 0
-        const delta = Math.round(visibleWidth * 0.8) * (direction === 'left' ? 1 : -1);
-        let next = current + delta;
-        if (next > 0) next = 0;
-        if (next < minTranslate) next = minTranslate;
-        transformRef.current = next;
-
-        console.log('[Category] transform fallback — totalWidth:', totalWidth, 'visibleWidth:', visibleWidth, 'minTranslate:', minTranslate, 'current:', current, 'next:', next);
-        listEl.style.setProperty('transition', 'transform 400ms cubic-bezier(0.4,0,0.2,1)', 'important');
-        listEl.style.setProperty('transform', `translateX(${next}px)`, 'important');
-        return;
-      }
-    }
-
-    // try smooth scroll, then verify it took effect; fallback to immediate assignment if it didn't
     try {
       el.scrollTo({ left: target, behavior: 'smooth' as ScrollBehavior });
     } catch (err) {
-      console.error('[Category] scroll() - scrollTo threw, falling back to direct assignment', err);
       el.scrollLeft = target;
-      return;
     }
-
-    // safety-check: if smooth scroll doesn't change value (some environments), force it after a short delay
-    const verifyAfter = 300; // ms
-    const before = el.scrollLeft;
-    setTimeout(() => {
-      const after = el.scrollLeft;
-      if (Math.abs(after - before) < 2) {
-        console.warn('[Category] smooth scroll had no effect — applying immediate fallback');
-        el.scrollLeft = target;
-      } else {
-        console.log('[Category] smooth scroll in progress/complete — new scrollLeft:', after);
-      }
-    }, verifyAfter);
   };
 
   useEffect(() => {
-    const CATEGORY_ORDER = [
-      "Hair Oil",
-      "Shampoo",
-      "Scalp Massager",
-      "Herbal Hair Mask Powder",
-      "Neem Combs",
-      "Rosemary Leaves",
-      "Combo's",
-      "Kits"
-    ];
-
-    const fetchCategories = async () => {
-      try {
-        setIsLoading(true);
-        const response = await fetch('/api/data', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tbl_name: 'categories' })
-        });
-        const data = await response.json();
-        if (Array.isArray(data)) {
-          const sortedCategories = [...data].sort((a, b) => {
-            const indexA = CATEGORY_ORDER.indexOf(a.name);
-            const indexB = CATEGORY_ORDER.indexOf(b.name);
-            if (indexA === -1 && indexB === -1) return a.name.localeCompare(b.name);
-            if (indexA === -1) return 1;
-            if (indexB === -1) return -1;
-            return indexA - indexB;
+    // ENFORCE: apply inline styles to prevent global CSS from forcing wrap/width
+    const el = scrollRef.current || document.querySelector('.category-scroll-container') as HTMLElement | null;
+    if (el) {
+      const list = el.querySelector('.category-list') as HTMLElement | null;
+      if (list) {
+        try {
+          list.style.flexWrap = 'nowrap';
+          list.style.whiteSpace = 'nowrap';
+          const children = Array.from(list.children) as HTMLElement[];
+          children.forEach((ch) => {
+            const elChild = ch as HTMLElement;
+            elChild.style.setProperty('flex', '0 0 220px', 'important');
+            elChild.style.setProperty('min-width', '151px', 'important');
+            elChild.style.setProperty('width', 'auto', 'important');
+            elChild.style.setProperty('box-sizing', 'border-box', 'important');
           });
-          setCategories(sortedCategories);
+
+          const totalWidth = (children.reduce((sum, c) => sum + (c as HTMLElement).offsetWidth, 0) + Math.max(0, (children.length - 1) * 20));
+          list.style.setProperty('min-width', `${totalWidth}px`, 'important');
+          list.style.setProperty('width', `${totalWidth}px`, 'important');
+        } catch (err) {
+          console.error('[Category] failed to enforce inline layout styles', err);
         }
-      } catch (error) {
-        console.error('Error fetching categories:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchCategories();
-  }, []);
-
-  useEffect(() => {
-    // diagnostic log after categories load to show whether the container actually overflows
-    if (categories.length) {
-      const el = scrollRef.current || document.querySelector('.category-scroll-container') as HTMLElement | null;
-      if (el) {
-        console.log('[Category] categories loaded:', categories.length, 'container clientWidth:', el.clientWidth, 'scrollWidth:', el.scrollWidth);
-
-        // ENFORCE: apply inline styles to prevent global CSS from forcing wrap/width
-        const list = el.querySelector('.category-list') as HTMLElement | null;
-        if (list) {
-          try {
-            list.style.flexWrap = 'nowrap';
-            list.style.whiteSpace = 'nowrap';
-            const children = Array.from(list.children) as HTMLElement[];
-            children.forEach((ch, idx) => {
-              const elChild = ch as HTMLElement;
-              elChild.style.setProperty('flex', '0 0 220px', 'important');
-              elChild.style.setProperty('min-width', '151px', 'important');
-              elChild.style.setProperty('width', 'auto', 'important');
-              elChild.style.setProperty('box-sizing', 'border-box', 'important');
-              const computed = window.getComputedStyle(elChild);
-              console.log('[Category] child enforced', idx, 'offsetWidth:', elChild.offsetWidth, 'computedWidth:', computed.width, 'flex-basis:', computed.flexBasis, 'priority-flex:', elChild.style.getPropertyPriority('flex'));
-            });
-
-            // compute total width of children (include gaps) and expand the inner list so native scrolling works
-            const totalWidth = (children.reduce((sum, c) => sum + (c as HTMLElement).offsetWidth, 0) + Math.max(0, (children.length - 1) * 20));
-            try {
-              list.style.setProperty('min-width', `${totalWidth}px`, 'important');
-              list.style.setProperty('width', `${totalWidth}px`, 'important');
-              console.log('[Category] set .category-list width ->', totalWidth);
-            } catch (err) {
-              console.error('[Category] failed to set .category-list width', err);
-            }
-
-            const firstChild = children[0];
-            const cs = firstChild ? window.getComputedStyle(firstChild) : null;
-            console.log('[Category] inline style enforced on list and children — firstChild offsetWidth:', firstChild?.offsetWidth, 'computed flex-basis:', cs?.flexBasis, 'firstChild style priority (flex):', firstChild?.style.getPropertyPriority('flex'));
-          } catch (err) {
-            console.error('[Category] failed to enforce inline layout styles', err);
-          }
-
-          // re-log container sizes after enforcement
-          console.log('[Category] after enforcement clientWidth:', el.clientWidth, 'scrollWidth:', el.scrollWidth);
-        } else {
-          console.warn('[Category] category-list element not found inside container');
-        }
-      } else {
-        console.warn('[Category] categories loaded but container not found');
       }
     }
   }, [categories]);
@@ -212,10 +108,16 @@ const Category = () => {
   const getCategoryImages = (slug: string, name: string) => {
     const s = slug?.toLowerCase() || name?.toLowerCase() || "";
     if (s.includes("hair-oil") || s.includes("hair oil")) {
-      return { main: "/assets/images/cat/oil.jpg", hover: "/home-hair-oil.jpg" };
+      return { main: "/category-images/Hair Oil.png", hover: "/home-hair-oil.jpg" };
     }
     if (s.includes("shampoo")) {
-      return { main: "/assets/images/cat/shampoo.jpg", hover: "/home-shampoo.jpg" };
+      return { main: "/category-images/Shampo.jpeg", hover: "/home-shampoo.jpg" };
+    }
+    if (s.includes("mask") || s.includes("powder")) {
+      return { main: "/category-images/Hair Mask.jpeg", hover: "/assets/images/cat/oil.jpg" };
+    }
+    if (s.includes("rosemary")) {
+      return { main: "/category-images/Rosemary Leaves.jpeg", hover: "/assets/images/cat/oil.jpg" };
     }
     if (s.includes("comb") || s.includes("neem")) {
       return { main: "/assets/images/cat/coomb.jpg", hover: "/home-neem-comb.jpg" };
@@ -261,8 +163,8 @@ const Category = () => {
                     >
                       <Link href={`/category/${cat.slug || cat.handle || ""}`}>
                         <div className="category-media">
-                          <img src={cat.image_url || imgs.main} alt={cat.name} />
-                          <img src={cat.image_url || imgs.hover} alt={cat.name} />
+                          <img src={cat.image_url} alt={cat.name} />
+                          <img src={cat.hover_url} alt={cat.name} />
                         </div>
                         <div className="category-meta">
                           <h4>
