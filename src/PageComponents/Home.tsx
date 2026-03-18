@@ -68,13 +68,17 @@ const Home = () => {
         <ErrorBoundary>
           <Category />
         </ErrorBoundary>
-        <ErrorBoundary>
-          <OurProducts />
-        </ErrorBoundary>
+        
 
+        
         
         <ErrorBoundary>
           <HairConcernBar />
+        </ErrorBoundary>
+
+
+        <ErrorBoundary>
+          <OurProducts />
         </ErrorBoundary>
 
 

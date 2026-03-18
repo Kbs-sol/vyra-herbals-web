@@ -95,7 +95,7 @@ const DialogContent = styled.div`
   background: #fdf8f1; /* Cream background from screenshot */
   border-radius: 24px;
   width: 100%;
-  max-width: 650px;
+  max-width: 750px;
   position: relative;
   overflow: hidden;
   box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
@@ -116,7 +116,7 @@ const DialogContent = styled.div`
 `;
 
 const ContentInner = styled.div`
-  padding: 40px;
+  padding: 30px 40px;
   
   @media (max-width: 600px) {
     padding: 24px;
@@ -151,7 +151,7 @@ const HeaderSection = styled.div`
   display: flex;
   align-items: center;
   gap: 20px;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 `;
 
 const IconBox = styled.div`
@@ -173,7 +173,7 @@ const TitleGroup = styled.div`
 
 const MainTitle = styled.h3`
   margin: 0;
-  font-size: 2rem;
+  font-size: 1.75rem;
   color: #3f2a1d;
   font-weight: 500;
   font-family: 'Playfair Display', serif; /* Or similar serif font */
@@ -189,9 +189,9 @@ const SubTitle = styled.span`
 
 const DescriptionText = styled.p`
   color: #6b5142;
-  font-size: 1.1rem;
-  line-height: 1.6;
-  margin-bottom: 32px;
+  font-size: 1rem;
+  line-height: 1.5;
+  margin-bottom: 20px;
   font-weight: 400;
 `;
 
@@ -200,7 +200,7 @@ const SectionTitle = styled.h4`
   font-size: 0.85rem;
   font-weight: 700;
   letter-spacing: 1px;
-  margin: 24px 0 16px;
+  margin: 16px 0 12px;
   text-transform: uppercase;
 `;
 
@@ -223,7 +223,7 @@ const CauseTag = styled.span`
 const TipsList = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
 `;
 
 const TipItem = styled.div`
@@ -257,7 +257,7 @@ const TipText = styled.p`
 const ProductCard = styled.div`
   background: #3f2a1d; /* Dark brown background */
   border-radius: 20px;
-  padding: 24px;
+  padding: 16px 24px;
   display: flex;
   align-items: center;
   gap: 20px;
@@ -300,7 +300,7 @@ const ProductTag = styled.span`
 
 const ProductName = styled.h5`
   margin: 0;
-  font-size: 1.3rem;
+  font-size: 1.15rem;
   font-weight: 500;
   color: #fdf8f1;
 `;
