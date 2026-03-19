@@ -6165,9 +6165,7 @@ p.text-center.quri_out {
 
 @media (max-width: 575px) {
 
-  .header-wishlist {
-    display: none !important;
-  }
+
 
   .header-top-welcome p {
     font-size: 13px;

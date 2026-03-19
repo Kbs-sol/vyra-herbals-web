@@ -832,6 +832,12 @@ const StyledHeader = styled.section`
             margin-left: 8px;
           }
 
+          .header-wishlist {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+
           .login-btn {
             padding: 4px 8px;
             font-size: 0.85rem;
