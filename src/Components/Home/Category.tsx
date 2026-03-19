@@ -224,6 +224,19 @@ const StyledCategories = styled.section`
     padding: 0 45px;
   }
 
+  /* Reduce side padding on smaller screens so the carousel can use more of the viewport */
+  @media (max-width: 991px) {
+    .pos-relative {
+      padding: 0 14px;
+    }
+  }
+
+  @media (max-width: 576px) {
+    .pos-relative {
+      padding: 0 10px;
+    }
+  }
+
   .nav-btn {
     position: absolute;
     top: 50%; /* Center vertically on the cards */
@@ -324,6 +337,7 @@ const StyledCategories = styled.section`
     min-width: 151px !important; /* Ensure they don't get too small on mobile */
     height: fit-content; /* Only take the height needed */
     box-sizing: border-box;
+    padding: 0 !important; /* remove extra padding from global styles to avoid overflow on narrow screens */
 
     @media (max-width: 991px) {
        flex: 0 0 160px !important; /* Smaller mobile width for better fit */
@@ -378,8 +392,15 @@ const StyledCategories = styled.section`
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
+      gap: 6px;
       color: #333;
+      white-space: normal; /* Allow wrapping if needed, though unlikely for single words */
+      text-align: center;
+      
+      @media (max-width: 576px) {
+        font-size: 0.9rem;
+        flex-wrap: wrap; /* Allow icon to wrap if absolutely necessary */
+      }
       
       svg {
         font-size: 0.9rem;

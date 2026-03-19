@@ -183,9 +183,13 @@ export const StyledProduct = styled.section`
       min-height: 3.8rem;
       a {
         font-size: 15px !important;
+        word-break: break-word;
+        white-space: normal;
+        overflow-wrap: break-word;
       }
     }
     .product-price {
+      white-space: normal;
       .price {
         font-size: 1.15rem !important;
       }
@@ -194,6 +198,24 @@ export const StyledProduct = styled.section`
       }
       .discount {
         font-size: 0.8rem !important;
+      }
+    }
+    .details-rating {
+      white-space: normal;
+      word-break: break-word;
+      overflow-wrap: break-word;
+    }
+  }
+
+  @media (max-width: 420px) {
+    .product-name a {
+      font-size: 14px !important;
+      word-break: break-word;
+      overflow-wrap: break-word;
+    }
+    .product-price {
+      .price {
+        font-size: 1.05rem !important;
       }
     }
   }
