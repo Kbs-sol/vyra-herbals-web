@@ -34,7 +34,7 @@ const HARDCODED_CATEGORIES = [
   { 
     id: 4, 
     name: "Herbal Hair Mask Powder", 
-    slug: "hair-mask-powder", 
+    slug: "herbal-hair-mask-powder", 
     image_url: "/category-images/Hair Mask.jpeg",
     hover_url: "https://obbohecegyagnqufelpx.supabase.co/storage/v1/object/public/images/herbal-hair-mask-powder/1771663039180-wsclkdq.jpeg"
   },
