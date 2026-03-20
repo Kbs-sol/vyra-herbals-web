@@ -82,6 +82,15 @@ const menuItems = [
     ),
   },
   {
+    name: 'Ingredients',
+    href: '/admin/ingredients',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
+        <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM9.5 8.5C9.5 7.12 10.62 6 12 6C13.38 6 14.5 7.12 14.5 8.5C14.5 9.88 13.38 11 12 11C10.62 11 9.5 9.88 9.5 8.5ZM12 14C9.5 14 7.23 15.35 6 17.43C7.5 19.05 9.63 20 12 20C14.37 20 16.5 19.05 18 17.43C16.77 15.35 14.5 14 12 14Z" fill="currentColor"/>
+      </svg>
+    ),
+  },
+  {
     name: 'Testimonials',
     href: '/admin/testimonials',
     icon: (

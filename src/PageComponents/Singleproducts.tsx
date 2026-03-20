@@ -33,6 +33,7 @@ import Utility from "../utils/UtilityFunctions";
 import StarRatings from "../Components/Common/StarRatings";
 import Pagination from "../Components/Common/Pagination";
 import QuantitySelector from "../Components/Common/QuantitySelector";
+import IngredientsSection from "../Components/Product/IngredientsSection";
 
 const Singleproducts = () => {
   const params = useParams();
@@ -758,6 +759,9 @@ const Singleproducts = () => {
               )}
             </div>
           </section>
+
+          {/* Render Ingredients Section */}
+          <IngredientsSection productId={product.id} />
 
           {handpickedProducts.length > 0 && (
             <section className="related-products">
