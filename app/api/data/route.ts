@@ -10,7 +10,8 @@ const DEFAULT_FIELDS: Record<string, string> = {
   testimonials: '*',
   cart: '*',
   orders: '*',
-  users: '*'
+  users: '*',
+  before_after_images: '*'
 };
 
 export async function POST(req: Request) {
@@ -29,7 +30,7 @@ export async function POST(req: Request) {
     }
 
     // Basic, guarded table access
-    const allowed = ['products', 'categories', 'reviews', 'testimonials', 'cart', 'orders', 'users'];
+    const allowed = ['products', 'categories', 'reviews', 'testimonials', 'cart', 'orders', 'users', 'before_after_images'];
     if (!allowed.includes(tbl_name)) {
       return NextResponse.json({ error: 'table not allowed' }, { status: 400 });
     }

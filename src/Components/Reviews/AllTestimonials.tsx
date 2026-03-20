@@ -11,21 +11,10 @@ import LazyImage from "../Common/LazyImage";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 
-const beforeAfterImages = [
-  "/assets/images/testimonials/test_01.webp",
-  "/assets/images/testimonials/test_02.webp",
-  "/assets/images/testimonials/test_03.webp",
-  "/assets/images/testimonials/test_04.webp",
-  "/assets/images/testimonials/test_05.webp",
-  "/assets/images/testimonials/test_06.webp",
-  "/assets/images/testimonials/test_07.webp",
-  "/assets/images/testimonials/test_08.webp",
-  "/assets/images/testimonials/test_09.webp",
-  "/assets/images/testimonials/test_10.webp",
-];
 
 const AllTestimonials = ({ isHomePage = false }: { isHomePage?: boolean }) => {
   const [testimonials, setTestimonials] = useState([]);
+  const [beforeAfterImages, setBeforeAfterImages] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -56,6 +45,21 @@ const AllTestimonials = ({ isHomePage = false }: { isHomePage?: boolean }) => {
         console.error("Error while fetching testimonials:", error);
       })
       .finally(() => setIsLoading(false));
+
+    // Fetch dynamic before/after images
+    const baData = { tbl_name: "before_after_images", status: 1 };
+    fetch(`${API_PATH}/data`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(baData),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setBeforeAfterImages(data.map((item: any) => item.image_url));
+        }
+      })
+      .catch((err) => console.error("Error fetching before/after images:", err));
   }, []);
 
   const beforeAfterSliderSettings = {
@@ -110,15 +114,17 @@ const AllTestimonials = ({ isHomePage = false }: { isHomePage?: boolean }) => {
       </section>
 
       <section className="image-reviews-slider">
-        <Slider {...beforeAfterSliderSettings}>
-          {beforeAfterImages.map((src, index) => (
-            <div className="image-slide-wrapper" key={index}>
-              <div className="image-wrapper">
-                <LazyImage src={src} alt={`Before & After ${index + 1}`} />
+        {beforeAfterImages.length > 0 && (
+          <Slider {...beforeAfterSliderSettings}>
+            {beforeAfterImages.map((src, index) => (
+              <div className="image-slide-wrapper" key={index}>
+                <div className="image-wrapper">
+                  <LazyImage src={src} alt={`Before & After ${index + 1}`} />
+                </div>
               </div>
-            </div>
-          ))}
-        </Slider>
+            ))}
+          </Slider>
+        )}
       </section>
     </StyledReviews>
   );

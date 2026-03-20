@@ -10,24 +10,13 @@ import ReviewCard from "./ReviewCard";
 import Pagination from "../Common/Pagination";
 import Utility from "../../utils/UtilityFunctions";
 
-const beforeAfterImages = [
-  "/assets/images/testimonials/test_01.webp",
-  "/assets/images/testimonials/test_02.webp",
-  "/assets/images/testimonials/test_03.webp",
-  "/assets/images/testimonials/test_04.webp",
-  "/assets/images/testimonials/test_05.webp",
-  "/assets/images/testimonials/test_06.webp",
-  "/assets/images/testimonials/test_07.webp",
-  "/assets/images/testimonials/test_08.webp",
-  "/assets/images/testimonials/test_09.webp",
-  "/assets/images/testimonials/test_10.webp",
-];
 
 const TestimonialPage = () => {
   const Tabs = { TextReviews: 1, ImageReviews: 2 };
   const [activeTab, setActiveTab] = useState(Tabs.TextReviews); // Active tab state
   const [currentPage, setCurrentPage] = useState(1); // Pagination state
   const [testimonials, setTestimonials] = useState([]);
+  const [beforeAfterImages, setBeforeAfterImages] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const reviewsPerPage = 8;
 
@@ -96,6 +85,21 @@ const TestimonialPage = () => {
         console.error("Error while fetching testimonials:", error);
       })
       .finally(() => setIsLoading(false));
+
+    // Fetch dynamic before/after images
+    const baData = { tbl_name: "before_after_images", status: 1 };
+    fetch(`${API_PATH}/data`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(baData),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setBeforeAfterImages(data.map((item: any) => item.image_url));
+        }
+      })
+      .catch((err) => console.error("Error fetching before/after images:", err));
   }, []);
 
   return (
@@ -128,7 +132,7 @@ const TestimonialPage = () => {
 
       <section className="tab-content d-grid">
         {isLoading ? (
-          <LoadingIndicator />
+          <LoadingIndicator variant="circular" />
         ) : (
           <>
             {activeTab === Tabs.TextReviews ? (
@@ -169,7 +173,7 @@ const TestimonialPage = () => {
 
 export default TestimonialPage;
 
-const TabButton = styled.button`
+const TabButton = styled.button<{ $active?: boolean }>`
   padding: 0.5rem 1rem;
   background-color: ${(props) =>
     props.$active ? "var(--btn-green)" : "var(--primary)"};
