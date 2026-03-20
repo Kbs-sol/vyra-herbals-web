@@ -33,25 +33,52 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { product_id, name, description, image_url, status } = body;
+    const { product_id, productIds, name, description, image_url, status } = body;
 
-    if (!product_id || !name || !description || !image_url) {
+    if ((!product_id && !productIds) || !name || !description || !image_url) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
     }
 
-    const { data, error } = await supabase
-      .from('product_ingredients')
-      .insert([
-        { 
-          product_id, 
-          name, 
-          description, 
-          image_url, 
-          status: status !== undefined ? status : 1 
-        }
-      ])
-      .select()
-      .single();
+    const ingredientStatus = status !== undefined ? status : 1;
+    let data;
+    let error;
+
+    if (productIds && Array.isArray(productIds) && productIds.length > 0) {
+      // Bulk insert
+      const bulkData = productIds.map(pid => ({
+        product_id: pid,
+        name,
+        description,
+        image_url,
+        status: ingredientStatus
+      }));
+
+      const { data: insertedData, error: bulkError } = await supabase
+        .from('product_ingredients')
+        .insert(bulkData)
+        .select();
+      
+      data = insertedData;
+      error = bulkError;
+    } else {
+      // Single insert
+      const { data: singleData, error: singleError } = await supabase
+        .from('product_ingredients')
+        .insert([
+          { 
+            product_id, 
+            name, 
+            description, 
+            image_url, 
+            status: ingredientStatus 
+          }
+        ])
+        .select()
+        .single();
+      
+      data = singleData;
+      error = singleError;
+    }
 
     if (error) throw error;
 

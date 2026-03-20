@@ -15,7 +15,7 @@ interface Ingredient {
 
 export default function IngredientsPage() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
+  const [selectedProductIds, setSelectedProductIds] = useState<number[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -46,13 +46,16 @@ export default function IngredientsPage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const selectAllProducts = () => setSelectedProductIds(products.map(p => p.id as number));
+  const clearProductSelection = () => setSelectedProductIds([]);
+
   useEffect(() => {
-    if (selectedProductId) {
+    if (selectedProductIds.length === 1) {
       fetchIngredients();
     } else {
       setIngredients([]);
     }
-  }, [selectedProductId]);
+  }, [selectedProductIds]);
 
   const fetchProducts = async () => {
     try {
@@ -67,7 +70,8 @@ export default function IngredientsPage() {
   };
 
   const fetchIngredients = async () => {
-    if (!selectedProductId) return;
+    if (selectedProductIds.length !== 1) return;
+    const selectedProductId = selectedProductIds[0];
     setLoading(true);
     try {
       const res = await fetch(`/api/admin/product-ingredients?productId=${selectedProductId}`);
@@ -122,8 +126,8 @@ export default function IngredientsPage() {
   };
 
   const openAddModal = () => {
-    if (!selectedProductId) {
-      alert('Please select a product first');
+    if (selectedProductIds.length === 0) {
+      alert('Please select at least one product first');
       return;
     }
     setEditingIngredient(null);
@@ -156,10 +160,9 @@ export default function IngredientsPage() {
 
     setSaving(true);
     try {
-      const payload = {
+      const payload: any = {
         ...formData,
-        product_id: selectedProductId,
-        ...(editingIngredient ? { id: editingIngredient.id } : {}),
+        ...(editingIngredient ? { id: editingIngredient.id, product_id: selectedProductIds[0] } : { productIds: selectedProductIds }),
       };
 
       const res = await fetch('/api/admin/product-ingredients', {
@@ -200,7 +203,8 @@ export default function IngredientsPage() {
     }
   };
 
-  const selectedProduct = products.find(p => p.id === selectedProductId);
+  const selectedProducts = products.filter(p => selectedProductIds.includes(p.id as number));
+  const isBulkMode = selectedProductIds.length > 1;
 
   const getProductImage = (p: Product | null | undefined) => {
     if (!p) return 'https://via.placeholder.com/40';
@@ -236,9 +240,9 @@ export default function IngredientsPage() {
           <button 
             className="add-btn" 
             onClick={openAddModal}
-            disabled={!selectedProductId}
+            disabled={selectedProductIds.length === 0}
           >
-            + Add Ingredient
+            {isBulkMode ? 'Bulk Add Ingredient' : '+ Add Ingredient'}
           </button>
         </div>
 
@@ -250,17 +254,23 @@ export default function IngredientsPage() {
                 className={`custom-dropdown-selected ${isDropdownOpen ? 'active' : ''}`} 
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               >
-                {selectedProduct ? (
+                {selectedProductIds.length > 0 ? (
                   <div className="selected-product-info">
-                    <img 
-                      src={getProductImage(selectedProduct)} 
-                      alt={selectedProduct.title} 
-                      className="dropdown-product-img"
-                    />
-                    <span className="dropdown-product-title">{selectedProduct.title}</span>
+                    {selectedProductIds.length === 1 ? (
+                      <>
+                        <img 
+                          src={getProductImage(selectedProducts[0])} 
+                          alt={selectedProducts[0].title} 
+                          className="dropdown-product-img"
+                        />
+                        <span className="dropdown-product-title">{selectedProducts[0].title}</span>
+                      </>
+                    ) : (
+                      <span className="dropdown-product-title">{selectedProductIds.length} Products Selected</span>
+                    )}
                   </div>
                 ) : (
-                  <span className="dropdown-placeholder">-- Select a Product --</span>
+                  <span className="dropdown-placeholder">-- Select Product(s) --</span>
                 )}
                 <svg className="dropdown-arrow" viewBox="0 0 24 24" fill="none" width="20" height="20">
                   <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -268,39 +278,68 @@ export default function IngredientsPage() {
               </div>
               
               {isDropdownOpen && (
-                <ul className="custom-dropdown-list">
-                  {products.map(p => (
-                    <li 
-                      key={p.id} 
-                      className={`custom-dropdown-item ${selectedProductId === p.id ? 'selected' : ''}`}
-                      onClick={() => { 
-                        setSelectedProductId(p.id as number); 
-                        setIsDropdownOpen(false); 
-                      }}
-                    >
-                      <img 
-                        src={getProductImage(p)} 
-                        alt={p.title} 
-                        className="dropdown-product-img"
-                      />
-                      <span className="dropdown-product-title">{p.title}</span>
-                    </li>
-                  ))}
-                </ul>
+                <div className="custom-dropdown-list">
+                  <div className="dropdown-actions">
+                    <button type="button" onClick={selectAllProducts}>Select All</button>
+                    <button type="button" onClick={clearProductSelection}>Clear</button>
+                  </div>
+                  <ul className="dropdown-items-list">
+                    {products.map(p => (
+                      <li 
+                        key={p.id} 
+                        className={`custom-dropdown-item ${selectedProductIds.includes(p.id as number) ? 'selected' : ''}`}
+                        onClick={(e) => { 
+                          e.stopPropagation();
+                          const id = p.id as number;
+                          setSelectedProductIds(prev => 
+                            prev.includes(id) ? prev.filter(pid => pid !== id) : [...prev, id]
+                          );
+                        }}
+                      >
+                        <input 
+                          type="checkbox" 
+                          checked={selectedProductIds.includes(p.id as number)}
+                          readOnly
+                          className="product-checkbox"
+                        />
+                        <img 
+                          src={getProductImage(p)} 
+                          alt={p.title} 
+                          className="dropdown-product-img"
+                        />
+                        <span className="dropdown-product-title">{p.title}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
             </div>
           </div>
         </div>
 
         <div className="table-container mt-4">
-          {!selectedProductId ? (
+          {selectedProductIds.length === 0 ? (
             <div className="empty-state">
               <div className="empty-icon">
                 <svg viewBox="0 0 24 24" fill="none" width="48" height="48">
                   <path d="M4 6h16M4 12h16m-7 6h7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
-              <p>Please select a product above to view or add its ingredients.</p>
+              <p>Please select at least one product above to view or add ingredients.</p>
+            </div>
+          ) : isBulkMode ? (
+            <div className="empty-state bulk-state">
+              <div className="empty-icon">
+                <svg viewBox="0 0 24 24" fill="none" width="48" height="48">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <h3>Bulk Management Mode</h3>
+              <p>You have selected <strong>{selectedProductIds.length}</strong> products.</p>
+              <p className="subtitle">Any ingredient you add now will be applied to all selected products.</p>
+              <button onClick={openAddModal} className="add-btn-small">Bulk Add Ingredient</button>
             </div>
           ) : loading ? (
             <div className="loading">
@@ -671,11 +710,40 @@ export default function IngredientsPage() {
             border-radius: 12px;
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
             z-index: 50;
-            max-height: 300px;
-            overflow-y: auto;
+            max-height: 400px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+          }
+
+          .dropdown-actions {
+            display: flex;
+            gap: 12px;
+            padding: 12px 16px;
+            border-bottom: 1px solid #f3f4f6;
+            background: #f9fafb;
+          }
+
+          .dropdown-actions button {
+            background: none;
+            border: none;
+            color: #10b981;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 0;
+          }
+
+          .dropdown-actions button:hover {
+            text-decoration: underline;
+          }
+
+          .dropdown-items-list {
             margin: 0;
             padding: 8px 0;
             list-style: none;
+            overflow-y: auto;
+            flex: 1;
           }
 
           .custom-dropdown-item {
@@ -685,6 +753,13 @@ export default function IngredientsPage() {
             padding: 10px 16px;
             cursor: pointer;
             transition: background 0.2s;
+          }
+
+          .product-checkbox {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #10b981;
           }
 
           .custom-dropdown-item:hover {
