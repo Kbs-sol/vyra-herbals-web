@@ -9,6 +9,8 @@ import { useAuth } from "../Contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 
+import { trackEvent } from "@/utils/analytics";
+
 const AddToCartButton = (props) => {
   const { productId, quantity = 1, className, product } = props;
   const { cartItems, addItemToCart } = useCart();
@@ -32,6 +34,17 @@ const AddToCartButton = (props) => {
     }
     setLoading(true);
     await addItemToCart(productId, quantity, product);
+    
+    // Track AddToCart event
+    trackEvent('AddToCart', {
+      content_name: product?.title,
+      content_ids: [productId],
+      content_type: 'product',
+      value: product?.price || 0,
+      currency: 'INR',
+      quantity: quantity
+    });
+
     setLoading(false);
   };
 

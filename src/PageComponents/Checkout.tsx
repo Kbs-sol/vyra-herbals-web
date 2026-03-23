@@ -14,6 +14,7 @@ import CartItem from "../Components/Shared/CartItem";
 import BillSummary from "../Components/Shared/BillSummary";
 import { useAuth } from "../Components/Contexts/AuthContext";
 import { supabase } from "@/utils/supabaseClient";
+import { trackEvent } from "@/utils/analytics";
 
 interface CheckoutFormData {
   fullName: string;
@@ -394,10 +395,11 @@ const Checkout = ({ show, onHide, cartItems, product, quantity = 1 }) => {
     }
 
     setFormErrors(errors);
-    // if (hasValidation) {
-    const err = Object.entries(errors).find((err) => err[1]?.length > 0);
-    if (Array.isArray(err)) inputRefs.current[err[0]]?.focus();
-    // }
+    const err = Object.entries(errors).find((entry) => {
+      const value = entry[1];
+      return typeof value === 'string' && value.length > 0;
+    });
+    if (Array.isArray(err)) (inputRefs.current as any)[err[0]]?.focus();
     return isValid;
   };
 
@@ -414,6 +416,19 @@ const Checkout = ({ show, onHide, cartItems, product, quantity = 1 }) => {
     sessionStorage.setItem("checkout_prev_path", currentPath);
     if (!isModalOpenedPreviously && window.location.pathname !== '/checkout') window.history.pushState({}, "", "/checkout");
     else if (window.location.pathname !== '/checkout') window.history.replaceState({}, "", "/checkout");
+    
+    // Track InitiateCheckout event
+    const items = cartItems || (product ? [{ ...product, quantity }] : []);
+    const totalPrice = items.reduce((total, item) => total + (item.quantity * item.price), 0);
+    
+    trackEvent('InitiateCheckout', {
+      content_ids: items.map(item => item.id),
+      content_type: 'product',
+      value: totalPrice,
+      currency: 'INR',
+      num_items: items.length
+    });
+
     setDisableBtn(true);
     setTimeout(() => {
       setShowModal(true);

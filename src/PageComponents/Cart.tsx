@@ -69,7 +69,7 @@ const Cart = () => {
     updateItemInCart(type, productId);
     if (
       type === "increment" &&
-      cartItems.find((item) => item.id === productId)?.quantity >= maxQty
+      (cartItems.find((item) => item.id === productId)?.quantity || 0) >= maxQty
     ) {
       notifyWarning("Maximum quantity reached for this product");
       // notify('Quantity cannot be more than 10');
@@ -95,7 +95,7 @@ const Cart = () => {
         <div className="my-5">
           <center>
             <b>Loading...</b>
-            <LoadingIndicator />
+            <LoadingIndicator variant="dark" />
           </center>
         </div>
       ) : !cartItems.some((i) => i.price) ? (
@@ -115,10 +115,12 @@ const Cart = () => {
             <div className="col-md-4 my-2 bill-summary">
               <div className="p-4 border rounded-1">
                 <BillSummary items={cartItems} />
+                <button className="btn btn-primary w-100 mt-3" onClick={handleShowCheckout}>Proceed to Checkout</button>
                 <Checkout
                   show={showCheckout}
                   onHide={handleCloseCheckout}
                   cartItems={cartItems}
+                  product={null}
                 />
               </div>
             </div>

@@ -35,6 +35,8 @@ import Pagination from "../Components/Common/Pagination";
 import QuantitySelector from "../Components/Common/QuantitySelector";
 import IngredientsSection from "../Components/Product/IngredientsSection";
 
+import { trackEvent } from "@/utils/analytics";
+
 const Singleproducts = () => {
   const params = useParams();
   const productHandle = params?.productHandle || '';
@@ -74,18 +76,18 @@ const Singleproducts = () => {
 
   useEffect(() => {
     let sortedArray = [...(filteredReviews || [])];
-    switch (reviewSortBy.value) {
+    switch (reviewSortBy?.value) {
       case "mostRecent":
         // Sort by most recent (descending by date)
-        sortedArray.sort((a, b) => new Date(b.date) - new Date(a.date));
+        sortedArray.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
         break;
       case "highestRating":
         // Sort by highest rating (descending by rating)
-        sortedArray.sort((a, b) => b.rating - a.rating);
+        sortedArray.sort((a, b) => (b.rating || 0) - (a.rating || 0));
         break;
       case "lowestRating":
         // Sort by lowest rating (ascending by rating)
-        sortedArray.sort((a, b) => a.rating - b.rating);
+        sortedArray.sort((a, b) => (a.rating || 0) - (b.rating || 0));
         break;
       default:
         break;
@@ -93,14 +95,12 @@ const Singleproducts = () => {
     setSortedReviews(sortedArray);
   }, [reviewSortBy, filteredReviews]);
 
-  const ratingDetails = useMemo(() => {
+  const ratingDetails: any = useMemo(() => {
     if (product && filteredReviews?.length) {
       return Utility.calculateRating(filteredReviews);
     }
-    return {};
-  }, [filteredReviews]);
-
-
+    return { average: 0, count: 0, stats: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 } };
+  }, [product, filteredReviews]);
 
   const buildGallery = useCallback((prod: any) => {
     const gallery = Array.isArray(prod?.images)
@@ -118,51 +118,7 @@ const Singleproducts = () => {
     toast.success("Added to cart !", {
       position: "bottom-center",
       autoClose: 500,
-      // hideProgressBar: false,
-      // closeOnClick: true,
-      // pauseOnHover: true,
-      // draggable: true,
-      // progress: undefined,
-      // theme: "light",
-      // transition: Bounce,
     });
-
-  // useEffect(() => {
-  //     if (!productHandle) return;
-
-  //     const fetchData = async () => {
-  //       try {
-  //         let requestData = { product_handle: productHandle };
-
-  //         const response = await fetch(`${API_PATH}/product_detail.php`, {
-  //           method: 'POST',
-  //           headers: {
-  //             'Content-Type': 'application/json'
-  //           },
-  //           body: JSON.stringify(requestData)
-  //         });
-
-  //         if (!response.ok) {
-  //           throw new Error('Failed to fetch product details');
-  //         }
-
-  //         const data = await response.json();
-  //         console.log(data);
-  //         setProduct(data);
-  //         setMainImage(data.image_url);
-
-  //         // Check product-added-to-cart status
-  //         // Check from localStorage if user is not logged in
-  //         const cartItems = JSON.parse(localStorage.getItem(`${APP_NAME}_cart`)) || [];
-  //         // console.log(cartItems, data.id, cartItems.some(item => item === data.id));
-  //         setIsInCart(cartItems.some(item => item.id === data.id));
-  //       } catch (error) {
-  //         console.error('Error fetching product details:', error);
-  //       }
-  //     };
-
-  //     fetchData();
-  //   }, [productHandle]);
 
   useEffect(() => {
     if (!productHandle) return;
@@ -171,7 +127,6 @@ const Singleproducts = () => {
       try {
         let requestData = { product_handle: productHandle };
 
-        // Include user ID in request payload if user is logged in
         if (user) {
           (requestData as any).user_id = user.id;
         }
@@ -192,17 +147,21 @@ const Singleproducts = () => {
         setProduct(data);
         setMainImage(data.image_url);
 
-        // Check product-added-to-cart status
+        // Track ViewContent event
+        trackEvent('ViewContent', {
+          content_name: data.title,
+          content_category: data.category_name || 'Herbal',
+          content_ids: [data.id],
+          content_type: 'product',
+          value: data.price,
+          currency: 'INR'
+        });
+
         if (user) {
           setIsInCart(data.is_in_cart === "1");
         } else {
-          // Check from localStorage if user is not logged in
-          const cartItems =
-            JSON.parse(localStorage.getItem(`${APP_NAME}_cart`)) || [];
-          // console.log("cartItems : ", cartItems);
-          // console.log(cartItems, data.id, cartItems.some(item => item === data.id));
+          const cartItems = JSON.parse(localStorage.getItem(`${APP_NAME}_cart`) || "[]");
           setIsInCart(cartItems.some((item) => item.id === data.id));
-          // setIsInCart(cartItems.includes(data.id));
         }
       } catch (error) {
         console.error("Error fetching product details:", error);
@@ -243,7 +202,7 @@ const Singleproducts = () => {
         })
         .then((data) => {
           // Filter out the current product from related products (just in case)
-          const filtered = data.filter((p: any) => p.id !== product.id);
+          const filtered = data.filter((p: any) => p.id !== product?.id);
           setHandpickedProducts(filtered);
           setIsPageLoaded(true);
         })
@@ -456,7 +415,7 @@ const Singleproducts = () => {
                     </div> */}
                     <ul className="details-preview">
                       <li>
-                        <img src={mainImage} alt="product" />
+                        <img src={mainImage || undefined} alt="product" />
                       </li>
                     </ul>
                     {galleryImages.length > 1 && (
@@ -480,7 +439,7 @@ const Singleproducts = () => {
                 <div className="col-lg-6">
                   <div className="details-content">
                     <span className="mb-1 user-stat d-inline-block d-xl-none">
-                      <SVGIcon iconName={"line-graph"} />
+                      <SVGIcon iconName={"line-graph"} className={undefined} />
                       {(product.ordered_count_30_days || 0) +
                         "+" +
                         " People ordered this in last 30 days"}
@@ -515,14 +474,14 @@ const Singleproducts = () => {
                       <span className="discount ms-2 text-success">
                         {Math.floor(
                           Utility.calculateDiscount(
-                            product.price,
-                            product.regular_price
+                            Number(product.price),
+                            Number(product.regular_price)
                           )
                         )}
                         % Off
                       </span>
                       <span className="ms-3 user-stat d-none d-xl-inline-block">
-                        <SVGIcon iconName={"line-graph"} />
+                        <SVGIcon iconName={"line-graph"} className={undefined} />
                         {(product.ordered_count_30_days || 0) +
                           "+" +
                           " People ordered this in last 30 days"}
@@ -572,11 +531,12 @@ const Singleproducts = () => {
                       </div>
 
                       <div className="col-md-12 mt-3 px-0">
-                        {/* <button><span>Buy it Now</span></button> */}
+                        <button className="product-add buy-now" onClick={() => setShowCheckout(true)}><span>Buy it Now</span></button>
                         <Checkout
                           show={showCheckout}
                           onHide={handleCloseCheckout}
                           product={product}
+                          cartItems={[]}
                           quantity={qty}
                         />
                       </div>
@@ -683,19 +643,22 @@ const Singleproducts = () => {
                   reviewProductId={product.id}
                   ratingDetails={ratingDetails}
                   onAddSuccess={(review) =>
-                    setProduct((prev) => ({
-                      ...prev,
-                      reviews: [...(prev?.reviews || []), {
-                        id: review.id ?? null,
-                        product_id: review.product_id ?? product.id,
-                        rating: review.rating,
-                        reviewer_name: review.reviewer_name || review.reviewer || 'Anonymous',
-                        review_text: review.review_text || review.comment || '',
-                        status: typeof review.status === 'string' ? Number(review.status) : review.status ?? 0,
-                        created_at: review.created_at || review.date || new Date().toISOString(),
-                        review_date: review.created_at || review.date || new Date().toISOString(),
-                      }]
-                    }))
+                    setProduct((prev) => {
+                      if (!prev) return prev;
+                      return {
+                        ...prev,
+                        reviews: [...(prev.reviews || []), {
+                          id: review.id ?? null,
+                          product_id: review.product_id ?? prev.id,
+                          rating: review.rating,
+                          reviewer_name: review.reviewer_name || review.reviewer || 'Anonymous',
+                          review_text: review.review_text || review.comment || '',
+                          status: typeof review.status === 'string' ? Number(review.status) : review.status ?? 0,
+                          created_at: review.created_at || review.date || new Date().toISOString(),
+                          review_date: review.created_at || review.date || new Date().toISOString(),
+                        }]
+                      };
+                    })
                   }
                 />
               </section>
