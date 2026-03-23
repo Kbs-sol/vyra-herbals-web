@@ -21,7 +21,8 @@ import Certificate from "../Components/Home/Certificate";
 import BestSeller from "../Components/Home/BestSeller";
 import Video from "../Components/Home/Video";
 import OurJourney from "../Components/Home/OurJourney";
-import HairConcernBar from "../Components/Home/HairConcernBar";
+import StickyHairConcern from "../Components/Home/StickyHairConcern";
+
 import AllTestimonials from "../Components/Reviews/AllTestimonials";
 
 // Smooth fade-out loader
@@ -73,8 +74,9 @@ const Home = () => {
         
         
         <ErrorBoundary>
-          <HairConcernBar />
+          <StickyHairConcern />
         </ErrorBoundary>
+
 
 
         <ErrorBoundary>

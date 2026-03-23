@@ -234,7 +234,8 @@ const StyledFooter = styled.footer`
     position: fixed;
     bottom: 2rem;
     width: 3rem;
-    right: 3rem;
+    right: auto;
+    left: 2rem;
     z-index: 10;
     height: 3rem;
   }
@@ -304,7 +305,8 @@ const StyledFooter = styled.footer`
   @media (max-width: 575px) {
     .footer_wts {
       bottom: 2.6rem;
-      right: 1rem;
+      right: auto;
+      left: 1rem;
     }
 
     .marketplace-available {
