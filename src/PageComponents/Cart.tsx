@@ -24,8 +24,8 @@ const Cart = () => {
     fetchCartProductsFromAPI,
   } = useCart();
 
-  const [showCheckout, setShowCheckout] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
   const [isFirstRender, setIsFirstRender] = useState(true);
 
   const notify = (msg) =>
@@ -40,13 +40,6 @@ const Cart = () => {
       autoClose: 500,
     });
 
-  const handleShowCheckout = () => {
-    setShowCheckout(true);
-  };
-
-  const handleCloseCheckout = () => {
-    setShowCheckout(false);
-  };
 
   const fetchProducts = () => {
     setIsLoading(true);
@@ -115,14 +108,12 @@ const Cart = () => {
             <div className="col-md-4 my-2 bill-summary">
               <div className="p-4 border rounded-1">
                 <BillSummary items={cartItems} />
-                <button className="btn btn-primary w-100 mt-3" onClick={handleShowCheckout}>Proceed to Checkout</button>
                 <Checkout
-                  show={showCheckout}
-                  onHide={handleCloseCheckout}
                   cartItems={cartItems}
                   product={null}
                 />
               </div>
+
             </div>
           </div>
         </div>

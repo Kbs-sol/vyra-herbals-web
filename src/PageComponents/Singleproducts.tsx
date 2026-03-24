@@ -43,8 +43,8 @@ const Singleproducts = () => {
   const [product, setProduct] = useState<Product | null>(null);
   const [mainImage, setMainImage] = useState<string | null>(null);
   const [isInCart, setIsInCart] = useState(false);
-  const [showCheckout, setShowCheckout] = useState(false);
   const [isPageLoaded, setIsPageLoaded] = useState(false); //product page
+
   const [currentPage, setCurrentPage] = useState(1); // Pagination state
   const reviewsPerPage = 8; //pagination
   const sortOptions = [
@@ -62,9 +62,6 @@ const Singleproducts = () => {
 
   const [qty, setQty] = useState(1);
 
-  const handleCloseCheckout = () => {
-    setShowCheckout(false);
-  };
 
   const handleSortChange = (option) => {
     setReviewSortBy(option);
@@ -531,15 +528,13 @@ const Singleproducts = () => {
                       </div>
 
                       <div className="col-md-12 mt-3 px-0">
-                        <button className="product-add buy-now" onClick={() => setShowCheckout(true)}><span>Buy it Now</span></button>
                         <Checkout
-                          show={showCheckout}
-                          onHide={handleCloseCheckout}
                           product={product}
                           cartItems={[]}
                           quantity={qty}
                         />
                       </div>
+
                     </div>
 
                     <div className="speci_out">

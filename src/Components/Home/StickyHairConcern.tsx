@@ -7,6 +7,11 @@ import { API_PATH } from '../../constants';
 import { Product } from '@/types';
 import { FaShoppingCart, FaWhatsapp } from 'react-icons/fa';
 import Link from 'next/link';
+import { useAuth } from '../Contexts/AuthContext';
+import { useCart } from '../Contexts/CartContext';
+import { useRouter } from 'next/navigation';
+import { toast } from 'react-toastify';
+import { trackEvent } from '@/utils/analytics';
 
 const CONCERNS = [
   {
@@ -95,7 +100,34 @@ const StickyHairConcern = () => {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  const { user } = useAuth();
+  const { cartItems, addItemToCart } = useCart();
+  const router = useRouter();
+
   const toggleSheet = () => setIsOpen(!isOpen);
+
+  const handleAddToCart = async (product: Product) => {
+    if (!user) {
+      toast.error("You have to login first", {
+        position: "bottom-center",
+        autoClose: 1000,
+      });
+      router.push(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+      return;
+    }
+    
+    await addItemToCart(product.id, 1, product);
+    
+    // Track AddToCart event
+    trackEvent('AddToCart', {
+      content_name: product.title,
+      content_ids: [product.id],
+      content_type: 'product',
+      value: product.price || 0,
+      currency: 'INR',
+      quantity: 1
+    });
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -205,9 +237,20 @@ const StickyHairConcern = () => {
                       <div className="product-desc">{p.category}</div>
                       <div className="product-footer">
                         <div className="product-price">₹{p.price}</div>
-                        <button className="add-btn" onClick={(e) => {
-                          e.preventDefault();
-                        }}>ADD</button>
+                        <button 
+                          className={`add-btn ${cartItems.some(item => item.id === p.id) ? 'in-cart' : ''}`} 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (cartItems.some(item => item.id === p.id)) {
+                              router.push('/cart');
+                            } else {
+                              handleAddToCart(p);
+                            }
+                          }}
+                        >
+                          {cartItems.some(item => item.id === p.id) ? 'GO TO CART' : 'ADD'}
+                        </button>
                       </div>
                     </div>
                   </Link>
@@ -693,5 +736,10 @@ const ProductsGrid = styled.div`
       background: #0C831F;
       color: #fff;
     }
+    &.in-cart {
+      background: #0C831F;
+      color: #fff;
+    }
   }
+
 `;
