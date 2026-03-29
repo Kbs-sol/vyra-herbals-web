@@ -21,6 +21,7 @@ const CONCERNS = [
     banner: 'Reduce Hair Fall',
     sub: 'Root-strengthening herbs since centuries',
     searchTerms: ['hair fall', 'hair loss', 'thinning', 'bhringraj', 'amla'],
+    productIds: [1, 4, 14, 24],
     tips: [
       'Bhringraj oil massage 3× a week strengthens follicles and reduces shedding.',
       'Sulfate-free shampoo preserves the scalp barrier — switch today.',
@@ -34,6 +35,7 @@ const CONCERNS = [
     banner: 'Stimulate New Growth',
     sub: 'Clinically-backed herbs for thicker hair',
     searchTerms: ['growth', 'rosemary', 'root', 'thickening'],
+    productIds: [9, 4, 21, 10],
     tips: [
       'Daily scalp massage with oil increases blood flow — the #1 driver of growth.',
       'Rosemary extract matches 2% minoxidil per clinical studies.',
@@ -47,6 +49,7 @@ const CONCERNS = [
     banner: 'Beat Dandruff for Good',
     sub: 'Neem actives target the fungal root cause',
     searchTerms: ['dandruff', 'flake', 'itchy', 'neem', 'tea tree'],
+    productIds: [15, 14, 9, 8],
     tips: [
       'Neem is antifungal — use neem shampoo 3× a week minimum.',
       'Hot water worsens flaking; always rinse with cool water.',
@@ -60,6 +63,7 @@ const CONCERNS = [
     banner: 'Restore & Repair Deeply',
     sub: 'Intense moisture therapy for damaged strands',
     searchTerms: ['dry', 'damage', 'repair', 'moistur', 'brittle', 'mask'],
+    productIds: [16, 9, 14, 22],
     tips: [
       'Apply hair mask as a pre-wash weekly treatment to restore lost proteins.',
       'Sulfate-free shampoo is non-negotiable for dry or chemically treated hair.',
@@ -73,6 +77,7 @@ const CONCERNS = [
     banner: 'Balance & Refresh',
     sub: 'Regulate sebum without stripping moisture',
     searchTerms: ['oily', 'greasy', 'cleanse', 'sebum', 'balancing'],
+    productIds: [4, 10, 9, 8],
     tips: [
       'Wash every 2–3 days — over-washing triggers the scalp to produce more oil.',
       'Apply oil only on lengths and ends, never directly on the scalp.',
@@ -96,6 +101,7 @@ const CONCERNS = [
 
 const StickyHairConcern = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -138,6 +144,10 @@ const StickyHairConcern = () => {
   }, [isOpen]);
 
   useEffect(() => {
+    setIsHydrated(true);
+  }, []);
+
+  useEffect(() => {
     const fetchProducts = async () => {
       try {
         setIsLoading(true);
@@ -162,17 +172,20 @@ const StickyHairConcern = () => {
 
   const currentConcern = CONCERNS[activeTab];
 
-  const filteredProducts = allProducts.filter(p => {
-    const title = p.title.toLowerCase();
-    const desc = (p.description || '').toLowerCase();
-    const category = (p.category || '').toLowerCase();
-    return currentConcern.searchTerms.some(term => 
-      title.includes(term) || desc.includes(term) || category.includes(term)
-    );
-  }).slice(0, 4);
+  const isProductIdMappingActive = Array.isArray(currentConcern.productIds) && currentConcern.productIds.length > 0;
 
-  // If no products match, just show some default ones or first 4
-  const displayProducts = filteredProducts.length > 0 ? filteredProducts : allProducts.slice(0, 4);
+  const filteredProducts = isProductIdMappingActive
+    ? allProducts.filter(p => currentConcern.productIds!.includes(Number(p.id)))
+    : allProducts.filter(p => {
+        const title = p.title.toLowerCase();
+        const desc = (p.description || '').toLowerCase();
+        const category = (p.category || '').toLowerCase();
+        return currentConcern.searchTerms.some(term => 
+          title.includes(term) || desc.includes(term) || category.includes(term)
+        );
+      });
+
+  const displayProducts = filteredProducts.length > 0 ? filteredProducts.slice(0, 4) : allProducts.slice(0, 4);
 
   return (
     <>
@@ -182,11 +195,13 @@ const StickyHairConcern = () => {
         <div className="fab-badge">Concern?</div>
       </ConcernFAB>
 
-      {/* OVERLAY */}
-      <Overlay className={isOpen ? 'open' : ''} onClick={toggleSheet} />
+      {isHydrated && (
+        <>
+          {/* OVERLAY */}
+          <Overlay className={isOpen ? 'open' : ''} onClick={toggleSheet} />
 
-      {/* BOTTOM SHEET */}
-      <Sheet className={isOpen ? 'open' : ''}>
+          {/* BOTTOM SHEET */}
+          <Sheet className={isOpen ? 'open' : ''}>
         <div className="sheet-handle"></div>
         <div className="sheet-header">
           <div className="sheet-title">🌿 What's your hair concern?</div>
@@ -279,7 +294,9 @@ const StickyHairConcern = () => {
             </Link>
           </div>
         </div>
-      </Sheet>
+          </Sheet>
+        </>
+      )}
     </>
   );
 };
@@ -349,11 +366,13 @@ const Overlay = styled.div`
   z-index: 3000;
   opacity: 0;
   visibility: hidden;
+  pointer-events: none;
   transition: all 0.3s ease;
 
   &.open {
     opacity: 1;
     visibility: visible;
+    pointer-events: auto;
   }
 `;
 
@@ -367,7 +386,9 @@ const Sheet = styled.div`
   background: #fff;
   border-radius: 24px 24px 0 0;
   z-index: 4000;
-  transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1);
+  transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1), visibility 0s linear 0.5s;
+  visibility: hidden;
+  pointer-events: none;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -376,6 +397,9 @@ const Sheet = styled.div`
 
   &.open {
     transform: translateX(-50%) translateY(0);
+    visibility: visible;
+    pointer-events: auto;
+    transition-delay: 0s;
   }
 
   .sheet-handle {
