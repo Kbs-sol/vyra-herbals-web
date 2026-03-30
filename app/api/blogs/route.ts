@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const search = searchParams.get('search') || '';
     const slug = searchParams.get('slug') || '';
+    const category = searchParams.get('category') || '';
     const sortBy = searchParams.get('sortBy') || 'created_at';
     const sortOrder = searchParams.get('sortOrder') || 'desc';
 
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
       }
 
       // if related_posts set, fetch those published blogs
-      let related = [];
+      let related: any[] = [];
       try {
         if (data?.related_posts && Array.isArray(data.related_posts) && data.related_posts.length > 0) {
           const { data: relData, error: relErr } = await supabase
@@ -45,6 +46,11 @@ export async function GET(request: NextRequest) {
 
     if (search) {
       query = query.or(`title.ilike.%${search}%,handle.ilike.%${search}%,excerpt.ilike.%${search}%`);
+    }
+
+    if (category) {
+      // filtering by tags array: category should be present in tags
+      query = query.contains('tags', [category]);
     }
 
     query = query.order(sortBy, { ascending: sortOrder === 'asc' });

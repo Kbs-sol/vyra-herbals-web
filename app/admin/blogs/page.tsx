@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import AdminLayoutWrapper from '../components/AdminLayoutWrapper';
 import { Blog } from '@/types';
 import Select from 'react-select';
+import MarkdownEditor from '@/Components/Shared/MarkdownEditor';
 
 export default function BlogsPage() {
   const [blogs, setBlogs] = useState<Blog[]>([]);
@@ -135,11 +136,15 @@ export default function BlogsPage() {
 
   const openAddModal = () => {
     setEditingBlog(null);
-    setFormData({ title: '', handle: '', author: '', excerpt: '', content: '', image_url: '', images: [], tags: '', meta_title: '', meta_description: '', status: 1 });
+    setFormData({ 
+      title: '', handle: '', author: '', excerpt: '', content: '', image_url: '', 
+      images: [], tags: '', meta_title: '', meta_description: '', status: 1,
+      related_posts: [] 
+    });
     setShowModal(true);
   };
 
-  const [mdeTab, setMdeTab] = useState<'write' | 'preview'>('write');
+  // const [mdeTab, setMdeTab] = useState<'write' | 'preview'>('write'); // removed in favor of component state
   const [allBlogOptions, setAllBlogOptions] = useState<{ value: number; label: string }[]>([]);
 
   const openEditModal = (blog: Blog) => {
@@ -244,23 +249,7 @@ export default function BlogsPage() {
     }
   };
 
-  // small markdown preview (basic) - safe-ish since admin only
-  const renderMarkdown = (md: string) => {
-    if (!md) return '';
-    let html = md
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-    // simple transforms
-    html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
-    html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
-    html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
-    html = html.replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>');
-    html = html.replace(/\*(.*?)\*/gim, '<em>$1</em>');
-    html = html.replace(/\[(.*?)\]\((.*?)\)/gim, '<a href="$2" target="_blank" rel="noopener">$1</a>');
-    html = html.replace(/\n/g, '<br/>');
-    return html;
-  };
+  // removed legacy regex-based renderMarkdown
 
   return (
     <AdminLayoutWrapper pageTitle="Blogs">
@@ -392,22 +381,13 @@ export default function BlogsPage() {
                   </div>
 
                   <div className="full">
-                    <label>Content (Markdown)</label>
-                    <div className="mde-toolbar">
-                      <button type="button" className={mdeTab === 'write' ? 'active' : ''} onClick={() => setMdeTab('write')}>Write</button>
-                      <button type="button" className={mdeTab === 'preview' ? 'active' : ''} onClick={() => setMdeTab('preview')}>Preview</button>
-                    </div>
-                    {mdeTab === 'write' ? (
-                      <textarea value={formData.content} onChange={(e) => setFormData((p) => ({ ...p, content: e.target.value }))} rows={14} />
-                    ) : (
-                      <div className="preview-box" dangerouslySetInnerHTML={{ __html: renderMarkdown(formData.content) }} />
-                    )}
-                    <small className="muted">Supports Markdown (headings, lists, links). Preview shown on toggle.</small>
-                  </div>
-
-                  <div className="preview full">
-                    <label>Preview</label>
-                    <div className="preview-box" dangerouslySetInnerHTML={{ __html: renderMarkdown(formData.content) }} />
+                    <label>Content (Markdown Editor)</label>
+                    <MarkdownEditor 
+                      value={formData.content} 
+                      onChange={(val) => setFormData(p => ({ ...p, content: val }))} 
+                      minHeight="450px"
+                    />
+                    <small className="muted">Supports Markdown, toolbar actions, and live preview. Use "Format Paste" for ChatGPT content.</small>
                   </div>
 
                   <div>
