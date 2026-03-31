@@ -95,6 +95,21 @@ export default function RootLayout({
           `}
         </Script>
 
+        {/* Google Analytics */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-K0F7N513MS"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+
+            gtag('config', 'G-K0F7N513MS');
+          `}
+        </Script>
+
         {/* Facebook Pixel */}
         <Suspense fallback={null}>
           <FacebookPixel />
