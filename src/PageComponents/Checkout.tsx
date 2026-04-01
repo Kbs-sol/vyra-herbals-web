@@ -75,11 +75,6 @@ const Checkout = ({ show, onHide, cartItems, product, quantity = 1 }) => {
   const [showOrderSummary, setShowOrderSummary] = useState(false);
   const [isModalOpenedPreviously, setIsModalOpenedPreviously] = useState(false);
 
-  // Welcome coupon state
-  const [welcomeCouponEligible, setWelcomeCouponEligible] = useState(false);
-  const [welcomeDiscountPercent, setWelcomeDiscountPercent] = useState(0);
-  const [welcomeDiscount, setWelcomeDiscount] = useState(0);
-
   const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
   const [loadingAddresses, setLoadingAddresses] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
@@ -128,30 +123,7 @@ const Checkout = ({ show, onHide, cartItems, product, quantity = 1 }) => {
     );
   };
 
-  // Check welcome coupon eligibility
-  const checkWelcomeCouponEligibility = async () => {
-    if (!user) return;
-    try {
-      const session = await supabase.auth.getSession();
-      const token = session?.data?.session?.access_token;
-      if (!token) return;
-
-      const res = await fetch('/api/coupon/welcome', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (data.eligible) {
-        setWelcomeCouponEligible(true);
-        setWelcomeDiscountPercent(data.discount_percent);
-      } else {
-        setWelcomeCouponEligible(false);
-        setWelcomeDiscountPercent(0);
-        setWelcomeDiscount(0);
-      }
-    } catch (e) {
-      console.error('Welcome coupon check error:', e);
-    }
-  };
+  // Removed checkWelcomeCouponEligibility
 
   useEffect(() => {
     loadScript(
@@ -172,20 +144,9 @@ const Checkout = ({ show, onHide, cartItems, product, quantity = 1 }) => {
     }
   }, [cartItems, product, quantity]);
 
-  // Recalculate welcome discount when eligibility or items change
-  useEffect(() => {
-    if (welcomeCouponEligible && welcomeDiscountPercent > 0 && totalPriceOfCartProducts > 0) {
-      const discount = Math.round(totalPriceOfCartProducts * welcomeDiscountPercent / 100);
-      setWelcomeDiscount(discount);
-    } else {
-      setWelcomeDiscount(0);
-    }
-  }, [welcomeCouponEligible, welcomeDiscountPercent, totalPriceOfCartProducts]);
-
   useEffect(() => {
     if (user && showModal) {
       fetchSavedAddresses();
-      checkWelcomeCouponEligibility();
     }
   }, [user, showModal]);
 
@@ -469,13 +430,11 @@ const Checkout = ({ show, onHide, cartItems, product, quantity = 1 }) => {
       .map((item) => `${item.quantity}X${item.sku || item.handle || item.title}`)
       .join(", ");
 
-    const discountedTotal = totalPriceOfCartProducts - welcomeDiscount;
+    const discountedTotal = totalPriceOfCartProducts;
     const orderData = {
       orderItems: orderedItems,
       totalAmount: discountedTotal + (paymentMethod === "cod" ? COD_Charges : 0),
-      transactionPrice: welcomeDiscount > 0
-        ? (paymentMethod === "online" ? discountedTotal : transactionPrice)
-        : transactionPrice,
+      transactionPrice: transactionPrice,
       shippingMethod: "standard",
       shippingData: {
         ...formData,
@@ -483,8 +442,8 @@ const Checkout = ({ show, onHide, cartItems, product, quantity = 1 }) => {
       },
       paymentMethod: paymentMethod,
       userId: user?.id,
-      welcomeCouponApplied: welcomeDiscount > 0,
-      welcomeCouponDiscount: welcomeDiscount,
+      welcomeCouponApplied: false,
+      welcomeCouponDiscount: 0,
     };
 
     fetch(`${API_PATH}/payment/session`, {
@@ -648,8 +607,6 @@ const Checkout = ({ show, onHide, cartItems, product, quantity = 1 }) => {
           <BillSummary
             items={orderedItems}
             isCOD={paymentMethod === "cod"}
-            welcomeDiscount={welcomeDiscount}
-            welcomeDiscountPercent={welcomeDiscountPercent}
           />
         </section>
       </StyledOrderSummary>
@@ -659,24 +616,6 @@ const Checkout = ({ show, onHide, cartItems, product, quantity = 1 }) => {
   const renderForm = () => {
     return (
       <StyledForm>
-        {welcomeCouponEligible && welcomeDiscount > 0 && (
-          <div style={{
-            background: 'linear-gradient(135deg, #d1fae5, #a7f3d0)',
-            border: '1px solid #6ee7b7',
-            borderRadius: '12px',
-            padding: '12px 16px',
-            margin: '0 16px 16px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            fontSize: '14px',
-            fontWeight: 600,
-            color: '#065f46',
-          }}>
-            <span style={{ fontSize: '20px' }}>🎉</span>
-            <span>Welcome Coupon Applied: <strong>{welcomeDiscountPercent}% OFF</strong> (₹{welcomeDiscount} saved!)</span>
-          </div>
-        )}
         <center>
           <b> Provide details to checkout </b>
         </center>
