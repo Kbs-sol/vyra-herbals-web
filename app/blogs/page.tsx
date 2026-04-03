@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { headers } from 'next/headers';
-import BlogFilters from '@/Components/Shared/BlogFilters';
 
 async function getBaseUrl() {
   const envOrigin = process.env.NEXT_PUBLIC_SITE_ORIGIN;
@@ -14,13 +13,10 @@ async function getBaseUrl() {
   return `${protocol}://${host}`;
 }
 
-async function fetchBlogs(page = 1, limit = 12, category = '') {
+async function fetchBlogs(page = 1, limit = 12) {
   const url = new URL('/api/blogs', await getBaseUrl());
   url.searchParams.set('page', String(page));
   url.searchParams.set('limit', String(limit));
-  if (category && category !== 'All') {
-    url.searchParams.set('category', category);
-  }
 
   const res = await fetch(url, { cache: 'no-store' });
   if (!res.ok) throw new Error('Failed to fetch blogs');
@@ -32,12 +28,11 @@ async function fetchBlogs(page = 1, limit = 12, category = '') {
 export default async function BlogsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; category?: string }>;
+  searchParams: Promise<{ page?: string }>;
 }) {
   const resolvedParams = await searchParams;
   const page = parseInt(resolvedParams.page || '1');
-  const category = resolvedParams.category || '';
-  const data = await fetchBlogs(page, 12, category);
+  const data = await fetchBlogs(page, 12);
   const blogs = data.success ? data.data : [];
 
   return (
@@ -46,8 +41,6 @@ export default async function BlogsPage({
         <h1>Vyra Blogs</h1>
         <p>Know more about Fresh Ayurveda</p>
       </section>
-
-      <BlogFilters />
 
       {blogs.length === 0 ? (
         <p style={{ textAlign: 'center', color: '#666', marginTop: '40px' }}>No blog posts found for this category.</p>
