@@ -76,3 +76,124 @@ a {
   .blog-card .excerpt { -webkit-line-clamp: 4; }
 }
 
+/* Blog Filters + Premium look */
+.blog-page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 30px 18px 60px;
+  color: #1f2a38;
+}
+
+.blog-home-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 28px;
+}
+
+.blog-home-header h1 {
+  font-size: clamp(1.9rem, 4vw, 3.2rem);
+  font-weight: 700;
+  color: #0f1a2c;
+}
+
+.blog-home-header p {
+  color: #627185;
+  font-size: 1rem;
+  letter-spacing: .2px;
+}
+
+.blog-filters-wrapper {
+  margin-bottom: 30px;
+  display: flex;
+  justify-content: center;
+}
+
+.blog-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  background: #ffffff;
+  border: 1px solid #ecedf1;
+  border-radius: 999px;
+  padding: 8px 10px;
+  box-shadow: 0 10px 30px rgba(22, 38, 64, 0.04);
+}
+
+.filter-btn {
+  font-size: 13px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background-color: #f8f9fb;
+  color: #22334a;
+  cursor: pointer;
+  transition: all .25s ease;
+  white-space: nowrap;
+}
+
+.filter-btn:hover {
+  background-color: #fff;
+  color: #1f2a38;
+  border-color: #b8c8dc;
+}
+
+.filter-btn.active {
+  background-color: #0f2240;
+  color: #fff;
+  border-color: #0f2240;
+}
+
+.blog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill,minmax(280px,1fr));
+  gap: 24px;
+}
+
+.blog-card {
+  min-height: 390px;
+  border: 1px solid #edf1f7;
+  background: #fff;
+  box-shadow: 0 8px 22px rgba(24, 35, 68, 0.08);
+  transition: transform .25s ease, box-shadow .25s ease;
+}
+
+.blog-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 34px rgba(24, 35, 68, 0.12);
+}
+
+.blog-card__image img {
+  height: 180px;
+  border-radius: 12px 12px 0 0;
+}
+
+.blog-card h2 {
+  font-size: 1.12rem;
+  color: #112138;
+  margin: 15px 0 10px;
+}
+
+.blog-card .excerpt {
+  font-size: .95rem;
+  color: #596a7f;
+  margin-bottom: 14px;
+}
+
+.blog-card__meta {
+  font-size: .78rem;
+  color: #8f9fb4;
+}
+
+.blog-card__footer .read-more {
+  color: #0f2240;
+  font-weight: 700;
+}
+
+@media (max-width: 992px) {
+  .blog-page { padding: 24px 14px 45px; }
+  .blog-filters { padding: 10px; }
+}
+

@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { headers } from 'next/headers';
 import BlogFilters from '@/Components/Shared/BlogFilters';
-import '../../public/assets/css/custom/blogs_redesign.css';
 
 async function getBaseUrl() {
   const envOrigin = process.env.NEXT_PUBLIC_SITE_ORIGIN;
@@ -42,41 +41,43 @@ export default async function BlogsPage({
   const blogs = data.success ? data.data : [];
 
   return (
-    <main className="blogs-container pt-4 pb-4">
-      <section className="blog-header-section">
-        <h1>Nat Blogs</h1>
-        <p className="subheading">Know more about Fresh Ayurveda</p>
+    <main className="blog-page">
+      <section className="blog-home-header">
+        <h1>Vyra Blogs</h1>
+        <p>Know more about Fresh Ayurveda</p>
       </section>
 
       <BlogFilters />
 
-      <div className="blog-modern-grid">
-        {blogs.length === 0 ? (
-          <p className="blog-empty">No blog posts found for this category.</p>
-        ) : (
-          blogs.map((b: any) => (
-            <Link key={b.id} href={`/blogs/${b.handle}`} className="blog-card-modern">
-              <div className="blog-card-image">
-                <img 
-                  src={b.image_url || '/assets/images/placeholder-blog.jpg'} 
-                  alt={b.title} 
-                  loading="lazy" 
-                />
-              </div>
-
-              <div className="blog-card-content">
+      {blogs.length === 0 ? (
+        <p style={{ textAlign: 'center', color: '#666', marginTop: '40px' }}>No blog posts found for this category.</p>
+      ) : (
+        <div className="blog-grid">
+          {blogs.map((b: any) => (
+            <Link key={b.id} href={`/blogs/${b.handle}`} className="blog-card-link">
+              <article className="blog-card">
+                <div className="blog-card__image">
+                  <img
+                    src={b.image_url || '/assets/images/placeholder-blog.jpg'}
+                    alt={b.title}
+                    loading="lazy"
+                  />
+                </div>
+                <div className="blog-card__meta">{b.category || ''}</div>
                 <h2>{b.title}</h2>
                 <p className="excerpt">{b.excerpt || 'Read our latest insights on Ayurvedic wellness and natural care.'}</p>
-                <span className="read-more-link">Read more</span>
-              </div>
+                <div className="blog-card__footer">
+                  <span className="read-more">Read more</span>
+                </div>
+              </article>
             </Link>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
       {data.pagination?.totalPages > 1 && (
         <div className="blog-pagination mt-5 d-flex justify-content-center gap-2">
-            {/* simple pagination could go here if needed, but for now focus on design */}
+          {/* simple pagination could go here */}
         </div>
       )}
     </main>

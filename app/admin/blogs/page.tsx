@@ -185,9 +185,19 @@ export default function BlogsPage() {
     if (e) e.preventDefault();
     setSaving(true);
 
+    const generateExcerpt = (htmlOrMd: string) => {
+      const plainText = htmlOrMd.replace(/[#>*_`\[\]()<>{}~\-!]/g, ' ') // rough stripping markdown symbols
+        .replace(/\s+/g, ' ').trim();
+      return plainText.slice(0, 180).trim();
+    };
+
     try {
+      const resolvedExcerpt = formData.excerpt?.trim() || '';
+      const finalExcerpt = resolvedExcerpt || generateExcerpt(formData.content || '');
+
       const payload: any = {
         ...formData,
+        excerpt: finalExcerpt,
         handle: formData.handle || slugify(formData.title),
         images: (formData.images || []).filter((i) => !!i),
         tags: formData.tags ? formData.tags.split(',').map((t) => t.trim()).filter(Boolean) : [],
@@ -232,6 +242,16 @@ export default function BlogsPage() {
       console.error('Delete error', err);
       showToast('error', 'Error deleting blog');
     }
+  };
+
+  const getSnippet = (text?: string, maxChars = 130) => {
+    if (!text) return 'No description provided yet';
+    const plain = text
+      .replace(/\s+/g, ' ')
+      .replace(/[#>*_`\[\]<>\-~]/g, '')
+      .trim();
+    if (plain.length <= maxChars) return plain;
+    return `${plain.slice(0, maxChars).trim()}...`;
   };
 
   const togglePublish = async (b: Blog) => {
@@ -297,10 +317,9 @@ export default function BlogsPage() {
                             {b.image_url && <img src={b.image_url} alt={b.title} />}
                             <div>
                               <strong>{b.title}</strong>
-                              <div className="meta">{b.author || 'Admin'} • {b.handle}</div>
                             </div>
                           </td>
-                          <td className="excerpt">{b.excerpt}</td>
+                          <td className="excerpt">{getSnippet(b.content || b.excerpt)}</td>
                           <td>
                             <span className={`badge ${b.status === 1 ? 'published' : 'draft'}`}>{b.status === 1 ? 'Published' : 'Draft'}</span>
                           </td>
@@ -342,75 +361,85 @@ export default function BlogsPage() {
               </header>
 
               <form onSubmit={handleSave} className="modal-form">
-                <div className="form-grid">
-                  <div>
-                    <label>Title</label>
-                    <input value={formData.title} onChange={(e) => setFormData((p) => ({ ...p, title: e.target.value }))} required />
+                <div className="modal-content-layout">
+                  <div className="primary-panel">
+                    <div className="form-grid-two">
+                      <div>
+                        <label>Title</label>
+                        <input value={formData.title} onChange={(e) => setFormData((p) => ({ ...p, title: e.target.value }))} required />
+                      </div>
+
+                      <div>
+                        <label>Handle (slug)</label>
+                        <input value={formData.handle} onChange={(e) => setFormData((p) => ({ ...p, handle: e.target.value }))} placeholder="Auto-generated from title" />
+                      </div>
+
+                      <div>
+                        <label>Author</label>
+                        <input value={formData.author} onChange={(e) => setFormData((p) => ({ ...p, author: e.target.value }))} />
+                      </div>
+
+                      <div>
+                        <label>Tags (comma separated)</label>
+                        <input value={formData.tags} onChange={(e) => setFormData((p) => ({ ...p, tags: e.target.value }))} />
+                      </div>
+
+                      <div className="full">
+                        <label>Description / Excerpt</label>
+                        <textarea value={formData.excerpt} onChange={(e) => setFormData((p) => ({ ...p, excerpt: e.target.value }))} rows={3} placeholder="Enter a short summary for listing cards, or leave blank to auto-generate from content." />
+                        <small className="muted">If empty, a short excerpt is derived from content on save.</small>
+                      </div>
+
+                      <div className="full">
+                        <label>Content (Markdown Editor)</label>
+                        <MarkdownEditor 
+                          value={formData.content} 
+                          onChange={(val) => setFormData(p => ({ ...p, content: val }))} 
+                          minHeight="420px"
+                        />
+                        <small className="muted">Supports Markdown, toolbar actions, and live preview. Use "Format Paste" for ChatGPT content.</small>
+                      </div>
+                    </div>
                   </div>
 
-                  <div>
-                    <label>Handle (slug)</label>
-                    <input value={formData.handle} onChange={(e) => setFormData((p) => ({ ...p, handle: e.target.value }))} placeholder="auto-generated from title" />
-                  </div>
+                  <aside className="secondary-panel">
+                    <div>
+                      <label>Related Posts</label>
+                      <Select
+                        isMulti
+                        options={allBlogOptions}
+                        value={allBlogOptions.filter((o) => (formData.related_posts || []).includes(o.value))}
+                        onChange={(selected) => setFormData((p) => ({ ...p, related_posts: (selected || []).map((s: any) => s.value) }))}
+                        placeholder="Select related posts..."
+                      />
+                      <small className="muted">Add related posts that show on the public blog page.</small>
+                    </div>
 
-                  <div>
-                    <label>Author</label>
-                    <input value={formData.author} onChange={(e) => setFormData((p) => ({ ...p, author: e.target.value }))} />
-                  </div>
+                    <div>
+                      <label>Feature Image</label>
+                      <input type="file" accept="image/*" onChange={handleImageUpload} />
+                      {uploadingImage && <small>Uploading...</small>}
+                      {formData.image_url && <img src={formData.image_url} className="thumb" alt="feature image" />}
+                    </div>
 
-                  <div>
-                    <label>Tags (comma separated)</label>
-                    <input value={formData.tags} onChange={(e) => setFormData((p) => ({ ...p, tags: e.target.value }))} />
-                  </div>
+                    <div>
+                      <label>Status</label>
+                      <select value={formData.status} onChange={(e) => setFormData((p) => ({ ...p, status: parseInt(e.target.value) }))}>
+                        <option value={1}>Published</option>
+                        <option value={0}>Draft</option>
+                      </select>
+                    </div>
 
-                  <div>
-                    <label>Related Posts</label>
-                    <Select
-                      isMulti
-                      options={allBlogOptions}
-                      value={allBlogOptions.filter((o) => (formData.related_posts || []).includes(o.value))}
-                      onChange={(selected) => setFormData((p) => ({ ...p, related_posts: (selected || []).map((s: any) => s.value) }))}
-                      placeholder="Select related posts..."
-                    />
-                    <small className="muted">Select posts that should appear under "Related Posts" on the public blog page.</small>
-                  </div>
+                    <div>
+                      <label>SEO Title</label>
+                      <input value={formData.meta_title} onChange={(e) => setFormData((p) => ({ ...p, meta_title: e.target.value }))} />
+                    </div>
 
-                  <div className="full">
-                    <label>Excerpt</label>
-                    <textarea value={formData.excerpt} onChange={(e) => setFormData((p) => ({ ...p, excerpt: e.target.value }))} rows={3} />
-                  </div>
-
-                  <div className="full">
-                    <label>Content (Markdown Editor)</label>
-                    <MarkdownEditor 
-                      value={formData.content} 
-                      onChange={(val) => setFormData(p => ({ ...p, content: val }))} 
-                      minHeight="450px"
-                    />
-                    <small className="muted">Supports Markdown, toolbar actions, and live preview. Use "Format Paste" for ChatGPT content.</small>
-                  </div>
-
-                  <div>
-                    <label>Feature Image</label>
-                    <input type="file" accept="image/*" onChange={handleImageUpload} />
-                    {uploadingImage && <small>Uploading...</small>}
-                    {formData.image_url && <img src={formData.image_url} className="thumb" alt="feature image" />}
-                  </div>
-
-                  <div>
-                    <label>Status</label>
-                    <select value={formData.status} onChange={(e) => setFormData((p) => ({ ...p, status: parseInt(e.target.value) }))}>
-                      <option value={1}>Published</option>
-                      <option value={0}>Draft</option>
-                    </select>
-                  </div>
-
-                  <div className="full">
-                    <label>SEO Title</label>
-                    <input value={formData.meta_title} onChange={(e) => setFormData((p) => ({ ...p, meta_title: e.target.value }))} />
-                    <label>SEO Description</label>
-                    <textarea value={formData.meta_description} onChange={(e) => setFormData((p) => ({ ...p, meta_description: e.target.value }))} rows={2} />
-                  </div>
+                    <div>
+                      <label>SEO Description</label>
+                      <textarea value={formData.meta_description} onChange={(e) => setFormData((p) => ({ ...p, meta_description: e.target.value }))} rows={4} />
+                    </div>
+                  </aside>
                 </div>
 
                 <div className="form-actions">
@@ -459,17 +488,24 @@ export default function BlogsPage() {
         .badge.draft{ background:#fef3c7; color:#92400e }
         .actions{ display:flex; gap:8px }
         .pagination{ display:flex; justify-content:space-between; align-items:center; padding:12px 0; color:#6b7280 }
-        .modal-overlay{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; z-index:2000; /* above other overlays */ pointer-events:auto; overflow:auto }
-        .modal-dialog{ width:980px; max-width:96%; background:white; border-radius:12px; box-shadow:0 20px 50px rgba(2,6,23,0.2); overflow:auto; max-height:90vh; z-index:2001; pointer-events:auto }
-        .modal-dialog header{ display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid #f3f4f6 }
+        .modal-overlay{ position:fixed; inset:0; display:flex; align-items:flex-start; justify-content:center; z-index:2000; pointer-events:auto; overflow:auto; padding:12px }
+        .modal-dialog{ width:100%; max-width:1180px; background:white; border-radius:12px; box-shadow:0 20px 50px rgba(2,6,23,0.2); overflow:auto; max-height:calc(100vh - 24px); z-index:2001; pointer-events:auto }
+        .modal-dialog header{ display:flex; justify-content:space-between; align-items:center; padding:18px 24px; border-bottom:1px solid #f3f4f6 }
         /* When an admin modal is open, hide any global header/backdrop that may block clicks */
         body.modal-open .backdrop { display: none !important; pointer-events: none !important }
         body.modal-open { overflow: hidden }
         .modal-form{ padding:18px 20px }
-        .form-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px }
-        .form-grid .full{ grid-column:1 / -1 }
-        .form-grid label{ display:block; font-weight:600; margin-bottom:6px; color:#374151 }
-        .form-grid input, .form-grid textarea, .form-grid select{ width:100%; padding:10px 12px; border-radius:8px; border:1px solid #e5e7eb }
+        .modal-content-layout { display:grid; grid-template-columns: 2fr 1fr; gap:24px; width:100%; align-items: start; }
+        .primary-panel, .secondary-panel { background:#fff; }
+        .primary-panel { padding-right:12px; }
+        .form-grid-two { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+        .form-grid-two .full{ grid-column:1 / -1 }
+        .modal-form label{ display:block; font-weight:600; margin-bottom:6px; color:#374151 }
+        .modal-form input, .modal-form textarea, .modal-form select{ width:100%; padding:10px 12px; border-radius:8px; border:1px solid #e5e7eb; background:#fff }
+        .secondary-panel{ display:flex; flex-direction:column; gap:16px; align-self:start; width:100% }
+        .secondary-panel div{ background:#f8fafc; border:1px solid #e5e7eb; border-radius:10px; padding:16px; }
+        .secondary-panel .thumb{ width:100%; max-height:220px; object-fit:cover; border-radius:8px; margin-top:8px }
+        .form-grid .full, .modal-content-layout + .form-actions { width:100%; }
         .preview-box{ background:#f9fafb; padding:12px; border-radius:8px; border:1px solid #eef2f7; min-height:120px }
         .thumb{ width:120px; height:80px; object-fit:cover; margin-top:8px; border-radius:8px }
         .form-actions{ display:flex; gap:12px; justify-content:flex-end; padding:12px 20px; border-top:1px solid #f3f4f6 }
