@@ -48,8 +48,10 @@ const Our1 = () => {
       <div className="container px-0">
         <div className="row">
           <div className="col-lg-12">
-            <div className="section-heading">
-              <h2>Explore our Products</h2>
+            <div className="section-header text-center mb-5">
+              <span className="subtitle">CURATED FOR YOU</span>
+              <h2 className="title">Explore our Products</h2>
+              <div className="title-divider"></div>
             </div>
           </div>
         </div>
@@ -69,10 +71,10 @@ const Our1 = () => {
         </div>
         <div className="row">
           <div className="col-lg-12">
-            <div className="section-btn-25">
-              <Link href="/search?searchtext=all" className="btn btn-inline">
-                <i className="fas fa-eye"></i>
+            <div className="section-btn-25 mt-5">
+              <Link href="/search?searchtext=all" className="btn-premium">
                 <span>View All Products</span>
+                <i className="fas fa-long-arrow-alt-right ms-2"></i>
               </Link>
             </div>
           </div>

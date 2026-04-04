@@ -22,6 +22,7 @@ import BestSeller from "../Components/Home/BestSeller";
 import Video from "../Components/Home/Video";
 import OurJourney from "../Components/Home/OurJourney";
 import StickyHairConcern from "../Components/Home/StickyHairConcern";
+import BlogSection from "../Components/Home/BlogSection";
 
 import AllTestimonials from "../Components/Reviews/AllTestimonials";
 
@@ -128,6 +129,9 @@ const Home = () => {
         
         <ErrorBoundary>
           <Follow />
+        </ErrorBoundary>
+        <ErrorBoundary>
+          <BlogSection />
         </ErrorBoundary>
         <ErrorBoundary>
           <Features />

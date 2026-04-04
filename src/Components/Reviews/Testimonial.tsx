@@ -222,9 +222,15 @@ const StyledTestimonials = styled.section`
         cursor: pointer;
       }
       &,
+      .read-more-btn,
+      .product-name-min {
+        color: #fff !important;
+      }
       .read-more-btn {
-        color: #fff;
         font-size: 1rem;
+      }
+      .product-name-min {
+        font-size: 0.85rem;
       }
     }
     .loader {

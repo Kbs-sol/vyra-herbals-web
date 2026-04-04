@@ -16,6 +16,8 @@ const TestimonialPage = () => {
   const [activeTab, setActiveTab] = useState(Tabs.TextReviews); // Active tab state
   const [currentPage, setCurrentPage] = useState(1); // Pagination state
   const [testimonials, setTestimonials] = useState([]);
+  const [filteredReviews, setFilteredReviews] = useState([]);
+  const [selectedRating, setSelectedRating] = useState(0);
   const [beforeAfterImages, setBeforeAfterImages] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const reviewsPerPage = 8;
@@ -34,7 +36,7 @@ const TestimonialPage = () => {
   // Get current testimonials for pagination
   const indexOfLastReview = currentPage * reviewsPerPage;
   const indexOfFirstReview = indexOfLastReview - reviewsPerPage;
-  const currentReviews = testimonials?.slice(
+  const currentReviews = filteredReviews?.slice(
     indexOfFirstReview,
     indexOfLastReview
   );
@@ -57,6 +59,7 @@ const TestimonialPage = () => {
     setIsLoading(true);
     const postData = {
       tbl_name: "reviews",
+      fields: "*, products(title, image_url)"
     };
 
     // Define the fetch options
@@ -80,6 +83,7 @@ const TestimonialPage = () => {
         // Update the state with the fetched handpicked products data
         console.log("All Testimonials data:", data);
         setTestimonials(data);
+        setFilteredReviews(data);
       })
       .catch((error) => {
         console.error("Error while fetching testimonials:", error);
@@ -101,6 +105,15 @@ const TestimonialPage = () => {
       })
       .catch((err) => console.error("Error fetching before/after images:", err));
   }, []);
+
+  useEffect(() => {
+    if (selectedRating === 0) {
+      setFilteredReviews(testimonials);
+    } else {
+      setFilteredReviews(testimonials.filter((r: any) => Math.floor(r.rating) === selectedRating));
+    }
+    setCurrentPage(1);
+  }, [selectedRating, testimonials]);
 
   return (
     <StyledReviews>
@@ -130,6 +143,24 @@ const TestimonialPage = () => {
         </TabButton>
       </section>
 
+      {activeTab === Tabs.TextReviews && (
+        <section className="filter-container container">
+            <div className="filter-label">Filter by Rating:</div>
+            <div className="rating-filters">
+                <button className={`filter-chip ${selectedRating === 0 ? 'active' : ''}`} onClick={() => setSelectedRating(0)}>All</button>
+                {[5, 4, 3, 2, 1].map(star => (
+                    <button 
+                        key={star} 
+                        className={`filter-chip ${selectedRating === star ? 'active' : ''}`} 
+                        onClick={() => setSelectedRating(star)}
+                    >
+                        {star} ★
+                    </button>
+                ))}
+            </div>
+        </section>
+      )}
+
       <section className="tab-content d-grid">
         {isLoading ? (
           <LoadingIndicator variant="circular" />
@@ -149,7 +180,7 @@ const TestimonialPage = () => {
                 </section>
                 {/* Pagination */}
                 <Pagination
-                  totalPages={Math.ceil(testimonials.length / reviewsPerPage)}
+                  totalPages={Math.ceil(filteredReviews.length / reviewsPerPage)}
                   onPageChange={paginate}
                   currentPage={currentPage}
                 />
@@ -203,6 +234,48 @@ const StyledReviews = styled.section`
     padding-right: 1.6rem;
     gap: 3rem;
   }
+  .filter-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+
+      .filter-label {
+          font-weight: 700;
+          color: #444;
+          font-size: 0.9rem;
+          text-transform: uppercase;
+      }
+
+      .rating-filters {
+          display: flex;
+          gap: 0.5rem;
+      }
+
+      .filter-chip {
+        padding: 0.4rem 1.2rem;
+        border-radius: 2rem;
+        border: 1px solid #ddd;
+        background: white;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+
+        &:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        &.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+      }
+  }
   .tab-content {
     justify-items: center;
     .text-review-list {
@@ -213,6 +286,7 @@ const StyledReviews = styled.section`
         padding: 15px;
         border: 1px solid #ddd;
         border-radius: 8px;
+        color: #333;
         .card-title {
           margin: 0;
           font-size: 14px;

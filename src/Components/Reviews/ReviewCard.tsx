@@ -32,6 +32,12 @@ const ReviewCard = ({ review, className }) => {
                   {Utility.formatDate(review.created_at)}
                 </span>
               </div>
+              {review.products && (
+                <div className="product-info-mini">
+                  <img src={review.products.image_url} alt={review.products.title} className="product-thumb-min" />
+                  <span className="product-name-min">{review.products.title}</span>
+                </div>
+              )}
               <StarRatings rating={review.rating} className={"rating"} />
             </div>
           </div>
@@ -54,6 +60,12 @@ const ReviewCard = ({ review, className }) => {
             <EllipsisControl
               text={"Review posted by " + (review.reviewer_name || "Anonymous")}
             />
+            {review.products && (
+               <div className="product-info-mini modal-prod">
+                  <img src={review.products.image_url} alt={review.products.title} className="product-thumb-min" />
+                  <span className="product-name-min">{review.products.title}</span>
+                </div>
+            )}
             <StarRatings rating={review.rating} className={"rating"} />
             <span className="review-date">
               {Utility.formatDate(review.created_at)}
@@ -117,12 +129,39 @@ const StyledReviewCard = styled.section`
   .reviewer-name {
     font-size: 1.4rem;
     font-weight: 700;
-    color: #fff;
+    color: inherit;
   }
   .review-date {
     font-size: 0.8rem;
-    color: #fff;
+    color: inherit;
     opacity: 0.8;
+  }
+  .product-info-mini {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    margin: 0.2rem 0;
+    padding: 4px 8px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    width: fit-content;
+
+    &.modal-prod {
+        background: none;
+        padding: 0;
+        margin-bottom: 0.5rem;
+    }
+  }
+  .product-thumb-min {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+    border-radius: 4px;
+  }
+  .product-name-min {
+    font-size: 0.85rem;
+    color: var(--primary);
+    font-weight: 600;
   }
   .rating {
     display: flex;
@@ -131,7 +170,7 @@ const StyledReviewCard = styled.section`
   .reviewer-text {
     font-size: 1.1rem;
     line-height: 1.6;
-    color: #fff;
+    color: inherit;
   }
 `;
 

@@ -79,8 +79,10 @@ const BestSeller = () => {
       <div className="container">
         <div className="row">
           <div className="col-lg-12">
-            <div className="section-heading">
-              <h2>Best Sellers / Popular Now </h2>
+            <div className="section-header text-center mb-5">
+              <span className="subtitle">POPULAR PICKS</span>
+              <h2 className="title">Best Sellers / Popular Now</h2>
+              <div className="title-divider"></div>
             </div>
           </div>
         </div>

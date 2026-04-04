@@ -84,19 +84,6 @@ const CONCERNS = [
       'Rosemary water rinse post-wash naturally regulates sebum production.'
     ],
   },
-  {
-    id: 'diet',
-    icon: '🥗',
-    label: 'Diet\nfor Hair',
-    banner: 'Nourish from Within',
-    sub: 'Right foods unlock your hair\'s true potential',
-    searchTerms: ['kit', 'combo', 'biotin', 'protein', 'nutri'],
-    tips: [
-      'Eat eggs, paneer or dal daily — hair is made of keratin protein.',
-      'Biotin from nuts, zinc from seeds, Vitamin D from sunlight = growth trio.',
-      'Dehydration silently thins hair — drink 2.5–3L water every day.'
-    ],
-  },
 ];
 
 const StickyHairConcern = () => {
@@ -189,11 +176,14 @@ const StickyHairConcern = () => {
 
   return (
     <>
-      {/* FLOATING FAB TRIGGER */}
-      <ConcernFAB onClick={toggleSheet} title="Hair Concerns">
-        <div className="fab-icon">🌿</div>
-        <div className="fab-badge">Concern?</div>
-      </ConcernFAB>
+      {/* STICKY BOTTOM BAR TRIGGER */}
+      <StickyBar onClick={toggleSheet} className={isOpen ? 'hidden' : ''}>
+        <div className="bar-content">
+          <span className="bar-icon">🌿</span>
+          <span className="bar-text">What's your hair concern?</span>
+          <span className="bar-action">THINK AYURVEDA &rarr;</span>
+        </div>
+      </StickyBar>
 
       {isHydrated && (
         <>
@@ -305,56 +295,58 @@ export default StickyHairConcern;
 
 // --- STYLED COMPONENTS ---
 
-const ConcernFAB = styled.div`
+const StickyBar = styled.div`
   position: fixed;
-  bottom: 25px;
-  right: 25px;
-  width: 65px;
-  height: 65px;
+  bottom: 0;
+  left: 0;
+  right: 0;
   background: #1c1c2e;
-  border-radius: 50%;
+  padding: 12px 20px;
   display: flex;
-  flex-direction: column;
-  align-items: center;
   justify-content: center;
+  align-items: center;
   cursor: pointer;
-  user-select: none;
-  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   z-index: 2000;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-  border: 2px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 -4px 15px rgba(0,0,0,0.15);
+  transition: transform 0.3s ease;
 
-  &:hover {
-    background: #25253d;
-    transform: scale(1.1) rotate(5deg);
-    box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+  &.hidden {
+    transform: translateY(100%);
   }
 
-  .fab-icon {
-    font-size: 24px;
-    line-height: 1;
+  .bar-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: 480px;
+    width: 100%;
   }
 
-  .fab-badge {
-    font-size: 9px;
+  .bar-icon {
+    font-size: 20px;
+  }
+
+  .bar-text {
     color: #fff;
-    font-weight: 700;
-    text-transform: uppercase;
-    margin-top: 2px;
+    font-size: 14px;
+    font-weight: 600;
+    flex: 1;
+  }
+
+  .bar-action {
     background: #0C831F;
-    padding: 1px 4px;
-    border-radius: 4px;
-    white-space: nowrap;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 6px 12px;
+    border-radius: 6px;
+    letter-spacing: 0.5px;
   }
 
   @media (max-width: 575px) {
-    bottom: 20px;
-    right: 15px;
-    width: 60px;
-    height: 60px;
-    
-    .fab-icon { font-size: 22px; }
-    .fab-badge { font-size: 8px; }
+    padding: 10px 15px;
+    .bar-text { font-size: 13px; }
+    .bar-action { font-size: 10px; padding: 4px 10px; }
   }
 `;
 

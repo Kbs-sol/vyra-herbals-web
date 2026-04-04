@@ -814,13 +814,7 @@ const ProfilePage = () => {
                                                     </Col>
                                                 </Row>
                                                 <Row>
-                                                    <Col md={6}>
-                                                        <Form.Group className="mb-3">
-                                                            <Form.Label>User ID</Form.Label>
-                                                            <Form.Control type="text" value={user.id} readOnly className="bg-light" />
-                                                        </Form.Group>
-                                                    </Col>
-                                                    <Col md={6}>
+                                                    <Col md={12}>
                                                         <Form.Group className="mb-3">
                                                             <Form.Label>Account Status</Form.Label>
                                                             <div><Badge bg="success"><FaCheckCircle className="me-1" /> Active</Badge></div>
