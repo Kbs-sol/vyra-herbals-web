@@ -109,12 +109,12 @@ const Category = () => {
       {
         breakpoint: 576,
         settings: {
-          slidesToShow: 1,
+          slidesToShow: 2.2,
           slidesToScroll: 1,
           arrows: false,
           dots: true,
-          centerMode: true,
-          centerPadding: '40px'
+          centerMode: false,
+          infinite: false,
         }
       }
     ]
@@ -138,7 +138,7 @@ const Category = () => {
                   Array(6).fill(0).map((_, i) => <div key={i}><CategorySkeleton /></div>)
                 ) : categories.map((cat, index) => {
                   return (
-                    <div className="category-slide px-2" key={cat.id || index}>
+                    <div className="category-slide px-0 px-md-2" key={cat.id || index}>
                       <div className="category-wrap">
                         <Link href={`/category/${cat.slug}`}>
                           <div className="category-media">
@@ -206,13 +206,13 @@ const StyledCategories = styled.section`
 
   .nav-btn {
     position: absolute;
-    top: 40%;
+    top: 50%;
     transform: translateY(-50%);
     z-index: 100;
-    width: 50px;
-    height: 50px;
+    width: 44px;
+    height: 44px;
     background: #ffffff;
-    border: 2px solid #f0f0f0;
+    border: 1px solid #f0f0f0;
     border-radius: 50% !important;
     display: flex !important;
     align-items: center !important;
@@ -220,18 +220,18 @@ const StyledCategories = styled.section`
     cursor: pointer;
     color: #1a1a1a;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.06);
     padding: 0;
     
     svg {
-        font-size: 1.2rem;
+        font-size: 1rem;
     }
 
     &.prev { 
-      left: -25px; 
+      left: -15px; 
     }
     &.next { 
-      right: -25px; 
+      right: -15px; 
     }
 
     &:hover {
@@ -281,6 +281,11 @@ const StyledCategories = styled.section`
         transform: scale(1);
       }
     }
+
+    @media (max-width: 576px) {
+        border-radius: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    }
   }
 
   .category-meta {
@@ -299,16 +304,33 @@ const StyledCategories = styled.section`
       text-align: center;
       
       @media (max-width: 576px) {
-        font-size: 0.9rem;
-        flex-wrap: wrap;
+        font-size: 0.85rem; /* Better fit for 2.2 cards */
+        font-weight: 600;
+        margin-top: 8px;
+        flex-wrap: nowrap;
+        color: #333;
       }
       
       svg {
-        font-size: 0.9rem;
+        font-size: 0.8rem;
         transition: transform 0.3s ease;
+        
+        @media (max-width: 576px) {
+            display: inline-block;
+            font-size: 0.7rem;
+        }
       }
     }
   }
+
+    @media (max-width: 576px) {
+      margin-top: 15px;
+      .section-header {
+        margin-bottom: 2rem;
+        .title { font-size: 1.6rem; }
+        .subtitle { font-size: 0.75rem; }
+      }
+    }
 
   .category-wrap:hover .category-meta h4 svg {
     transform: translateX(5px);
@@ -326,15 +348,5 @@ const StyledCategories = styled.section`
       color: var(--primary);
       opacity: 1;
     }
-  }
-`;
-color: var(--primary);
-opacity: 0.25;
-font - size: 10px;
-    }
-li.slick - active button:before {
-  color: var(--primary);
-  opacity: 1;
-}
   }
 `;
