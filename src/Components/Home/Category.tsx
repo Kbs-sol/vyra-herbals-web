@@ -109,7 +109,7 @@ const Category = () => {
       {
         breakpoint: 576,
         settings: {
-          slidesToShow: 2.2,
+          slidesToShow: 1.1,
           slidesToScroll: 1,
           arrows: false,
           dots: true,
@@ -138,7 +138,7 @@ const Category = () => {
                   Array(6).fill(0).map((_, i) => <div key={i}><CategorySkeleton /></div>)
                 ) : categories.map((cat, index) => {
                   return (
-                    <div className="category-slide px-0 px-md-2" key={cat.id || index}>
+                    <div className="category-slide px-1 px-md-2" key={cat.id || index}>
                       <div className="category-wrap">
                         <Link href={`/category/${cat.slug}`}>
                           <div className="category-media">
@@ -168,6 +168,18 @@ const Category = () => {
 export default Category;
 
 const StyledCategories = styled.section`
+  @media (max-width: 576px) {
+    .category-slide {
+      width: 180% !important;
+    }
+  }
+  
+  .category-wrap {
+    width: 100%;
+    display: block;
+    text-decoration: none !important;
+  }
+
   &.category-part {
     padding: 4rem 0 !important;
     background-color: #f9fbf9;
@@ -250,6 +262,8 @@ const StyledCategories = styled.section`
 
   .category-media {
     position: relative;
+    width: 100%;
+    margin: 0 auto;
     border-radius: 20px;
     overflow: hidden;
     aspect-ratio: 1/1;

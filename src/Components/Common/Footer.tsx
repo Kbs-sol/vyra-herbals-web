@@ -232,11 +232,11 @@ const StyledFooter = styled.footer`
   }
   .footer_wts {
     position: fixed;
-    bottom: 2rem;
+    bottom: 5rem;
     width: 3rem;
     right: auto;
     left: 2rem;
-    z-index: 10;
+    z-index: 2500;
     height: 3rem;
   }
 
@@ -304,7 +304,7 @@ const StyledFooter = styled.footer`
 
   @media (max-width: 575px) {
     .footer_wts {
-      bottom: 2.6rem;
+      bottom: 5rem;
       right: auto;
       left: 1rem;
     }
