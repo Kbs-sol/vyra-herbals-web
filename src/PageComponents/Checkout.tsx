@@ -208,12 +208,12 @@ const Checkout = ({ show, onHide, cartItems, product, quantity = 1 }) => {
 
   useEffect(() => {
     if (paymentMethod === "online") {
-      const totalPrice = cartItems
+      const totalPrice = (cartItems && cartItems.length > 0)
         ? cartItems.reduce(
           (total, item) => total + item.quantity * item.price,
           0
         )
-        : product.price * quantity;
+        : (product ? product.price * quantity : 0);
       setTransactionPrice(totalPrice);
     } else if (paymentMethod === "cod") {
       setTransactionPrice(100);
@@ -770,7 +770,7 @@ const Checkout = ({ show, onHide, cartItems, product, quantity = 1 }) => {
         style={{ backgroundColor: "#704a0d" }}
         onClick={handleCheckout}
       >
-        {cartItems ? "Proceed to Checkout" : "Buy Now"}
+        {cartItems && cartItems.length > 0 ? "Proceed to Checkout" : "Buy Now"}
       </Button>
     </StyledCheckout>
   );

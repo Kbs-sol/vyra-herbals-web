@@ -9,7 +9,8 @@ export async function POST(req: Request) {
 
     // Validate required fields
     if (!amount || !firstname || !email || !phone || !productinfo) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+      console.log('Missing fields debug:', { amount, firstname, email, phone, productinfo, body });
+      return NextResponse.json({ error: 'Missing required fields', debug: { amount, firstname, email, phone, productinfo } }, { status: 400 });
     }
 
     const supabase = createServerSupabase();
