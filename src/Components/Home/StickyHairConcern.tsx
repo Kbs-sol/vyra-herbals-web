@@ -179,9 +179,16 @@ const StickyHairConcern = () => {
       {/* STICKY BOTTOM BAR TRIGGER */}
       <StickyBar onClick={toggleSheet} className={isOpen ? 'hidden' : ''}>
         <div className="bar-content">
-          <span className="bar-icon">🌿</span>
-          <span className="bar-text">What's your hair concern?</span>
-          <span className="bar-action">THINK AYURVEDA &rarr;</span>
+          <div className="bar-left">
+            <span className="bar-icon">🌿</span>
+            <div className="bar-text-wrapper">
+              <span className="bar-text">What's your hair concern?</span>
+              <span className="bar-subtext">Get personalised product picks</span>
+            </div>
+          </div>
+          <span className="bar-action">
+            Explore <span className="bar-arrow">→</span>
+          </span>
         </div>
       </StickyBar>
 
@@ -317,30 +324,62 @@ const StickyBar = styled.div`
   .bar-content {
     display: flex;
     align-items: center;
-    gap: 12px;
-    max-width: 480px;
+    justify-content: space-between;
+    gap: 14px;
+    max-width: 820px;
     width: 100%;
   }
 
+  .bar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .bar-text-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
   .bar-icon {
-    font-size: 20px;
+    font-size: 22px;
   }
 
   .bar-text {
     color: #fff;
-    font-size: 14px;
-    font-weight: 600;
-    flex: 1;
+    font-size: 15px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .bar-subtext {
+    color: #d8d8d8;
+    font-size: 13px;
+    line-height: 1.3;
   }
 
   .bar-action {
-    background: #0C831F;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(90deg, #7fa73b, #2f5a23);
     color: #fff;
-    font-size: 11px;
-    font-weight: 800;
-    padding: 6px 12px;
-    border-radius: 6px;
-    letter-spacing: 0.5px;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 10px 14px;
+    border-radius: 999px;
+    letter-spacing: 0.4px;
+    flex-shrink: 0;
+  }
+
+  .bar-arrow {
+    font-size: 16px;
+    line-height: 1;
   }
 
   @media (max-width: 575px) {

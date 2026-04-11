@@ -25,6 +25,7 @@ import StickyHairConcern from "../Components/Home/StickyHairConcern";
 import BlogSection from "../Components/Home/BlogSection";
 
 import AllTestimonials from "../Components/Reviews/AllTestimonials";
+import MarketplaceAvailable from "../Components/Common/MarketplaceAvailable";
 
 // Smooth fade-out loader
 const PageLoader = ({ isVisible }: { isVisible: boolean }) => (
@@ -129,6 +130,9 @@ const Home = () => {
         
         <ErrorBoundary>
           <Follow />
+        </ErrorBoundary>
+        <ErrorBoundary>
+          <MarketplaceAvailable />
         </ErrorBoundary>
         <ErrorBoundary>
           <BlogSection />

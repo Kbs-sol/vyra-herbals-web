@@ -29,7 +29,19 @@ interface CheckoutFormData {
   country: string;
 }
 
-const Checkout = ({ show, onHide, cartItems, product, quantity = 1 }) => {
+const Checkout = ({
+  show = false,
+  onHide = () => {},
+  cartItems,
+  product,
+  quantity = 1,
+}: {
+  show?: boolean;
+  onHide?: () => void;
+  cartItems: any;
+  product: any;
+  quantity?: number;
+}) => {
   const { user } = useAuth();
   const defaultFormData: CheckoutFormData = {
     fullName: "",
