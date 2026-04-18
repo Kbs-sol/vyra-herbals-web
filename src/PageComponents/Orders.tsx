@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { API_PATH } from "../constants";
 import styled from "styled-components";
@@ -31,6 +31,7 @@ const Orders = () => {
   const [orderData, setOrderData] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(true);
   const params = useParams();
+  const router = useRouter();
   const orderId = params?.orderId || '';
   const { cartItems, clearCart } = useCart();
 
@@ -166,6 +167,22 @@ const Orders = () => {
     }
   };
 
+  const handleOrderAgain = () => {
+    const firstOrderedItem = orderData?.products?.[0] || {};
+    const productHandle =
+      firstOrderedItem.handle ||
+      firstOrderedItem.product_handle ||
+      firstOrderedItem.productHandle ||
+      '';
+
+    if (!productHandle) {
+      console.error('Order again failed: product handle not found in order items');
+      return;
+    }
+
+    router.push(`/product/${productHandle}?orderAgain=1`);
+  };
+
   return (
     <StyledOrders>
       <div className="container py-4">
@@ -267,6 +284,14 @@ const Orders = () => {
                   </div>
                 </div>
               </div>
+
+              <button
+                type="button"
+                className="btn btn-primary w-100 mb-3 rounded-3"
+                onClick={handleOrderAgain}
+              >
+                Order Again
+              </button>
 
               {/* More Actions */}
               <div className="card shadow-sm border-0 rounded-3">

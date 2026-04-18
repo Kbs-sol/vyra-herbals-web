@@ -4,7 +4,7 @@ import { FaEye, FaShoppingCart } from "react-icons/fa";
 // import { FaHeart } from "react-icons/fa";
 import { FaStar } from "react-icons/fa";
 import Link from "next/link";
-import { usePathname, useParams } from "next/navigation";
+import { useParams, useSearchParams, usePathname } from "next/navigation";
 import { IoIosArrowBack } from "react-icons/io";
 import { IoIosArrowForward } from "react-icons/io";
 import Image from "next/image";
@@ -40,7 +40,9 @@ import { trackEvent } from "@/utils/analytics";
 
 const Singleproducts = () => {
   const params = useParams();
+  const searchParams = useSearchParams();
   const productHandle = params?.productHandle || '';
+  const shouldAutoOrderAgain = searchParams?.get('orderAgain') === '1';
   const [product, setProduct] = useState<Product | null>(null);
   const [mainImage, setMainImage] = useState<string | null>(null);
   const [isInCart, setIsInCart] = useState(false);
@@ -64,6 +66,7 @@ const Singleproducts = () => {
   const { cartCount, updateCartCount } = useCart();
 
   const [qty, setQty] = useState(1);
+  const [hasAutoTriggeredCheckout, setHasAutoTriggeredCheckout] = useState(false);
 
 
   const handleSortChange = (option) => {
@@ -222,6 +225,36 @@ const Singleproducts = () => {
       setIsPageLoaded(true);
     }
   }, [product]);
+
+  useEffect(() => {
+    if (!shouldAutoOrderAgain || hasAutoTriggeredCheckout || !product || isProductLoading) {
+      return;
+    }
+
+    const triggerBuyNow = () => {
+      const buyNowButton = document.querySelector('.buy-button') as HTMLButtonElement | null;
+      if (!buyNowButton) return false;
+
+      buyNowButton.click();
+      setHasAutoTriggeredCheckout(true);
+
+      const url = new URL(window.location.href);
+      url.searchParams.delete('orderAgain');
+      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+
+      return true;
+    };
+
+    if (triggerBuyNow()) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      triggerBuyNow();
+    }, 200);
+
+    return () => window.clearTimeout(timer);
+  }, [shouldAutoOrderAgain, hasAutoTriggeredCheckout, product, isProductLoading]);
 
   // const handleAddToCart = async () => {
   //   if (!product) return;
