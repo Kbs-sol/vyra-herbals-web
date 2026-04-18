@@ -421,12 +421,8 @@ const Checkout = ({
     });
   };
 
-  var txnId = null;
-
   const handlePayment = async () => {
     setLoading(true);
-    let accessKey = null;
-
     const responseData = await getAccessKey();
     if (!responseData || !responseData.paymentUrl) {
       console.log("Failed to get payment URL. Please try again..");
@@ -434,7 +430,13 @@ const Checkout = ({
       setLoading(false);
       return;
     }
-    accessKey = responseData.data;
+    const paymentTxnId = responseData.txnid;
+    if (!paymentTxnId) {
+      notifyError("Failed to initialize transaction. Please try again.");
+      setLoading(false);
+      return;
+    }
+
     var paymentUrl = responseData.paymentUrl;
 
     // Extract product titles with quantity and sku
@@ -458,24 +460,29 @@ const Checkout = ({
       welcomeCouponDiscount: 0,
     };
 
-    fetch(`${API_PATH}/payment/session`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ txnId, orderData }),
-    })
-      .then((res) => {
-        // Proceed with payment redirection using the URL from backend
-        if (paymentUrl) window.open(paymentUrl, "_self");
-        else notifyError("Payment URL not found.");
-      })
-      .catch((err) => {
-        notifyError("Failed to save order session. Please try again.");
-        console.log("Failed to save order session.", err);
-        return;
-      })
-      .finally(() => setLoading(false));
+    try {
+      const sessionRes = await fetch(`${API_PATH}/payment/session`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ txnId: paymentTxnId, orderData }),
+      });
+
+      const sessionData = await sessionRes.json().catch(() => null);
+      if (!sessionRes.ok || sessionData?.status !== 'ok') {
+        throw new Error(sessionData?.error || 'Failed to save order session');
+      }
+
+      if (paymentUrl) window.open(paymentUrl, "_self");
+      else notifyError("Payment URL not found.");
+    } catch (err) {
+      notifyError("Failed to save order session. Please try again.");
+      console.log("Failed to save order session.", err);
+      return;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getAccessKey = async () => {
@@ -499,7 +506,6 @@ const Checkout = ({
       });
       const data = await response.json();
       console.log(data);
-      txnId = data.txnid;
       return data; // Return full data object including paymentUrl
     } catch (error) {
       console.error(error);

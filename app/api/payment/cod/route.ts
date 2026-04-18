@@ -87,11 +87,11 @@ export async function POST(req: Request) {
         // Update order with tracking ID and other details
         const { error: updateError } = await supabase.from('orders').update({
           tracking_id: trackingId,
-          shipment_id: shipmentResult.shipment_id,
-          awb_code: shipmentResult.awb_code,
-          courier_name: shipmentResult.courier_name,
-          label_url: shipmentResult.label_url,
-          delivery_status: 'Booked'
+          shipment_id: shipmentResult.shipment_id || null,
+          awb_code: shipmentResult.awb_code || null,
+          courier_name: shipmentResult.courier_name || null,
+          label_url: shipmentResult.label_url || null,
+          delivery_status: shipmentResult.delivery_status || 'Unassigned'
         }).eq('id', order.id);
 
         if (updateError) {

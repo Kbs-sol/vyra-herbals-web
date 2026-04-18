@@ -82,7 +82,16 @@ export const createShipment = async (orderData: any) => {
         if (!apiToken) {
             return { success: false, message: "Shipping authentication failed" };
         }
-        const inputState = (orderData.shipping_data.state || "").trim().toLowerCase();
+
+        const shippingData = typeof orderData.shipping_data === 'string'
+            ? JSON.parse(orderData.shipping_data)
+            : (orderData.shipping_data || {});
+
+        if (!shippingData.fullName || !shippingData.phone || !shippingData.pincode || !shippingData.city) {
+            return { success: false, message: "Missing shipping details for shipment creation" };
+        }
+
+        const inputState = (shippingData.state || "").trim().toLowerCase();
         let stateCode = "AP"; // Default fallback
 
         for (const [stateName, code] of Object.entries(stateMapping)) {
@@ -96,17 +105,17 @@ export const createShipment = async (orderData: any) => {
         const payload = new URLSearchParams();
         payload.append("pickup_address_id", process.env.ICARRY_PICKUP_ADDRESS_ID || "1");
         payload.append("client_order_id", String(orderData.id));
-        payload.append("consignee[name]", orderData.shipping_data.fullName);
-        payload.append("consignee[mobile]", orderData.shipping_data.phone);
-        payload.append("consignee[address]", `${orderData.shipping_data.houseNumber || ''}, ${orderData.shipping_data.area || ''}, ${orderData.shipping_data.landmark || ''}`.replace(/^, /, ''));
-        payload.append("consignee[city]", orderData.shipping_data.city);
-        payload.append("consignee[pincode]", orderData.shipping_data.pincode);
+        payload.append("consignee[name]", shippingData.fullName);
+        payload.append("consignee[mobile]", shippingData.phone);
+        payload.append("consignee[address]", `${shippingData.houseNumber || ''}, ${shippingData.area || ''}, ${shippingData.landmark || ''}`.replace(/^, /, ''));
+        payload.append("consignee[city]", shippingData.city);
+        payload.append("consignee[pincode]", shippingData.pincode);
         payload.append("consignee[state]", stateCode);
         payload.append("consignee[country_code]", "IN");
 
         payload.append("parcel[type]", orderData.payment_method === 'online' ? 'Prepaid' : 'COD');
         payload.append("parcel[value]", String(orderData.total_amount));
-        payload.append("parcel[contents]", orderData.shipping_data.productTitle || "Vyra Herbals Product");
+        payload.append("parcel[contents]", shippingData.productTitle || "Vyra Herbals Product");
 
         payload.append("parcel[weight][weight]", "500");
         payload.append("parcel[weight][unit]", "gm");
@@ -114,6 +123,11 @@ export const createShipment = async (orderData: any) => {
         payload.append("parcel[dimensions][breadth]", "10");
         payload.append("parcel[dimensions][height]", "10");
         payload.append("parcel[dimensions][unit]", "cm");
+
+        // Keep shipment unassigned in iCarry so admin can manually assign a delivery partner later.
+        payload.append("auto_assign", "0");
+        payload.append("is_auto_assign", "0");
+        payload.append("assign_courier", "0");
 
         const apiUrl = `https://www.icarry.in/api_add_shipment_surface?api_token=${apiToken}`;
 
@@ -143,14 +157,29 @@ export const createShipment = async (orderData: any) => {
 
         console.log("iCarry.in Result:", result);
 
-        if (result.success && result.shipment_id) {
+        const resultData = result?.data || result;
+        const shipmentId = resultData?.shipment_id || result?.shipment_id;
+        const awb = resultData?.awb || result?.awb;
+        const courierName = resultData?.courier_name || result?.courier_name || null;
+        const labelUrl = resultData?.label_url || result?.label_url || '';
+        const deliveryStatusRaw =
+            resultData?.delivery_status ||
+            resultData?.status ||
+            result?.delivery_status ||
+            result?.status ||
+            'unassigned';
+
+        const isSuccess = result?.success === true || result?.success === 1 || result?.success === '1';
+
+        if (isSuccess && shipmentId) {
             return {
                 success: true,
-                trackingId: String(result.awb || result.shipment_id),
-                shipment_id: String(result.shipment_id),
-                awb_code: String(result.awb),
-                courier_name: String(result.courier_name || 'iCarry Partner'),
-                label_url: String(result.label_url || ''),
+                trackingId: String(awb || shipmentId),
+                shipment_id: String(shipmentId),
+                awb_code: awb ? String(awb) : '',
+                courier_name: courierName ? String(courierName) : '',
+                label_url: String(labelUrl),
+                delivery_status: String(deliveryStatusRaw).toLowerCase() === 'booked' ? 'Unassigned' : String(deliveryStatusRaw),
                 data: result
             };
         }
