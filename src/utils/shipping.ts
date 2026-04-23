@@ -124,10 +124,9 @@ export const createShipment = async (orderData: any) => {
         payload.append("parcel[dimensions][height]", "10");
         payload.append("parcel[dimensions][unit]", "cm");
 
-        // Keep shipment unassigned in iCarry so admin can manually assign a delivery partner later.
-        payload.append("auto_assign", "0");
-        payload.append("is_auto_assign", "0");
-        payload.append("assign_courier", "0");
+        // Keep shipment unassigned in iCarry so admin can manually assign a courier later.
+        // Per iCarry API v14: any value in `save_only` saves the order without booking a courier.
+        payload.append("save_only", "1");
 
         const apiUrl = `https://www.icarry.in/api_add_shipment_surface?api_token=${apiToken}`;
 
@@ -162,14 +161,20 @@ export const createShipment = async (orderData: any) => {
         const awb = resultData?.awb || result?.awb;
         const courierName = resultData?.courier_name || result?.courier_name || null;
         const labelUrl = resultData?.label_url || result?.label_url || '';
-        const deliveryStatusRaw =
-            resultData?.delivery_status ||
-            resultData?.status ||
-            result?.delivery_status ||
-            result?.status ||
-            'unassigned';
 
-        const isSuccess = result?.success === true || result?.success === 1 || result?.success === '1';
+        // iCarry returns `success` as a human-readable string (e.g. "Success: You have added a new
+        // shipment with id 352. | ...") on the shipment endpoints, and `error` as an empty string.
+        // Treat the call as successful when an error message is absent and a shipment_id is returned.
+        const errorMessage = typeof result?.error === 'string' ? result.error.trim() : (result?.error || '');
+        const successField = result?.success;
+        const successString = typeof successField === 'string' && successField.trim().toLowerCase().startsWith('success');
+        const isSuccess = !errorMessage && (
+            successField === true ||
+            successField === 1 ||
+            successField === '1' ||
+            successString ||
+            Boolean(shipmentId)
+        );
 
         if (isSuccess && shipmentId) {
             return {
@@ -177,14 +182,16 @@ export const createShipment = async (orderData: any) => {
                 trackingId: String(awb || shipmentId),
                 shipment_id: String(shipmentId),
                 awb_code: awb ? String(awb) : '',
+                // save_only keeps the shipment unassigned — no courier or AWB will be returned until
+                // admin manually books it from the iCarry dashboard.
                 courier_name: courierName ? String(courierName) : '',
                 label_url: String(labelUrl),
-                delivery_status: String(deliveryStatusRaw).toLowerCase() === 'booked' ? 'Unassigned' : String(deliveryStatusRaw),
+                delivery_status: 'Unassigned',
                 data: result
             };
         }
 
-        return { success: false, message: result.error || "Shipment creation failed" };
+        return { success: false, message: errorMessage || "Shipment creation failed" };
     } catch (error) {
         console.error("Error creating shipment:", error);
         return { success: false, message: (error as Error).message };
