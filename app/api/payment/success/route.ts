@@ -182,9 +182,15 @@ export async function POST(req: Request) {
                     }
                 } else {
                     console.error(`[Payment Success] Shipment creation failed for order ${inserted.id}:`, shipmentResult.message);
+                    await supabase.from('orders').update({
+                        delivery_status: `Sync Failed: ${shipmentResult.message || 'unknown error'}`.slice(0, 255)
+                    }).eq('id', inserted.id);
                 }
             } catch (shipError) {
                 console.error('[Payment Success] Shipment creation exception:', shipError);
+                await supabase.from('orders').update({
+                    delivery_status: `Sync Failed: ${(shipError as Error).message || 'exception'}`.slice(0, 255)
+                }).eq('id', inserted.id);
             }
         } else if (inserted?.shipment_id) {
             trackingId = inserted.tracking_id || '';

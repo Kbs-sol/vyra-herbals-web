@@ -76,6 +76,27 @@ export const getIcarryToken = async () => {
     }
 };
 
+// iCarry rejects phones with "+91", leading 0, spaces, or non-digit characters.
+// Strip everything down to a clean 10-digit mobile.
+const normalizePhone = (raw: string): string => {
+    const digits = String(raw || "").replace(/\D/g, "");
+    if (digits.length === 12 && digits.startsWith("91")) return digits.slice(2);
+    if (digits.length === 11 && digits.startsWith("0")) return digits.slice(1);
+    return digits.slice(-10);
+};
+
+const normalizePincode = (raw: string): string =>
+    String(raw || "").replace(/\D/g, "").slice(0, 6);
+
+const buildAddress = (shippingData: any): string => {
+    const parts = [shippingData.houseNumber, shippingData.area, shippingData.landmark]
+        .map((p) => String(p || "").trim())
+        .filter(Boolean);
+    const joined = parts.join(", ");
+    // iCarry requires a meaningful address. Fall back to city so the request is accepted.
+    return joined || String(shippingData.city || "").trim();
+};
+
 export const createShipment = async (orderData: any) => {
     try {
         const apiToken = await getIcarryToken();
@@ -87,8 +108,17 @@ export const createShipment = async (orderData: any) => {
             ? JSON.parse(orderData.shipping_data)
             : (orderData.shipping_data || {});
 
-        if (!shippingData.fullName || !shippingData.phone || !shippingData.pincode || !shippingData.city) {
-            return { success: false, message: "Missing shipping details for shipment creation" };
+        const phone = normalizePhone(shippingData.phone);
+        const pincode = normalizePincode(shippingData.pincode);
+        const fullName = String(shippingData.fullName || "").trim();
+        const city = String(shippingData.city || "").trim();
+        const address = buildAddress(shippingData);
+
+        if (!fullName || phone.length !== 10 || pincode.length !== 6 || !city || !address) {
+            return {
+                success: false,
+                message: `Missing or invalid shipping details (name/phone/pincode/city/address)`
+            };
         }
 
         const inputState = (shippingData.state || "").trim().toLowerCase();
@@ -105,16 +135,18 @@ export const createShipment = async (orderData: any) => {
         const payload = new URLSearchParams();
         payload.append("pickup_address_id", process.env.ICARRY_PICKUP_ADDRESS_ID || "1");
         payload.append("client_order_id", String(orderData.id));
-        payload.append("consignee[name]", shippingData.fullName);
-        payload.append("consignee[mobile]", shippingData.phone);
-        payload.append("consignee[address]", `${shippingData.houseNumber || ''}, ${shippingData.area || ''}, ${shippingData.landmark || ''}`.replace(/^, /, ''));
-        payload.append("consignee[city]", shippingData.city);
-        payload.append("consignee[pincode]", shippingData.pincode);
+        payload.append("consignee[name]", fullName);
+        payload.append("consignee[mobile]", phone);
+        payload.append("consignee[address]", address);
+        payload.append("consignee[city]", city);
+        payload.append("consignee[pincode]", pincode);
         payload.append("consignee[state]", stateCode);
         payload.append("consignee[country_code]", "IN");
 
+        // iCarry requires a positive decimal for parcel value; floor at 1 so save_only never hits zero.
+        const parcelValue = Math.max(1, Number(orderData.total_amount) || 0);
         payload.append("parcel[type]", orderData.payment_method === 'online' ? 'Prepaid' : 'COD');
-        payload.append("parcel[value]", String(orderData.total_amount));
+        payload.append("parcel[value]", String(parcelValue));
         payload.append("parcel[contents]", shippingData.productTitle || "Vyra Herbals Product");
 
         payload.append("parcel[weight][weight]", "500");

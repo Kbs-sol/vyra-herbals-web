@@ -99,9 +99,16 @@ export async function POST(req: Request) {
         }
       } else {
         console.error(`[COD Order] Shipment creation failed for order ${order.id}:`, shipmentResult.message);
+        // Surface the failure to admin so they can manually retry/sync in iCarry.
+        await supabase.from('orders').update({
+          delivery_status: `Sync Failed: ${shipmentResult.message || 'unknown error'}`.slice(0, 255)
+        }).eq('id', order.id);
       }
     } catch (shipError) {
       console.error('[COD Order] Shipment creation exception:', shipError);
+      await supabase.from('orders').update({
+        delivery_status: `Sync Failed: ${(shipError as Error).message || 'exception'}`.slice(0, 255)
+      }).eq('id', order.id);
     }
 
     // 3. Clear cart for the user
