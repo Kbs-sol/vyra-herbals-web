@@ -296,7 +296,12 @@ export default function OrdersPage() {
           <div className="modal-overlay" onClick={() => setSelectedOrder(null)}>
             <div className="order-modal" onClick={(e) => e.stopPropagation()}>
               <div className="order-modal-header">
-                <h2>Order #{selectedOrder.id}</h2>
+                <div className="header-text">
+                  <h2>Order #{selectedOrder.id}</h2>
+                  {selectedOrder.order_id && (
+                    <span className="order-ref">{selectedOrder.order_id}</span>
+                  )}
+                </div>
                 <button className="close-btn" onClick={() => setSelectedOrder(null)}>
                   <svg viewBox="0 0 24 24" fill="none" width="24" height="24">
                     <path d="M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
@@ -314,9 +319,9 @@ export default function OrdersPage() {
                       <button
                         key={status.value}
                         className={`status-option ${selectedOrder.status === status.value ? 'active' : ''}`}
-                        style={{ 
+                        style={{
                           '--active-color': status.color,
-                          '--active-bg': status.bg 
+                          '--active-bg': status.bg
                         } as React.CSSProperties}
                         onClick={() => updateOrderStatus(selectedOrder.id as number, status.value)}
                         disabled={updating}
@@ -340,6 +345,47 @@ export default function OrdersPage() {
                   </div>
                 </div>
 
+                {/* Shipment Info */}
+                {(selectedOrder.awb_code || selectedOrder.courier_name || selectedOrder.shipment_id || selectedOrder.delivery_status || selectedOrder.label_url) && (
+                  <div className="detail-section">
+                    <h3>Shipment Info</h3>
+                    <div className="detail-grid">
+                      {selectedOrder.awb_code && (
+                        <div className="detail-item">
+                          <span className="label">AWB Code</span>
+                          <span className="value">{selectedOrder.awb_code}</span>
+                        </div>
+                      )}
+                      {selectedOrder.courier_name && (
+                        <div className="detail-item">
+                          <span className="label">Courier</span>
+                          <span className="value">{selectedOrder.courier_name}</span>
+                        </div>
+                      )}
+                      {selectedOrder.shipment_id && (
+                        <div className="detail-item">
+                          <span className="label">Shipment ID</span>
+                          <span className="value">{selectedOrder.shipment_id}</span>
+                        </div>
+                      )}
+                      {selectedOrder.delivery_status && (
+                        <div className="detail-item">
+                          <span className="label">Delivery Status</span>
+                          <span className="value">{selectedOrder.delivery_status}</span>
+                        </div>
+                      )}
+                      {selectedOrder.label_url && (
+                        <div className="detail-item full">
+                          <span className="label">Shipping Label</span>
+                          <a className="value link" href={selectedOrder.label_url} target="_blank" rel="noreferrer">
+                            Download Label
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Customer Details */}
                 <div className="detail-section">
                   <h3>Customer Details</h3>
@@ -347,7 +393,7 @@ export default function OrdersPage() {
                     <div className="detail-item">
                       <span className="label">Name</span>
                       <span className="value">
-                        {selectedOrder.shipping_data?.name || selectedOrder.shipping_data?.fullName || 'N/A'}
+                        {selectedOrder.shipping_data?.fullName || selectedOrder.shipping_data?.name || 'N/A'}
                       </span>
                     </div>
                     <div className="detail-item">
@@ -356,23 +402,74 @@ export default function OrdersPage() {
                         {selectedOrder.shipping_data?.phone || selectedOrder.shipping_data?.mobile || 'N/A'}
                       </span>
                     </div>
-                    <div className="detail-item">
+                    <div className="detail-item full">
                       <span className="label">Email</span>
                       <span className="value">
                         {selectedOrder.shipping_data?.email || 'N/A'}
                       </span>
                     </div>
+                    {selectedOrder.shipping_data?.houseNumber && (
+                      <div className="detail-item">
+                        <span className="label">House No.</span>
+                        <span className="value">{selectedOrder.shipping_data.houseNumber}</span>
+                      </div>
+                    )}
+                    {selectedOrder.shipping_data?.area && (
+                      <div className="detail-item">
+                        <span className="label">Area / Street</span>
+                        <span className="value">{selectedOrder.shipping_data.area}</span>
+                      </div>
+                    )}
+                    {selectedOrder.shipping_data?.landmark && (
+                      <div className="detail-item">
+                        <span className="label">Landmark</span>
+                        <span className="value">{selectedOrder.shipping_data.landmark}</span>
+                      </div>
+                    )}
+                    {selectedOrder.shipping_data?.city && (
+                      <div className="detail-item">
+                        <span className="label">City</span>
+                        <span className="value">{selectedOrder.shipping_data.city}</span>
+                      </div>
+                    )}
+                    {selectedOrder.shipping_data?.state && (
+                      <div className="detail-item">
+                        <span className="label">State</span>
+                        <span className="value">{selectedOrder.shipping_data.state}</span>
+                      </div>
+                    )}
+                    {selectedOrder.shipping_data?.pincode && (
+                      <div className="detail-item">
+                        <span className="label">Pincode</span>
+                        <span className="value">{selectedOrder.shipping_data.pincode}</span>
+                      </div>
+                    )}
+                    {selectedOrder.shipping_data?.country && (
+                      <div className="detail-item">
+                        <span className="label">Country</span>
+                        <span className="value">{selectedOrder.shipping_data.country}</span>
+                      </div>
+                    )}
                     <div className="detail-item full">
-                      <span className="label">Address</span>
+                      <span className="label">Full Address</span>
                       <span className="value">
                         {[
-                          selectedOrder.shipping_data?.address,
+                          selectedOrder.shipping_data?.houseNumber,
+                          selectedOrder.shipping_data?.area,
+                          selectedOrder.shipping_data?.landmark,
                           selectedOrder.shipping_data?.city,
                           selectedOrder.shipping_data?.state,
-                          selectedOrder.shipping_data?.pincode
+                          selectedOrder.shipping_data?.pincode,
+                          selectedOrder.shipping_data?.country,
                         ].filter(Boolean).join(', ') || 'N/A'}
                       </span>
                     </div>
+                    {selectedOrder.user_id && (
+                      <div className="detail-item full">
+                        <span className="label">User ID</span>
+                        <span className="value">{selectedOrder.user_id}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -380,15 +477,28 @@ export default function OrdersPage() {
                 <div className="detail-section">
                   <h3>Order Items</h3>
                   <div className="items-list">
-                    {(Array.isArray(selectedOrder.items) ? selectedOrder.items : []).map((item: any, index: number) => (
-                      <div key={index} className="item-row">
-                        <div className="item-info">
-                          <span className="item-title">{item.title || item.name || `Product #${item.id}`}</span>
-                          <span className="item-qty">Qty: {item.quantity}</span>
+                    {(Array.isArray(selectedOrder.items) ? selectedOrder.items : []).map((item: any, index: number) => {
+                      const thumb = item.image_url || item.image || (Array.isArray(item.images) ? item.images[0] : '');
+                      const unitPrice = Number(item.price) || 0;
+                      const qty = Number(item.quantity) || 0;
+                      return (
+                        <div key={index} className="item-row">
+                          {thumb && (
+                            <img src={thumb} alt={item.title || 'item'} className="item-thumb" />
+                          )}
+                          <div className="item-info">
+                            <span className="item-title">{item.title || item.name || `Product #${item.id}`}</span>
+                            <div className="item-meta">
+                              {item.sku && <span>SKU: {item.sku}</span>}
+                              {item.handle && !item.sku && <span>{item.handle}</span>}
+                              <span>Qty: {qty}</span>
+                              <span>Unit: {formatCurrency(unitPrice)}</span>
+                            </div>
+                          </div>
+                          <span className="item-price">{formatCurrency(unitPrice * qty)}</span>
                         </div>
-                        <span className="item-price">{formatCurrency(item.price * item.quantity)}</span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -404,8 +514,34 @@ export default function OrdersPage() {
                     </div>
                     <div className="summary-row">
                       <span>Order Date</span>
-                      <span>{formatDate(selectedOrder.created_at || '')}</span>
+                      <span className="summary-value">{formatDate(selectedOrder.created_at || selectedOrder.order_date || '')}</span>
                     </div>
+                    {typeof selectedOrder.transaction_price === 'number' && selectedOrder.transaction_price > 0 && (
+                      <div className="summary-row">
+                        <span>Transaction Price</span>
+                        <span className="summary-value">{formatCurrency(selectedOrder.transaction_price)}</span>
+                      </div>
+                    )}
+                    {selectedOrder.welcome_coupon_applied && (
+                      <div className="summary-row">
+                        <span>Welcome Coupon</span>
+                        <span className="summary-value discount">
+                          -{formatCurrency(selectedOrder.welcome_coupon_discount || 0)}
+                        </span>
+                      </div>
+                    )}
+                    {selectedOrder.razorpay_payment_id && (
+                      <div className="summary-row">
+                        <span>Payment ID</span>
+                        <span className="summary-value mono">{selectedOrder.razorpay_payment_id}</span>
+                      </div>
+                    )}
+                    {selectedOrder.razorpay_order_id && (
+                      <div className="summary-row">
+                        <span>Razorpay Order ID</span>
+                        <span className="summary-value mono">{selectedOrder.razorpay_order_id}</span>
+                      </div>
+                    )}
                     <div className="summary-row total">
                       <span>Total Amount</span>
                       <span className="total-amount">{formatCurrency(selectedOrder.total_amount)}</span>
@@ -678,12 +814,26 @@ export default function OrdersPage() {
             position: sticky;
             top: 0;
             background: white;
+            z-index: 2;
+          }
+
+          .header-text {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
           }
 
           .order-modal-header h2 {
             margin: 0;
             font-size: 18px;
             font-weight: 600;
+          }
+
+          .order-ref {
+            font-size: 12px;
+            color: #6b7280;
+            font-family: ui-monospace, Menlo, monospace;
           }
 
           .close-btn {
@@ -783,6 +933,12 @@ export default function OrdersPage() {
           .detail-item .value {
             font-size: 14px;
             color: #1f2937;
+            word-break: break-word;
+          }
+
+          .detail-item .value.link {
+            color: #2563eb;
+            text-decoration: underline;
           }
 
           .items-list {
@@ -795,6 +951,7 @@ export default function OrdersPage() {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 12px;
             padding: 12px 16px;
             border-bottom: 1px solid #f3f4f6;
           }
@@ -803,15 +960,36 @@ export default function OrdersPage() {
             border-bottom: none;
           }
 
+          .item-thumb {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            object-fit: cover;
+            background: #f3f4f6;
+            flex-shrink: 0;
+          }
+
           .item-info {
             display: flex;
             flex-direction: column;
+            gap: 4px;
+            flex: 1;
+            min-width: 0;
           }
 
           .item-title {
             font-size: 14px;
             font-weight: 500;
             color: #1f2937;
+            word-break: break-word;
+          }
+
+          .item-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px 10px;
+            font-size: 12px;
+            color: #6b7280;
           }
 
           .item-qty {
@@ -822,6 +1000,8 @@ export default function OrdersPage() {
           .item-price {
             font-weight: 600;
             color: #10b981;
+            white-space: nowrap;
+            flex-shrink: 0;
           }
 
           .summary-grid {
@@ -834,6 +1014,7 @@ export default function OrdersPage() {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 12px;
             padding: 12px 16px;
             border-bottom: 1px solid #f3f4f6;
           }
@@ -846,15 +1027,76 @@ export default function OrdersPage() {
             background: #f9fafb;
           }
 
-          .summary-row span:first-child {
+          .summary-row > span:first-child {
             color: #6b7280;
             font-size: 14px;
+            flex-shrink: 0;
+          }
+
+          .summary-value {
+            font-size: 14px;
+            color: #1f2937;
+            text-align: right;
+            word-break: break-word;
+          }
+
+          .summary-value.mono {
+            font-family: ui-monospace, Menlo, monospace;
+            font-size: 12px;
+          }
+
+          .summary-value.discount {
+            color: #ef4444;
+            font-weight: 600;
           }
 
           .total-amount {
             font-size: 18px;
             font-weight: 700;
             color: #10b981;
+            white-space: nowrap;
+          }
+
+          @media (max-width: 640px) {
+            .order-modal {
+              max-height: 95vh;
+              border-radius: 12px;
+            }
+
+            .order-modal-header {
+              padding: 16px;
+            }
+
+            .order-modal-body {
+              padding: 16px;
+            }
+
+            .detail-grid {
+              grid-template-columns: 1fr;
+            }
+
+            .detail-item.full {
+              grid-column: span 1;
+            }
+
+            .summary-row {
+              flex-direction: column;
+              align-items: flex-start;
+              gap: 4px;
+            }
+
+            .summary-value,
+            .total-amount {
+              text-align: left;
+            }
+
+            .item-row {
+              flex-wrap: wrap;
+            }
+
+            .item-price {
+              margin-left: auto;
+            }
           }
         `}</style>
       </div>
