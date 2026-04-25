@@ -42,7 +42,7 @@ export const stateMapping: Record<string, string> = {
     "Ladakh": "LA",
 };
 
-export const getIcarryToken = async () => {
+export const getIcarryToken = async (retryCount = 0) => {
     const username = process.env.ICARRY_USERNAME;
     const key = process.env.ICARRY_KEY;
 
@@ -57,21 +57,47 @@ export const getIcarryToken = async () => {
             headers: {
                 "Content-Type": "application/x-www-form-urlencoded",
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Accept": "application/json, text/plain, */*"
+                "Accept": "application/json, text/plain, */*",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Accept-Encoding": "gzip, deflate, br",
+                "Referer": "https://www.icarry.in/",
+                "Origin": "https://www.icarry.in",
+                "Connection": "keep-alive",
+                "Upgrade-Insecure-Requests": "1",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "same-origin",
+                "Cache-Control": "max-age=0"
             },
             body: new URLSearchParams({ username, Key: key }),
         });
 
         const text = await loginRes.text();
+
+        // Check for Cloudflare HTML response
+        if (text.includes("<!DOCTYPE") || text.includes("<html")) {
+            console.error("iCarry.in returned HTML (Cloudflare block), retrying...");
+            if (retryCount < 2) {
+                await new Promise(resolve => setTimeout(resolve, 2000 * (retryCount + 1)));
+                return getIcarryToken(retryCount + 1);
+            }
+            return null;
+        }
+
         try {
             const loginData = JSON.parse(text);
-            return loginData.api_token || null;
+            if (loginData.api_token) {
+                console.log("iCarry token obtained successfully");
+                return loginData.api_token;
+            }
+            console.error("iCarry response missing api_token:", loginData);
+            return null;
         } catch (parseError) {
-            console.error("iCarry.in token error (Not JSON):", text.substring(0, 150));
+            console.error("iCarry token error (Not JSON):", text.substring(0, 200));
             return null;
         }
     } catch (err) {
-        console.error("iCarry.in token error:", err);
+        console.error("iCarry token error:", err);
         return null;
     }
 };

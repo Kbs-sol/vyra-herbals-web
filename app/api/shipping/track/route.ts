@@ -77,13 +77,34 @@ async function callIcarryTracking(apiUrl: string, params: Record<string, string>
     const payload = new URLSearchParams(params);
     const res = await fetch(apiUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Referer': 'https://www.icarry.in/',
+        'Origin': 'https://www.icarry.in',
+        'Connection': 'keep-alive',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'same-origin',
+        'Cache-Control': 'max-age=0'
+      },
       body: payload,
     });
     const rawText = await res.text();
+
+    // Check for Cloudflare HTML block
+    if (rawText.includes('<!DOCTYPE') || rawText.includes('<html')) {
+      console.error('iCarry tracking returned HTML (Cloudflare block)');
+      return null;
+    }
+
     const parsed = JSON.parse(rawText);
     return normalizeIcarryTracking(parsed);
-  } catch {
+  } catch (err) {
+    console.error('iCarry tracking API error:', err);
     return null;
   }
 }
