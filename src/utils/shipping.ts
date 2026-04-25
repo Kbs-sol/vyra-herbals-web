@@ -2,6 +2,8 @@
  * Shipping Utility for iCarry.in Integration
  */
 
+let cachedToken: { token: string; expiresAt: number } | null = null;
+
 export const stateMapping: Record<string, string> = {
     "Andaman and Nicobar Islands": "AN",
     "Andhra Pradesh": "AP",
@@ -42,7 +44,13 @@ export const stateMapping: Record<string, string> = {
     "Ladakh": "LA",
 };
 
-export const getIcarryToken = async (retryCount = 0) => {
+export const getIcarryToken = async (retryCount = 0): Promise<string | null> => {
+    // Return cached token if still valid (cache for 23 hours)
+    if (cachedToken && cachedToken.expiresAt > Date.now()) {
+        console.log("Using cached iCarry token");
+        return cachedToken.token;
+    }
+
     const username = process.env.ICARRY_USERNAME;
     const key = process.env.ICARRY_KEY;
 
@@ -74,20 +82,28 @@ export const getIcarryToken = async (retryCount = 0) => {
 
         const text = await loginRes.text();
 
-        // Check for Cloudflare HTML response
-        if (text.includes("<!DOCTYPE") || text.includes("<html")) {
-            console.error("iCarry.in returned HTML (Cloudflare block), retrying...");
-            if (retryCount < 2) {
-                await new Promise(resolve => setTimeout(resolve, 2000 * (retryCount + 1)));
+        // Check for Cloudflare/error HTML response
+        if (text.includes("<!DOCTYPE") || text.includes("<html") || loginRes.status >= 400) {
+            console.error(`iCarry.in returned error (status: ${loginRes.status}), retrying...`);
+            if (retryCount < 3) {
+                const delay = 3000 * Math.pow(2, retryCount);
+                console.log(`Retrying in ${delay}ms...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
                 return getIcarryToken(retryCount + 1);
             }
+            console.error("Failed to get iCarry token after 3 retries");
             return null;
         }
 
         try {
             const loginData = JSON.parse(text);
             if (loginData.api_token) {
-                console.log("iCarry token obtained successfully");
+                // Cache the token for 23 hours
+                cachedToken = {
+                    token: loginData.api_token,
+                    expiresAt: Date.now() + 23 * 60 * 60 * 1000
+                };
+                console.log("iCarry token obtained and cached successfully");
                 return loginData.api_token;
             }
             console.error("iCarry response missing api_token:", loginData);
@@ -97,7 +113,7 @@ export const getIcarryToken = async (retryCount = 0) => {
             return null;
         }
     } catch (err) {
-        console.error("iCarry token error:", err);
+        console.error("iCarry token fetch error:", err);
         return null;
     }
 };
