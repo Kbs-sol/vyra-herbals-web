@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
 
+export const runtime = 'nodejs';
+export const preferredRegion = 'bom1';
+export const maxDuration = 30;
+
 function parseShippingData(shippingData: unknown): Record<string, any> {
   if (!shippingData) return {};
   if (typeof shippingData === 'string') {

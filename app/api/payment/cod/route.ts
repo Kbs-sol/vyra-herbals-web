@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
 
+export const runtime = 'nodejs';
+export const preferredRegion = 'bom1';
+export const maxDuration = 30;
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
