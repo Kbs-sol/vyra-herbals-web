@@ -4,15 +4,9 @@ import { createServerSupabase } from '@/utils/supabaseClient';
 function parseShippingData(shippingData: unknown): Record<string, any> {
   if (!shippingData) return {};
   if (typeof shippingData === 'string') {
-    try {
-      return JSON.parse(shippingData);
-    } catch {
-      return {};
-    }
+    try { return JSON.parse(shippingData); } catch { return {}; }
   }
-  if (typeof shippingData === 'object') {
-    return shippingData as Record<string, any>;
-  }
+  if (typeof shippingData === 'object') return shippingData as Record<string, any>;
   return {};
 }
 
@@ -22,42 +16,76 @@ function normalizeIcarryTracking(data: any) {
   const successFlag = data.success === 1 || data.success === '1' || data.success === true;
   const source = data?.data && typeof data.data === 'object' ? data.data : data;
 
-  const status = source?.status || source?.current_status || source?.delivery_status || source?.shipment_status;
+  const status =
+    source?.status || source?.current_status || source?.delivery_status ||
+    source?.shipment_status || source?.awb_status;
   if (!successFlag || !status) return null;
 
   const location =
-    source?.location ||
-    source?.current_location ||
-    source?.last_location ||
-    source?.city ||
-    'Will update soon';
+    source?.location || source?.current_location || source?.last_location ||
+    source?.city || source?.current_city || 'Will update soon';
 
   const edd =
-    source?.edd ||
-    source?.expected_delivery_date ||
-    source?.expected_date ||
-    source?.estimated_delivery ||
-    '';
+    source?.edd || source?.expected_delivery_date || source?.expected_date ||
+    source?.estimated_delivery || source?.EDD || '';
 
-  const detailsRaw = source?.details || source?.tracking_details || source?.events || [];
+  const detailsRaw =
+    source?.details || source?.tracking_details || source?.events ||
+    source?.activity || source?.scans || source?.checkpoints ||
+    source?.scan_details || source?.shipment_track_activities ||
+    source?.tracking_events || source?.Activities || [];
+
   const details = Array.isArray(detailsRaw)
     ? detailsRaw
         .map((entry: any) => ({
-          location: String(entry?.location || entry?.city || entry?.hub || location),
-          status: String(entry?.status || entry?.event || entry?.remark || status),
-          time: String(entry?.time || entry?.date || entry?.created_at || entry?.updated_at || ''),
+          location: String(
+            entry?.location || entry?.city || entry?.hub || entry?.sr_city_name ||
+            entry?.Location || entry?.City || location
+          ),
+          status: String(
+            entry?.status || entry?.event || entry?.remark || entry?.activity ||
+            entry?.sr_status || entry?.Status || entry?.Activity || entry?.Description || status
+          ),
+          time: String(
+            entry?.time || entry?.date || entry?.created_at || entry?.updated_at ||
+            entry?.timestamp || entry?.sr_date || entry?.Date || entry?.DateTime || ''
+          ),
         }))
-        .filter((entry: { location: string; status: string; time: string }) => entry.status)
+        .filter((e: { status: string }) => e.status)
     : [];
 
+  const awb =
+    source?.awb || source?.awb_code || source?.tracking_number ||
+    source?.consignment_no || source?.AWB || '';
+  const courierName =
+    source?.courier || source?.courier_name || source?.carrier ||
+    source?.courier_company || '';
+
   return {
-    ...data,
     success: 1,
     status: String(status),
     location: String(location),
     edd: edd ? String(edd) : undefined,
     details,
+    awb_code: awb ? String(awb) : undefined,
+    courier_name: courierName ? String(courierName) : undefined,
   };
+}
+
+async function callIcarryTracking(apiUrl: string, params: Record<string, string>) {
+  try {
+    const payload = new URLSearchParams(params);
+    const res = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: payload,
+    });
+    const rawText = await res.text();
+    const parsed = JSON.parse(rawText);
+    return normalizeIcarryTracking(parsed);
+  } catch {
+    return null;
+  }
 }
 
 function buildLocalTracking(order: any) {
@@ -72,7 +100,7 @@ function buildLocalTracking(order: any) {
       status: String(entry?.status || status),
       time: String(entry?.time || entry?.date || entry?.created_at || ''),
     }))
-    .filter((entry: { location: string; status: string; time: string }) => entry.status);
+    .filter((e: { status: string }) => e.status);
 
   return {
     success: 1,
@@ -80,6 +108,8 @@ function buildLocalTracking(order: any) {
     location: String(location),
     edd: '',
     details,
+    awb_code: order?.awb_code || undefined,
+    courier_name: order?.courier_name || undefined,
   };
 }
 
@@ -98,7 +128,8 @@ export async function POST(req: Request) {
     let order: any = null;
     const orderFields = 'id, order_id, status, delivery_status, tracking_id, shipment_id, awb_code, courier_name, shipping_data, status_timeline';
 
-    if (/^\d+$/.test(identifier)) {
+    // Look up by numeric DB id
+    if (/^\d+$/.test(identifier) && identifier.length <= 10) {
       const { data: byId } = await supabase
         .from('orders')
         .select(orderFields)
@@ -107,62 +138,69 @@ export async function POST(req: Request) {
       order = byId?.[0] || null;
     }
 
+    // Look up by order_id / tracking_id / shipment_id / awb_code
     if (!order) {
-      const keys: Array<'order_id' | 'tracking_id' | 'shipment_id' | 'awb_code'> = ['order_id', 'tracking_id', 'shipment_id', 'awb_code'];
+      const keys: Array<'order_id' | 'tracking_id' | 'shipment_id' | 'awb_code'> = [
+        'order_id', 'tracking_id', 'shipment_id', 'awb_code',
+      ];
       for (const key of keys) {
         const { data } = await supabase
           .from('orders')
           .select(orderFields)
           .eq(key, identifier)
           .limit(1);
-        if (data?.[0]) {
-          order = data[0];
-          break;
-        }
+        if (data?.[0]) { order = data[0]; break; }
       }
     }
 
     const { getIcarryToken } = await import('@/utils/shipping');
     const apiToken = await getIcarryToken();
 
-    const shipmentIdForTracking = order?.shipment_id || identifier;
-
-    if (apiToken && shipmentIdForTracking) {
+    if (apiToken) {
       const apiUrl = `https://www.icarry.in/api_track_shipment?api_token=${apiToken}`;
 
-      const payload = new URLSearchParams();
-      payload.append('shipment_id', String(shipmentIdForTracking));
+      // 1. iCarry internal shipment_id from DB
+      if (order?.shipment_id) {
+        const r = await callIcarryTracking(apiUrl, { shipment_id: String(order.shipment_id) });
+        if (r) return NextResponse.json({
+          ...r,
+          awb_code: r.awb_code || order.awb_code,
+          courier_name: r.courier_name || order.courier_name,
+        });
+      }
 
-      const res = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: payload,
+      // 2. awb_code from DB (as 'awb' parameter)
+      if (order?.awb_code && order.awb_code !== order.shipment_id) {
+        const r = await callIcarryTracking(apiUrl, { awb: String(order.awb_code) });
+        if (r) return NextResponse.json({
+          ...r,
+          courier_name: r.courier_name || order.courier_name,
+        });
+      }
+
+      // 3. identifier as iCarry shipment_id
+      const r3 = await callIcarryTracking(apiUrl, { shipment_id: identifier });
+      if (r3) return NextResponse.json({
+        ...r3,
+        courier_name: r3.courier_name || order?.courier_name,
       });
 
-      const rawText = await res.text();
-      let carrierData: any = null;
-      try {
-        carrierData = JSON.parse(rawText);
-      } catch {
-        carrierData = null;
-      }
-
-      const normalizedCarrier = normalizeIcarryTracking(carrierData);
-      if (normalizedCarrier) {
-        return NextResponse.json(normalizedCarrier);
-      }
+      // 4. identifier as awb (handles AWB numbers entered directly)
+      const r4 = await callIcarryTracking(apiUrl, { awb: identifier });
+      if (r4) return NextResponse.json({
+        ...r4,
+        courier_name: r4.courier_name || order?.courier_name,
+      });
     }
 
-    if (order) {
-      return NextResponse.json(buildLocalTracking(order));
-    }
+    if (order) return NextResponse.json(buildLocalTracking(order));
 
-    return NextResponse.json({ success: 0, message: 'Invalid Order ID. Please check and try again.' }, { status: 404 });
+    return NextResponse.json(
+      { success: 0, message: 'Invalid Order ID. Please check and try again.' },
+      { status: 404 }
+    );
   } catch (err) {
     console.error('Shipping track error:', err);
-    return NextResponse.json({
-      success: 0,
-      message: (err as Error).message
-    }, { status: 500 });
+    return NextResponse.json({ success: 0, message: (err as Error).message }, { status: 500 });
   }
 }
