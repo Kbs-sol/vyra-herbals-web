@@ -17,12 +17,22 @@ function parseShippingData(shippingData: unknown): Record<string, any> {
 function normalizeIcarryTracking(data: any) {
   if (!data || typeof data !== 'object') return null;
 
-  const successFlag = data.success === 1 || data.success === '1' || data.success === true;
+  // iCarry returns `success` either as 1/true OR as a human-readable string
+  // (e.g. "Success: Shipment found ..."). Treat string starting with "success" as truthy.
+  const errorMessage = typeof data?.error === 'string' ? data.error.trim() : (data?.error || '');
+  const successField = data?.success;
+  const successString = typeof successField === 'string' &&
+    successField.trim().toLowerCase().startsWith('success');
+  const successFlag = !errorMessage && (
+    successField === 1 || successField === '1' || successField === true || successString
+  );
+
   const source = data?.data && typeof data.data === 'object' ? data.data : data;
 
   const status =
     source?.status || source?.current_status || source?.delivery_status ||
-    source?.shipment_status || source?.awb_status;
+    source?.shipment_status || source?.awb_status ||
+    source?.tracking_status || source?.last_status;
   if (!successFlag || !status) return null;
 
   const location =
@@ -101,14 +111,130 @@ async function callIcarryTracking(apiUrl: string, params: Record<string, string>
 
     // Check for Cloudflare HTML block
     if (rawText.includes('<!DOCTYPE') || rawText.includes('<html')) {
-      console.error('iCarry tracking returned HTML (Cloudflare block)');
+      console.error('iCarry tracking returned HTML (Cloudflare block) for params:', params);
       return null;
     }
 
-    const parsed = JSON.parse(rawText);
-    return normalizeIcarryTracking(parsed);
+    let parsed: any;
+    try {
+      parsed = JSON.parse(rawText);
+    } catch {
+      console.error('iCarry tracking returned non-JSON for params', params, '— body:', rawText.slice(0, 300));
+      return null;
+    }
+
+    const normalized = normalizeIcarryTracking(parsed);
+    if (!normalized) {
+      console.warn('iCarry tracking response did not normalize for params', params, '— body:', rawText.slice(0, 300));
+    }
+    return normalized;
   } catch (err) {
     console.error('iCarry tracking API error:', err);
+    return null;
+  }
+}
+
+// iCarry's `api_track_shipment` only accepts their internal numeric `shipment_id`
+// (it rejects raw AWBs with "Error : Shipment id is required."). To track by AWB
+// we instead scrape iCarry's public tracking page, which is server-side rendered
+// with the same data behind no auth.
+const PUBLIC_TRACKING_STEPS = [
+  'Ready To Ship',
+  'Scheduled for Pickup',
+  'In-transit',
+  'Out for delivery',
+  'Delivered',
+];
+
+function extractSummaryRows(html: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  const re = /<span class="summary-label">([^<]+)<\/span>\s*<span class="summary-value">([^<]+)<\/span>/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(html)) !== null) {
+    const key = match[1].replace(/\s*:\s*$/, '').trim().toLowerCase();
+    out[key] = match[2].trim();
+  }
+  return out;
+}
+
+// Match a balanced { ... } block following an `=` after the given variable name,
+// avoiding the commented-out demo block that appears earlier on the page.
+function extractObjectAssignment(source: string, varName: string): string | null {
+  const declRe = new RegExp(`(?:const|let|var)\\s+${varName}\\s*=\\s*\\{`);
+  const m = declRe.exec(source);
+  if (!m) return null;
+  const start = m.index + m[0].length - 1; // position of '{'
+  let depth = 0;
+  for (let i = start; i < source.length; i++) {
+    const ch = source[i];
+    if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) return source.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
+function parsePublicEvents(eventsText: string): Array<{ date: string; location: string; detail: string }> {
+  const re = /\{\s*date:\s*"([^"]+)"\s*,\s*location:\s*"([^"]+)"\s*,\s*detail:\s*"([^"]+)"\s*,?\s*\}/g;
+  const out: Array<{ date: string; location: string; detail: string }> = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(eventsText)) !== null) {
+    out.push({ date: m[1], location: m[2], detail: m[3] });
+  }
+  return out;
+}
+
+async function trackByPublicAwbPage(awb: string) {
+  try {
+    const res = await fetch(`https://www.icarry.in/track-shipment?awb=${encodeURIComponent(awb)}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+    });
+    if (!res.ok) {
+      console.warn('iCarry public track page returned', res.status, 'for AWB', awb);
+      return null;
+    }
+    const html = await res.text();
+    const summary = extractSummaryRows(html);
+
+    if (!summary['awb']) {
+      console.warn('iCarry public track page has no AWB row for', awb, '— likely invalid AWB');
+      return null;
+    }
+
+    const status = summary['status'] || 'Pending';
+    const courier = summary['courier name'] || '';
+    const location = summary['destination'] || '';
+
+    // The page contains a commented-out demo `exampleShipmentDetails` block
+    // before the real one — strip /* ... */ comments first.
+    const stripped = html.replace(/\/\*[\s\S]*?\*\//g, '');
+    const detailsObj = extractObjectAssignment(stripped, 'exampleShipmentDetails');
+    const events = detailsObj ? parsePublicEvents(detailsObj) : [];
+
+    const stepMatch = stripped.match(/exampleCurrentStep\s*=\s*(\d+)/);
+    const currentStep = stepMatch ? Math.max(0, Math.min(PUBLIC_TRACKING_STEPS.length - 1, Number(stepMatch[1]))) : 0;
+    const stepLabel = PUBLIC_TRACKING_STEPS[currentStep];
+
+    // Prefer iCarry's text status, fall back to milestone label
+    const finalStatus = status || stepLabel;
+
+    return {
+      success: 1,
+      status: String(finalStatus),
+      location: String(location || 'Will update soon'),
+      edd: summary['delivery tat'] || undefined,
+      details: events.map(e => ({ status: e.detail, location: e.location, time: e.date })),
+      awb_code: String(summary['awb']),
+      courier_name: String(courier),
+    };
+  } catch (err) {
+    console.error('iCarry public track scrape error:', err);
     return null;
   }
 }
@@ -181,41 +307,49 @@ export async function POST(req: Request) {
     const { getIcarryToken } = await import('@/utils/shipping');
     const apiToken = await getIcarryToken();
 
-    if (apiToken) {
+    // 1. iCarry internal shipment_id (stored at order creation) → authenticated track API
+    if (apiToken && order?.shipment_id) {
       const apiUrl = `https://www.icarry.in/api_track_shipment?api_token=${apiToken}`;
+      const r = await callIcarryTracking(apiUrl, { shipment_id: String(order.shipment_id) });
+      if (r) return NextResponse.json({
+        ...r,
+        awb_code: r.awb_code || order.awb_code,
+        courier_name: r.courier_name || order.courier_name,
+      });
+    }
 
-      // 1. iCarry internal shipment_id from DB
-      if (order?.shipment_id) {
-        const r = await callIcarryTracking(apiUrl, { shipment_id: String(order.shipment_id) });
-        if (r) return NextResponse.json({
-          ...r,
-          awb_code: r.awb_code || order.awb_code,
-          courier_name: r.courier_name || order.courier_name,
-        });
-      }
+    // 2. AWB stored in DB → public AWB tracking page
+    if (order?.awb_code && order.awb_code !== order.shipment_id) {
+      const r = await trackByPublicAwbPage(String(order.awb_code));
+      if (r) return NextResponse.json({
+        ...r,
+        awb_code: r.awb_code || order.awb_code,
+        courier_name: r.courier_name || order.courier_name,
+      });
+    }
 
-      // 2. awb_code from DB (as 'awb' parameter)
-      if (order?.awb_code && order.awb_code !== order.shipment_id) {
-        const r = await callIcarryTracking(apiUrl, { awb: String(order.awb_code) });
-        if (r) return NextResponse.json({
-          ...r,
-          courier_name: r.courier_name || order.courier_name,
-        });
-      }
-
-      // 3. identifier as iCarry shipment_id
+    // 3. Identifier looks like iCarry's short internal shipment_id (≤10 digits)
+    if (apiToken && /^\d{1,10}$/.test(identifier)) {
+      const apiUrl = `https://www.icarry.in/api_track_shipment?api_token=${apiToken}`;
       const r3 = await callIcarryTracking(apiUrl, { shipment_id: identifier });
       if (r3) return NextResponse.json({
         ...r3,
         courier_name: r3.courier_name || order?.courier_name,
       });
+    }
 
-      // 4. identifier as awb (handles AWB numbers entered directly)
-      const r4 = await callIcarryTracking(apiUrl, { awb: identifier });
+    // 4. Identifier looks like an AWB (longer numeric) → public AWB tracking page
+    if (/^\d{11,}$/.test(identifier)) {
+      const r4 = await trackByPublicAwbPage(identifier);
       if (r4) return NextResponse.json({
         ...r4,
+        awb_code: r4.awb_code || identifier,
         courier_name: r4.courier_name || order?.courier_name,
       });
+    }
+
+    if (!apiToken) {
+      console.error('Shipping track: iCarry token unavailable, falling back to local data');
     }
 
     if (order) return NextResponse.json(buildLocalTracking(order));

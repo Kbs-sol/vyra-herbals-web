@@ -45,8 +45,8 @@ const TrackOrder = () => {
 
   const fetchOrderDetails = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputValue) { setError("Please enter a valid Order ID."); return; }
-    if (!/^\d+$/.test(inputValue)) { setError("Order ID must contain only digits."); return; }
+    if (!inputValue) { setError("Please enter your Order ID or AWB / Tracking Number."); return; }
+    if (!/^\d+$/.test(inputValue)) { setError("Tracking number must contain only digits."); return; }
 
     setLoading(true);
     setError("");
@@ -73,9 +73,9 @@ const TrackOrder = () => {
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+    const value = e.target.value.trim();
     if (/^\d*$/.test(value)) { setInputValue(value); setError(""); }
-    else setError("Order ID must contain only digits.");
+    else setError("Tracking number must contain only digits.");
   };
 
   const milestoneIndex = trackingInfo?.status ? getMilestoneIndex(trackingInfo.status) : -1;
@@ -88,14 +88,14 @@ const TrackOrder = () => {
         <h2>Track Your Order</h2>
         <form onSubmit={fetchOrderDetails}>
           <div className="text-start">
-            <label htmlFor="trackingInput">Please enter your Order ID</label>
+            <label htmlFor="trackingInput">Please enter your Order ID or AWB / Tracking Number</label>
           </div>
           <div className="form-group mt-3">
             <input
               type="text"
               id="trackingInput"
               name="trackingInput"
-              placeholder="Enter your Order ID or Tracking Number"
+              placeholder="e.g. 14344961614500 (AWB) or your Order ID"
               value={inputValue}
               onChange={handleInputChange}
               required
