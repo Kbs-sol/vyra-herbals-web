@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
+import { validateCoupon, recordCouponUsage } from '@/utils/coupons';
 
 export const runtime = 'nodejs';
 export const preferredRegion = 'bom1';
@@ -52,6 +53,29 @@ export async function POST(req: Request) {
       }
     }
 
+    // --- Custom Coupon Server-Side Validation ---
+    // Re-validate the coupon code from the cart to recompute the discount
+    // server-side. The client-supplied discount amount is never trusted.
+    let appliedCouponCode: string | null = null;
+    let appliedCouponDiscount = 0;
+    let appliedCouponId: number | null = null;
+    if (orderData.couponCode) {
+      const result = await validateCoupon(
+        supabase,
+        orderData.couponCode,
+        orderData.orderItems || [],
+        orderData.userId || null
+      );
+      if (result.ok) {
+        appliedCouponCode = result.coupon.code;
+        appliedCouponDiscount = result.discount;
+        appliedCouponId = result.coupon.id;
+        console.log(`[COD] Custom coupon applied: ${appliedCouponCode} = ₹${appliedCouponDiscount} off`);
+      } else {
+        console.log(`[COD] Custom coupon rejected: ${result.reason}`);
+      }
+    }
+
     // Generate IDs manually since DB defaults seem missing
     const now = new Date();
     const generatedId = now.getTime(); // Simple unique int8
@@ -70,7 +94,9 @@ export async function POST(req: Request) {
       created_at: now.toISOString(),
       order_date: now.toISOString(),
       welcome_coupon_applied: welcomeCouponApplied,
-      welcome_coupon_discount: welcomeCouponDiscount
+      welcome_coupon_discount: welcomeCouponDiscount,
+      coupon_code: appliedCouponCode,
+      coupon_discount: appliedCouponDiscount,
     };
     const { data: inserted, error } = await supabase.from('orders').insert([orderPayload]).select();
     if (error) {
@@ -115,7 +141,18 @@ export async function POST(req: Request) {
       }).eq('id', order.id);
     }
 
-    // 3. Clear cart for the user
+    // 3. Record coupon usage (after order is durably created)
+    if (appliedCouponId && appliedCouponDiscount > 0) {
+      await recordCouponUsage(
+        supabase,
+        appliedCouponId,
+        orderData.userId || null,
+        order?.id || null,
+        appliedCouponDiscount
+      );
+    }
+
+    // 4. Clear cart for the user
     if (orderData.userId) {
       await supabase.from('cart').delete().eq('user_id', orderData.userId);
     }

@@ -3,8 +3,11 @@
 import React, { useMemo } from "react";
 import { COD_Charges } from "../../constants";
 import styled from "styled-components";
+import { useCart } from "../Contexts/CartContext";
 
 const BillSummary = ({ items, isCOD = false }) => {
+  const { appliedCoupon } = useCart();
+
   const totalMRP = useMemo(() => {
     return items.reduce(
       (total, item) => total + item.quantity * item.regular_price,
@@ -20,7 +23,14 @@ const BillSummary = ({ items, isCOD = false }) => {
     return price;
   }, [items]);
 
-  const finalPrice = totalPrice;
+  // Cap the coupon discount at the items total so totals never go negative.
+  const couponDiscount = useMemo(() => {
+    const raw = Number(appliedCoupon?.discount || 0);
+    if (!raw || raw <= 0) return 0;
+    return Math.min(raw, totalPrice);
+  }, [appliedCoupon, totalPrice]);
+
+  const finalPrice = Math.max(0, totalPrice - couponDiscount);
 
   return (
     <StyledBillSummary>
@@ -36,6 +46,17 @@ const BillSummary = ({ items, isCOD = false }) => {
             - ₹{totalMRP - totalPrice}
           </span>
         </p>
+
+        {couponDiscount > 0 && appliedCoupon && (
+          <p className="text-lg font-semibold mb-0 d-flex justify-content-between px-3">
+            <span>
+              Coupon (<span className="coupon-code">{appliedCoupon.code}</span>)
+            </span>
+            <span className="text-lg fw-bold ms-1 text-success">
+              - ₹{couponDiscount}
+            </span>
+          </p>
+        )}
 
         <p className="text-lg font-semibold mb-0 d-flex justify-content-between px-3">
           <span>Delivery Fee</span>
@@ -63,5 +84,10 @@ const BillSummary = ({ items, isCOD = false }) => {
 
 export default BillSummary;
 
-const StyledBillSummary = styled.div``;
-
+const StyledBillSummary = styled.div`
+  .coupon-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-weight: 700;
+    color: #704a0d;
+  }
+`;

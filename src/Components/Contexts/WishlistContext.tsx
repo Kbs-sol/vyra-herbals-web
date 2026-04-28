@@ -38,7 +38,9 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
     if (!loading) {
       fetchWishlist();
     }
-  }, [user, loading]);
+    // Depend on user.id (stable) so token refreshes don't refetch needlessly
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, loading]);
 
   const fetchWishlist = async (): Promise<void> => {
     try {

@@ -13,6 +13,7 @@ import BestSeller from "../Components/Home/BestSeller";
 import styled from "styled-components";
 import CartItem from "../Components/Shared/CartItem";
 import BillSummary from "../Components/Shared/BillSummary";
+import CouponInput from "../Components/Shared/CouponInput";
 
 const Cart = () => {
   const router = useRouter();
@@ -107,6 +108,7 @@ const Cart = () => {
             </div>
             <div className="col-md-4 my-2 bill-summary">
               <div className="p-4 border rounded-1">
+                <CouponInput />
                 <BillSummary items={cartItems} />
                 <Checkout
                   cartItems={cartItems}

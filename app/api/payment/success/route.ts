@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
+import { validateCoupon, recordCouponUsage } from '@/utils/coupons';
 
 export const runtime = 'nodejs';
 export const preferredRegion = 'bom1';
@@ -113,6 +114,27 @@ export async function POST(req: Request) {
                 }
             }
 
+            // --- Custom Coupon Server-Side Validation ---
+            let appliedCouponCode: string | null = null;
+            let appliedCouponDiscount = 0;
+            let appliedCouponId: number | null = null;
+            if (orderData.couponCode) {
+                const result = await validateCoupon(
+                    supabase,
+                    orderData.couponCode,
+                    orderData.orderItems || [],
+                    orderData.userId || null
+                );
+                if (result.ok) {
+                    appliedCouponCode = result.coupon.code;
+                    appliedCouponDiscount = result.discount;
+                    appliedCouponId = result.coupon.id;
+                    console.log(`[Payment Success] Custom coupon applied: ${appliedCouponCode} = ₹${appliedCouponDiscount} off`);
+                } else {
+                    console.log(`[Payment Success] Custom coupon rejected: ${result.reason}`);
+                }
+            }
+
             // 2. Insert into orders
             const now = new Date();
             const generatedId = now.getTime(); // Match COD logic
@@ -133,7 +155,9 @@ export async function POST(req: Request) {
                 created_at: now.toISOString(),
                 order_date: now.toISOString(),
                 welcome_coupon_applied: welcomeCouponApplied,
-                welcome_coupon_discount: welcomeCouponDiscount
+                welcome_coupon_discount: welcomeCouponDiscount,
+                coupon_code: appliedCouponCode,
+                coupon_discount: appliedCouponDiscount,
             };
 
             const { data: createdOrder, error: insertError } = await supabase
@@ -148,6 +172,17 @@ export async function POST(req: Request) {
             }
 
             inserted = createdOrder;
+
+            // Record coupon usage now that the order is durably created
+            if (appliedCouponId && appliedCouponDiscount > 0) {
+                await recordCouponUsage(
+                    supabase,
+                    appliedCouponId,
+                    orderData.userId || null,
+                    inserted?.id || null,
+                    appliedCouponDiscount
+                );
+            }
         }
 
         // 3. Clear cart? 

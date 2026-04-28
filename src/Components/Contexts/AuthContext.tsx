@@ -141,25 +141,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     });
 
-    // Cross-tab synchronization: re-check session when tab becomes visible/focused
-    const handleFocus = () => {
-      if (document.visibilityState === 'visible') {
-        getSession();
-      }
-    };
-
-    if (typeof window !== 'undefined') {
-      window.addEventListener('visibilitychange', handleFocus);
-      window.addEventListener('focus', handleFocus);
-    }
-
     return () => {
       mounted = false;
       subscription.unsubscribe();
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('visibilitychange', handleFocus);
-        window.removeEventListener('focus', handleFocus);
-      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

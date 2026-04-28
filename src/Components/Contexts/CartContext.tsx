@@ -8,6 +8,14 @@ import { supabase } from "@/utils/supabaseClient";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 
+interface AppliedCoupon {
+  code: string;
+  discount: number;
+  description?: string | null;
+  discount_type?: 'percent' | 'flat';
+  discount_value?: number;
+}
+
 interface CartContextType {
   cartCount: number;
   updateCartCount: (newCount: number) => void;
@@ -17,6 +25,9 @@ interface CartContextType {
   removeItemFromCart: (productId: number | string) => void;
   updateItemInCart: (action: 'increment' | 'decrement', productId: number | string) => void;
   fetchCartProductsFromAPI: () => Promise<void>;
+  appliedCoupon: AppliedCoupon | null;
+  applyCoupon: (code: string) => Promise<{ ok: boolean; reason?: string }>;
+  removeCoupon: () => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -24,6 +35,7 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cartCount, setCartCount] = useState<number>(0);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
   const router = useRouter();
 
   const { user, loading } = useAuth();
@@ -32,7 +44,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     if (!loading) {
       fetchCart();
     }
-  }, [user, loading]);
+    // Depend on user.id (stable) rather than the user object — supabase's
+    // onAuthStateChange replaces the user reference on every token refresh,
+    // which would otherwise cause needless cart refetches mid-checkout.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, loading]);
 
   const fetchCart = async (): Promise<void> => {
     try {
@@ -233,10 +249,104 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
       setCartItems([]);
       setCartCount(0);
+      setAppliedCoupon(null);
     } catch (error) {
       console.error("Error clearing cart:", error);
     }
   };
+
+  const applyCoupon = async (code: string): Promise<{ ok: boolean; reason?: string }> => {
+    const trimmed = (code || '').trim();
+    if (!trimmed) return { ok: false, reason: 'Enter a coupon code' };
+    if (!cartItems || cartItems.length === 0) {
+      return { ok: false, reason: 'Add items to cart before applying a coupon' };
+    }
+
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      // Forward auth so the API can enforce per-user usage limits
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+      } catch { /* ignore */ }
+
+      const items = cartItems.map(it => ({
+        id: it.id,
+        price: Number(it.price) || 0,
+        quantity: Number(it.quantity) || 0,
+      }));
+
+      const res = await fetch('/api/coupon/validate', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ code: trimmed, items }),
+      });
+      const data = await res.json();
+
+      if (!data?.ok) {
+        setAppliedCoupon(null);
+        return { ok: false, reason: data?.reason || 'Invalid coupon' };
+      }
+
+      setAppliedCoupon({
+        code: data.coupon?.code || trimmed.toUpperCase(),
+        discount: Number(data.discount) || 0,
+        description: data.coupon?.description || null,
+        discount_type: data.coupon?.discount_type,
+        discount_value: data.coupon?.discount_value,
+      });
+      return { ok: true };
+    } catch (e: any) {
+      console.error('applyCoupon error:', e);
+      return { ok: false, reason: 'Failed to validate coupon' };
+    }
+  };
+
+  const removeCoupon = (): void => {
+    setAppliedCoupon(null);
+  };
+
+  // Re-validate or recompute coupon discount whenever cart items change
+  // (silently drop the coupon if it no longer applies — e.g. items removed below min order)
+  useEffect(() => {
+    if (!appliedCoupon) return;
+    const code = appliedCoupon.code;
+    // No items left → drop coupon
+    if (!cartItems || cartItems.length === 0) {
+      setAppliedCoupon(null);
+      return;
+    }
+    // Re-run validation in background to recompute discount for the new totals
+    (async () => {
+      try {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+        } catch { /* ignore */ }
+        const items = cartItems.map(it => ({
+          id: it.id,
+          price: Number(it.price) || 0,
+          quantity: Number(it.quantity) || 0,
+        }));
+        const res = await fetch('/api/coupon/validate', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ code, items }),
+        });
+        const data = await res.json();
+        if (data?.ok) {
+          setAppliedCoupon(prev => prev && prev.code === code ? { ...prev, discount: Number(data.discount) || 0 } : prev);
+        } else {
+          // Coupon no longer applies — drop it
+          setAppliedCoupon(null);
+        }
+      } catch {
+        // network errors: leave as-is, server will re-validate at order time
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cartItems.map(i => `${i.id}:${i.quantity}:${i.price}`).join('|')]);
 
   return (
     <CartContext.Provider
@@ -249,6 +359,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         removeItemFromCart,
         updateItemInCart,
         fetchCartProductsFromAPI,
+        appliedCoupon,
+        applyCoupon,
+        removeCoupon,
       }}
     >
       {children}

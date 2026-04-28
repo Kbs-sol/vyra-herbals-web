@@ -133,6 +133,16 @@ const menuItems = [
     ),
   },
   {
+    name: 'Coupons',
+    href: '/admin/coupons',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
+        <path d="M20 12V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v5a2 2 0 0 1 0 4v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3a2 2 0 0 1 0-4z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M9 9v6M14 9v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
     name: 'Settings',
     href: '/admin/settings',
     icon: (

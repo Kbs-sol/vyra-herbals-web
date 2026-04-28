@@ -12,7 +12,9 @@ import SVGIcon from "../Components/Common/SVGIcon";
 import Cart from "./Cart";
 import CartItem from "../Components/Shared/CartItem";
 import BillSummary from "../Components/Shared/BillSummary";
+import CouponInput from "../Components/Shared/CouponInput";
 import { useAuth } from "../Components/Contexts/AuthContext";
+import { useCart } from "../Components/Contexts/CartContext";
 import { supabase } from "@/utils/supabaseClient";
 import { trackEvent } from "@/utils/analytics";
 
@@ -43,6 +45,7 @@ const Checkout = ({
   quantity?: number;
 }) => {
   const { user } = useAuth();
+  const { appliedCoupon } = useCart();
   const defaultFormData: CheckoutFormData = {
     fullName: "",
     phone: "",
@@ -160,7 +163,9 @@ const Checkout = ({
     if (user && showModal) {
       fetchSavedAddresses();
     }
-  }, [user, showModal]);
+    // Use user.id (stable) so token refreshes don't re-fetch and clobber the form
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, showModal]);
 
   const fetchSavedAddresses = async () => {
     if (!user) return;
@@ -219,18 +224,19 @@ const Checkout = ({
   };
 
   useEffect(() => {
+    const itemsTotal = (cartItems && cartItems.length > 0)
+      ? cartItems.reduce(
+        (total, item) => total + item.quantity * item.price,
+        0
+      )
+      : (product ? product.price * quantity : 0);
+    const discount = Math.min(Number(appliedCoupon?.discount || 0), itemsTotal);
     if (paymentMethod === "online") {
-      const totalPrice = (cartItems && cartItems.length > 0)
-        ? cartItems.reduce(
-          (total, item) => total + item.quantity * item.price,
-          0
-        )
-        : (product ? product.price * quantity : 0);
-      setTransactionPrice(totalPrice);
+      setTransactionPrice(Math.max(0, itemsTotal - discount));
     } else if (paymentMethod === "cod") {
       setTransactionPrice(100);
     }
-  }, [paymentMethod, cartItems, product, quantity]);
+  }, [paymentMethod, cartItems, product, quantity, appliedCoupon]);
 
   useEffect(() => {
     if (String(formData.pincode).length === 6) {
@@ -444,7 +450,11 @@ const Checkout = ({
       .map((item) => `${item.quantity}X${item.sku || item.handle || item.title}`)
       .join(", ");
 
-    const discountedTotal = totalPriceOfCartProducts;
+    const couponDiscount = Math.min(
+      Number(appliedCoupon?.discount || 0),
+      totalPriceOfCartProducts
+    );
+    const discountedTotal = Math.max(0, totalPriceOfCartProducts - couponDiscount);
     const orderData = {
       orderItems: orderedItems,
       totalAmount: discountedTotal + (paymentMethod === "cod" ? COD_Charges : 0),
@@ -458,6 +468,7 @@ const Checkout = ({
       userId: user?.id,
       welcomeCouponApplied: false,
       welcomeCouponDiscount: 0,
+      couponCode: appliedCoupon?.code || null,
     };
 
     try {
@@ -622,6 +633,9 @@ const Checkout = ({
           ))}
         </ul>
         <section className="bill-summary">
+          <div style={{ padding: "0 1rem" }}>
+            <CouponInput />
+          </div>
           <BillSummary
             items={orderedItems}
             isCOD={paymentMethod === "cod"}
@@ -638,7 +652,17 @@ const Checkout = ({
           <b> Provide details to checkout </b>
         </center>
 
-        <Form className="checkout-form">
+        <Form
+          className="checkout-form"
+          onSubmit={(e) => e.preventDefault()}
+          onKeyDown={(e) => {
+            // Prevent Enter from submitting the form (which would reload the page)
+            const target = e.target as HTMLElement;
+            if (e.key === 'Enter' && target.tagName !== 'TEXTAREA') {
+              e.preventDefault();
+            }
+          }}
+        >
           {savedAddresses.length > 0 && (
             <Form.Group className="mb-4 form-group bg-light p-3 rounded border">
               <Form.Label className="fw-bold mb-2">Select a Saved Address</Form.Label>
