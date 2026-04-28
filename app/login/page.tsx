@@ -28,7 +28,8 @@ const LoginContent = () => {
       router.refresh();
       router.push(redirectUrl || '/');
     }
-  }, [user, authLoading, redirectUrl, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, authLoading, redirectUrl]);
 
   // Step 1: Check if phone number exists
   const handleCheckPhone = async (e: React.FormEvent) => {

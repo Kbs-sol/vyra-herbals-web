@@ -179,7 +179,10 @@ const Singleproducts = () => {
     };
 
     fetchData();
-  }, [productHandle, user]);
+    // Use user.id (stable string) — depending on the user object would re-fetch
+    // (and visibly reload the page) on every supabase token refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productHandle, user?.id]);
 
   const [handpickedProducts, setHandpickedProducts] = useState<Product[]>([]);
   // Fetch related products (optimized - only fetch when product is loaded)

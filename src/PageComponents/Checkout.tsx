@@ -72,8 +72,29 @@ const Checkout = ({
     phone: /^[0-9]{0,10}$/,
     email: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
   };
-  const [formData, setFormData] = useState<CheckoutFormData>({ ...defaultFormData });
+  // Persist form data to sessionStorage so accidental reloads don't wipe it
+  const FORM_STORAGE_KEY = 'vyra_checkout_form_v1';
+  const loadStoredForm = (): CheckoutFormData => {
+    if (typeof window === 'undefined') return { ...defaultFormData };
+    try {
+      const raw = sessionStorage.getItem(FORM_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return { ...defaultFormData, ...parsed };
+      }
+    } catch { /* ignore */ }
+    return { ...defaultFormData };
+  };
+  const [formData, setFormData] = useState<CheckoutFormData>(loadStoredForm);
   const [formErrors, setFormErrors] = useState<any>({});
+
+  // Persist on every change
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      sessionStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(formData));
+    } catch { /* ignore quota errors */ }
+  }, [formData]);
 
   const [showModal, setShowModal] = useState(false);
   const [disableBtn, setDisableBtn] = useState(false);
@@ -105,12 +126,24 @@ const Checkout = ({
   //   autoClose: tym,
   // });
 
+  // Light cleanup: do NOT wipe formData here. Closing the modal must not lose
+  // the user's typed address (that's a major friction point and was the cause
+  // of "all data gone" reports). Form is only cleared after a successful order.
   const cleanUp = () => {
     setShowOrderSummary(false);
-    setFormData({ ...defaultFormData });
     setFormErrors({});
     setLoading(false);
     setHasValidation(false);
+  };
+
+  // Call this after a successful order to fully reset the form and storage
+  const clearStoredForm = () => {
+    setFormData({ ...defaultFormData });
+    setFormErrors({});
+    setHasValidation(false);
+    if (typeof window !== 'undefined') {
+      try { sessionStorage.removeItem(FORM_STORAGE_KEY); } catch { /* ignore */ }
+    }
   };
 
   const notify = (msg, tym = 500) =>
@@ -485,8 +518,13 @@ const Checkout = ({
         throw new Error(sessionData?.error || 'Failed to save order session');
       }
 
-      if (paymentUrl) window.open(paymentUrl, "_self");
-      else notifyError("Payment URL not found.");
+      if (paymentUrl) {
+        // Order session saved successfully — safe to clear the cached form
+        clearStoredForm();
+        window.open(paymentUrl, "_self");
+      } else {
+        notifyError("Payment URL not found.");
+      }
     } catch (err) {
       notifyError("Failed to save order session. Please try again.");
       console.log("Failed to save order session.", err);
@@ -768,7 +806,12 @@ const Checkout = ({
       {loading && <LoadingIndicator variant={"spinner"} />}
 
       {/* <meta name="viewport" content="width=device-width, initial-scale=1.0" /> */}
-      <StyledModal show={showModal} onHide={onClose}>
+      <StyledModal
+        show={showModal}
+        onHide={onClose}
+        backdrop="static"
+        keyboard={false}
+      >
         <Modal.Header closeButton style={{ backgroundColor: "white" }}>
           <Modal.Title>
             {showOrderSummary ? "Order Summary" : "Add Address"}

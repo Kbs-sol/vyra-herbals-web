@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useState, useEffect, useContext, ReactNode } from "react";
+import React, { createContext, useState, useEffect, useContext, useRef, ReactNode } from "react";
 import { supabase } from "@/utils/supabaseClient";
 import CookieUtils from "@/utils/cookieUtils";
 import type { User as AppUser } from "@/types";
@@ -42,8 +42,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const router = useRouter();
+  // Track the last user id we resolved a profile for, so periodic TOKEN_REFRESHED
+  // events don't trigger another DB roundtrip when the same user is already loaded.
+  const loadedProfileForId = useRef<string | null>(null);
+
+  // Only call setUser when the resolved profile actually differs from current state.
+  // Without this guard, supabase's periodic TOKEN_REFRESHED events would create a
+  // new user object reference every time, which cascades through every consumer
+  // that uses `user` as a dependency and causes spurious re-fetches and reloads.
+  const setUserIfChanged = (next: AppUser | null) => {
+    setUser(prev => {
+      if (prev === next) return prev;
+      if (!prev || !next) return next;
+      if (
+        prev.id === next.id &&
+        prev.email === next.email &&
+        prev.name === next.name &&
+        prev.role === next.role
+      ) {
+        return prev; // identical — keep the same reference
+      }
+      return next;
+    });
+  };
 
   const fetchUserProfile = async (authUser: SupabaseUser) => {
+    // Skip the DB roundtrip if we've already loaded this profile in this session.
+    // This is hit on every TOKEN_REFRESHED event from supabase.
+    if (loadedProfileForId.current === authUser.id) {
+      setLoading(false);
+      return;
+    }
+    loadedProfileForId.current = authUser.id;
     try {
       // First try to get profile from public.users with an explicit timeout
       const profilePromise = supabase
@@ -59,7 +89,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       ) as any;
 
       if (data) {
-        setUser({
+        setUserIfChanged({
           id: authUser.id,
           email: data.email || authUser.email || '',
           name: data.name || authUser.user_metadata?.name || '',
@@ -67,7 +97,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           created_at: data.created_at,
         });
       } else {
-        setUser({
+        setUserIfChanged({
           id: authUser.id,
           email: authUser.email || '',
           name: authUser.user_metadata?.name || '',
@@ -76,7 +106,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error) {
       console.error("Error fetching user profile:", error);
-      setUser({
+      setUserIfChanged({
         id: authUser.id,
         email: authUser.email || '',
         name: authUser.user_metadata?.name || '',
@@ -98,7 +128,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         if (error) {
           console.error("[AuthContext] Supabase getSession error:", error);
-          setUser(null);
+          loadedProfileForId.current = null;
+          setUserIfChanged(null);
           setLoading(false);
           return;
         }
@@ -108,13 +139,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           await fetchUserProfile(session.user);
         } else {
           console.log('[AuthContext] getSession found no session, setting user to null');
-          setUser(null);
+          loadedProfileForId.current = null;
+          setUserIfChanged(null);
           setLoading(false);
         }
       } catch (err) {
         console.error("[AuthContext] Unexpected error in getSession:", err);
         if (mounted) {
-          setUser(null);
+          loadedProfileForId.current = null;
+          setUserIfChanged(null);
           setLoading(false);
         }
       }
@@ -127,16 +160,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log(`[AuthContext] onAuthStateChange event: ${event}. Session exists?`, !!session);
       if (!mounted) return;
+      // Skip TOKEN_REFRESHED entirely if we've already resolved this user — no need
+      // to re-touch React state on an hourly cadence.
+      if (
+        event === 'TOKEN_REFRESHED' &&
+        session?.user &&
+        loadedProfileForId.current === session.user.id
+      ) {
+        return;
+      }
       try {
         if (session?.user) {
           await fetchUserProfile(session.user);
         } else {
-          setUser(null);
+          loadedProfileForId.current = null;
+          setUserIfChanged(null);
           setLoading(false);
         }
       } catch (err) {
         console.error("[AuthContext] Auth state change error:", err);
-        setUser(null);
+        loadedProfileForId.current = null;
+        setUserIfChanged(null);
         setLoading(false);
       }
     });
@@ -251,7 +295,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = async (): Promise<void> => {
     await supabase.auth.signOut();
-    setUser(null);
+    loadedProfileForId.current = null;
+    setUserIfChanged(null);
     router.push('/');
   };
 
