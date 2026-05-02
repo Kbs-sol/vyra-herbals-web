@@ -97,6 +97,7 @@ export async function POST(req: Request) {
       welcome_coupon_discount: welcomeCouponDiscount,
       coupon_code: appliedCouponCode,
       coupon_discount: appliedCouponDiscount,
+      delivery_status: 'Pending Sync',
     };
     const { data: inserted, error } = await supabase.from('orders').insert([orderPayload]).select();
     if (error) {
@@ -106,40 +107,11 @@ export async function POST(req: Request) {
 
     const order = inserted?.[0];
 
-    // 2. Create Shipment automatically
-    let trackingId = '';
-    try {
-      const { createShipment } = await import('@/utils/shipping');
-      const shipmentResult = await createShipment({ ...orderPayload, id: order.id });
-      console.log(`[COD Order] Shipment creation result for order ${order.id}:`, shipmentResult);
-      if (shipmentResult.success) {
-        trackingId = shipmentResult.trackingId || '';
-        // Update order with tracking ID and other details
-        const { error: updateError } = await supabase.from('orders').update({
-          tracking_id: trackingId,
-          shipment_id: shipmentResult.shipment_id || null,
-          awb_code: shipmentResult.awb_code || null,
-          courier_name: shipmentResult.courier_name || null,
-          label_url: shipmentResult.label_url || null,
-          delivery_status: shipmentResult.delivery_status || 'Unassigned'
-        }).eq('id', order.id);
-
-        if (updateError) {
-          console.error(`[COD Order] Failed to update order ${order.id} with tracking info:`, updateError);
-        }
-      } else {
-        console.error(`[COD Order] Shipment creation failed for order ${order.id}:`, shipmentResult.message);
-        // Surface the failure to admin so they can manually retry/sync in iCarry.
-        await supabase.from('orders').update({
-          delivery_status: `Sync Failed: ${shipmentResult.message || 'unknown error'}`.slice(0, 255)
-        }).eq('id', order.id);
-      }
-    } catch (shipError) {
-      console.error('[COD Order] Shipment creation exception:', shipError);
-      await supabase.from('orders').update({
-        delivery_status: `Sync Failed: ${(shipError as Error).message || 'exception'}`.slice(0, 255)
-      }).eq('id', order.id);
-    }
+    // 2. Create Shipment in iCarry. The order is already stamped 'Pending Sync', so
+    //    if this call times out the row is still recoverable via /api/orders/sync-shipment.
+    const { syncOrderShipment } = await import('@/utils/orderShipment');
+    const shipmentSync = await syncOrderShipment(supabase, order);
+    const trackingId = shipmentSync.success ? shipmentSync.trackingId : '';
 
     // 3. Record coupon usage (after order is durably created)
     if (appliedCouponId && appliedCouponDiscount > 0) {
@@ -157,7 +129,13 @@ export async function POST(req: Request) {
       await supabase.from('cart').delete().eq('user_id', orderData.userId);
     }
 
-    return NextResponse.json({ order_id: order?.id });
+    return NextResponse.json({
+      order_id: order?.id,
+      tracking_id: trackingId || null,
+      shipment: shipmentSync.success
+        ? { status: 'created', shipment_id: (shipmentSync as any).shipmentId || null }
+        : { status: 'pending', message: shipmentSync.message },
+    });
   } catch (err) {
     console.error('COD order exception:', err);
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });

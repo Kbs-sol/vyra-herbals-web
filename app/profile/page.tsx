@@ -177,7 +177,6 @@ const ProfilePage = () => {
     const fetchOrders = async () => {
         if (!user) return;
         setLoadingOrders(true);
-        // Log removed
         try {
             const { data, error } = await supabase
                 .from('orders')
@@ -185,24 +184,45 @@ const ProfilePage = () => {
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false });
 
-
-            // Logs removed
-
             if (error) throw error;
 
-            // Filter out invalid orders and handle missing data
-            // Filter out invalid orders and handle missing data
-            // Filter out invalid orders and handle missing data
             const validOrders = (data || []).map((order) => {
                 return {
                     ...order,
-                    id: order.id || order.order_id, // Ensure we have a valid ID
-                    items: order.items || order.products || [], // Normalize items
-                    created_at: order.created_at || order.order_date || new Date().toISOString() // Fallback date
+                    id: order.id || order.order_id,
+                    items: order.items || order.products || [],
+                    created_at: order.created_at || order.order_date || new Date().toISOString()
                 };
-            }).filter(order => order.id); // Only keep orders with an ID
+            }).filter(order => order.id);
 
             setOrders(validOrders);
+
+            // Best-effort retry for any orders whose iCarry shipment didn't sync
+            // (timeout, transient gateway failure). The sync-shipment route is
+            // idempotent — if it already has a shipment_id it returns early.
+            const pending = validOrders.filter((o: any) =>
+                !o.shipment_id &&
+                o.status !== 'Failed' &&
+                (o.delivery_status === null ||
+                 o.delivery_status === 'Pending Sync' ||
+                 (typeof o.delivery_status === 'string' && o.delivery_status.startsWith('Sync Failed')))
+            );
+            if (pending.length > 0) {
+                const { data: { session } } = await supabase.auth.getSession();
+                const token = session?.access_token;
+                if (token) {
+                    pending.slice(0, 3).forEach((o: any) => {
+                        fetch('/api/orders/sync-shipment', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                Authorization: `Bearer ${token}`,
+                            },
+                            body: JSON.stringify({ order_id: o.id }),
+                        }).catch((e) => console.warn('sync-shipment retry failed:', e));
+                    });
+                }
+            }
         } catch (error) {
             console.error('Error fetching orders:', error);
         } finally {

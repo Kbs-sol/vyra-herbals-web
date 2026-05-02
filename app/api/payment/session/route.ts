@@ -8,6 +8,19 @@ export async function POST(req: Request) {
     if (!txnId) return NextResponse.json({ error: 'txnId required' }, { status: 400 });
     if (!orderData) return NextResponse.json({ error: 'orderData required' }, { status: 400 });
 
+    // Sanity-check the payload so we never persist a half-formed session that
+    // /api/payment/success would later have to bail on.
+    const items = Array.isArray(orderData.orderItems) ? orderData.orderItems : [];
+    if (items.length === 0) {
+      return NextResponse.json({ error: 'Order must contain at least one item.' }, { status: 400 });
+    }
+    const shippingData = orderData.shippingData || {};
+    const requiredShippingFields = ['fullName', 'phone', 'pincode', 'city', 'state', 'area'];
+    const missing = requiredShippingFields.filter((f) => !shippingData[f]);
+    if (missing.length) {
+      return NextResponse.json({ error: `Shipping address missing: ${missing.join(', ')}` }, { status: 400 });
+    }
+
     const supabase = createServerSupabase();
 
     // Keep one active payload per transaction ID so payment success lookup is deterministic.

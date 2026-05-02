@@ -146,15 +146,19 @@ const Checkout = ({
     }
   };
 
-  const notify = (msg, tym = 500) =>
+  const notify = (msg, tym = 2500) =>
     toast.warning(msg, {
       position: "bottom-center",
       autoClose: tym,
     });
-  const notifyError = (msg, tym = 500) =>
+  // Errors must stay long enough for the user to read AND act on them.
+  // Don't shrink this back to ~500ms — orders that fail silently are the #1
+  // reported issue and short toasts make the failure feel like a UI freeze.
+  const notifyError = (msg, tym = 6000) =>
     toast.error(msg, {
       position: "bottom-center",
       autoClose: tym,
+      closeOnClick: true,
     });
 
   const updateOrderedItemsState = (items) => {
@@ -461,104 +465,112 @@ const Checkout = ({
   };
 
   const handlePayment = async () => {
+    if (disableBtn) return; // double-tap guard
+    setDisableBtn(true);
     setLoading(true);
-    const responseData = await getAccessKey();
-    if (!responseData || !responseData.paymentUrl) {
-      console.log("Failed to get payment URL. Please try again..");
-      notifyError("Failed to initiate payment. Please check configuration.");
-      setLoading(false);
-      return;
-    }
-    const paymentTxnId = responseData.txnid;
-    if (!paymentTxnId) {
-      notifyError("Failed to initialize transaction. Please try again.");
-      setLoading(false);
-      return;
-    }
-
-    var paymentUrl = responseData.paymentUrl;
-
-    // Extract product titles with quantity and sku
-    const productDetails = (orderedItems || [])
-      .map((item) => `${item.quantity}X${item.sku || item.handle || item.title}`)
-      .join(", ");
-
-    const couponDiscount = Math.min(
-      Number(appliedCoupon?.discount || 0),
-      totalPriceOfCartProducts
-    );
-    const discountedTotal = Math.max(0, totalPriceOfCartProducts - couponDiscount);
-    const orderData = {
-      orderItems: orderedItems,
-      totalAmount: discountedTotal + (paymentMethod === "cod" ? COD_Charges : 0),
-      transactionPrice: transactionPrice,
-      shippingMethod: "standard",
-      shippingData: {
-        ...formData,
-        productTitle: productDetails,
-      },
-      paymentMethod: paymentMethod,
-      userId: user?.id,
-      welcomeCouponApplied: false,
-      welcomeCouponDiscount: 0,
-      couponCode: appliedCoupon?.code || null,
-    };
-
     try {
+      // Guard against payment-gateway misconfiguration / zero-amount orders before
+      // we even hit the gateway — those would otherwise return a generic error.
+      if (paymentMethod === 'online' && (!transactionPrice || transactionPrice < 1)) {
+        notifyError(
+          "Payment amount must be at least ₹1. Please remove the coupon or contact support.",
+          7000
+        );
+        return;
+      }
+
+      const responseData = await getAccessKey();
+      if (!responseData || responseData.error || !responseData.paymentUrl) {
+        const reason =
+          responseData?.error ||
+          "Couldn't reach the payment gateway. Please check your internet and try again.";
+        notifyError(`Order failed: ${reason}`);
+        return;
+      }
+      const paymentTxnId = responseData.txnid;
+      if (!paymentTxnId) {
+        notifyError("Order failed: payment gateway did not return a transaction ID.");
+        return;
+      }
+
+      const paymentUrl = responseData.paymentUrl;
+
+      // Extract product titles with quantity and sku
+      const productDetails = (orderedItems || [])
+        .map((item) => `${item.quantity}X${item.sku || item.handle || item.title}`)
+        .join(", ");
+
+      const couponDiscount = Math.min(
+        Number(appliedCoupon?.discount || 0),
+        totalPriceOfCartProducts
+      );
+      const discountedTotal = Math.max(0, totalPriceOfCartProducts - couponDiscount);
+      const orderData = {
+        orderItems: orderedItems,
+        totalAmount: discountedTotal + (paymentMethod === "cod" ? COD_Charges : 0),
+        transactionPrice: transactionPrice,
+        shippingMethod: "standard",
+        shippingData: {
+          ...formData,
+          productTitle: productDetails,
+        },
+        paymentMethod: paymentMethod,
+        userId: user?.id,
+        welcomeCouponApplied: false,
+        welcomeCouponDiscount: 0,
+        couponCode: appliedCoupon?.code || null,
+      };
+
       const sessionRes = await fetch(`${API_PATH}/payment/session`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ txnId: paymentTxnId, orderData }),
       });
-
       const sessionData = await sessionRes.json().catch(() => null);
       if (!sessionRes.ok || sessionData?.status !== 'ok') {
-        throw new Error(sessionData?.error || 'Failed to save order session');
+        const reason = sessionData?.error || `Server returned ${sessionRes.status}`;
+        notifyError(`Could not save your order before payment: ${reason}`);
+        return;
       }
 
-      if (paymentUrl) {
-        // Order session saved successfully — safe to clear the cached form
-        clearStoredForm();
-        window.open(paymentUrl, "_self");
-      } else {
-        notifyError("Payment URL not found.");
-      }
+      // Order session saved successfully — safe to clear the cached form and redirect
+      clearStoredForm();
+      window.location.href = paymentUrl;
     } catch (err) {
-      notifyError("Failed to save order session. Please try again.");
-      console.log("Failed to save order session.", err);
-      return;
+      console.error("handlePayment error:", err);
+      notifyError(`Unexpected error: ${(err as Error).message || 'please try again.'}`);
     } finally {
       setLoading(false);
+      setDisableBtn(false);
     }
   };
 
   const getAccessKey = async () => {
     const url = `${API_PATH}/payment/access`;
-    // const params = getParamsFromUrl();
     const params = {
       amount: transactionPrice,
-      productinfo: "Product Description",
+      productinfo: orderedItems.length === 1
+        ? orderedItems[0].title
+        : `${orderedItems.length} items from Vyra Herbals`,
       firstname: formData.fullName,
-      email: formData.email || "test@mail.com",
+      email: formData.email || "guest@vyraherbals.com",
       phone: formData.phone,
     };
 
     try {
       const response = await fetch(url, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(params),
       });
-      const data = await response.json();
-      console.log(data);
-      return data; // Return full data object including paymentUrl
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        return { error: data?.error || `Payment gateway returned ${response.status}` };
+      }
+      return data;
     } catch (error) {
-      console.error(error);
-      return null;
+      console.error("getAccessKey network error:", error);
+      return { error: (error as Error).message || "Network error" };
     }
   };
 

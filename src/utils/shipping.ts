@@ -44,11 +44,24 @@ export const stateMapping: Record<string, string> = {
     "Ladakh": "LA",
 };
 
-export const getIcarryToken = async (retryCount = 0): Promise<string | null> => {
+export type IcarryTokenResult = { token: string | null; reason?: string };
+
+const ICARRY_TOKEN_FETCH_TIMEOUT_MS = 7000;
+
+const fetchWithTimeout = async (url: string, init: RequestInit, timeoutMs: number) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await fetch(url, { ...init, signal: controller.signal });
+    } finally {
+        clearTimeout(timer);
+    }
+};
+
+export const getIcarryTokenDetailed = async (retryCount = 0): Promise<IcarryTokenResult> => {
     // Return cached token if still valid (cache for 23 hours)
     if (cachedToken && cachedToken.expiresAt > Date.now()) {
-        console.log("Using cached iCarry token");
-        return cachedToken.token;
+        return { token: cachedToken.token };
     }
 
     const username = process.env.ICARRY_USERNAME;
@@ -56,66 +69,66 @@ export const getIcarryToken = async (retryCount = 0): Promise<string | null> => 
 
     if (!username || !key) {
         console.error("iCarry.in credentials missing");
-        return null;
+        return { token: null, reason: "iCarry credentials missing on server" };
     }
 
     try {
-        const loginRes = await fetch("https://www.icarry.in/api_login", {
+        const loginRes = await fetchWithTimeout("https://www.icarry.in/api_login", {
             method: "POST",
             headers: {
                 "Content-Type": "application/x-www-form-urlencoded",
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                 "Accept": "application/json, text/plain, */*",
                 "Accept-Language": "en-US,en;q=0.9",
-                "Accept-Encoding": "gzip, deflate, br",
                 "Referer": "https://www.icarry.in/",
                 "Origin": "https://www.icarry.in",
                 "Connection": "keep-alive",
-                "Upgrade-Insecure-Requests": "1",
-                "Sec-Fetch-Dest": "document",
-                "Sec-Fetch-Mode": "navigate",
-                "Sec-Fetch-Site": "same-origin",
-                "Cache-Control": "max-age=0"
             },
             body: new URLSearchParams({ username, Key: key }),
-        });
+        }, ICARRY_TOKEN_FETCH_TIMEOUT_MS);
 
         const text = await loginRes.text();
 
-        // Check for Cloudflare/error HTML response
-        if (text.includes("<!DOCTYPE") || text.includes("<html") || loginRes.status >= 400) {
-            console.error(`iCarry.in returned error (status: ${loginRes.status}), retrying...`);
-            if (retryCount < 3) {
-                const delay = 3000 * Math.pow(2, retryCount);
-                console.log(`Retrying in ${delay}ms...`);
+        // Cloudflare / error HTML response. Retry with shorter backoff so we stay
+        // inside the serverless function budget.
+        const looksHtml = text.includes("<!DOCTYPE") || text.includes("<html");
+        if (looksHtml || loginRes.status >= 400) {
+            if (retryCount < 2) {
+                const delay = 1000 * Math.pow(2, retryCount); // 1s, 2s
                 await new Promise(resolve => setTimeout(resolve, delay));
-                return getIcarryToken(retryCount + 1);
+                return getIcarryTokenDetailed(retryCount + 1);
             }
-            console.error("Failed to get iCarry token after 3 retries");
-            return null;
+            const snippet = text.replace(/\s+/g, " ").trim().substring(0, 160);
+            console.error(`iCarry token fetch failed after retries. Status: ${loginRes.status}. Body: ${snippet}`);
+            return { token: null, reason: `iCarry login refused (status ${loginRes.status})` };
         }
 
         try {
             const loginData = JSON.parse(text);
             if (loginData.api_token) {
-                // Cache the token for 23 hours
                 cachedToken = {
                     token: loginData.api_token,
                     expiresAt: Date.now() + 23 * 60 * 60 * 1000
                 };
-                console.log("iCarry token obtained and cached successfully");
-                return loginData.api_token;
+                return { token: loginData.api_token };
             }
-            console.error("iCarry response missing api_token:", loginData);
-            return null;
+            const reason = loginData?.error || loginData?.message || "iCarry response missing api_token";
+            console.error("iCarry login rejected:", loginData);
+            return { token: null, reason: String(reason) };
         } catch (parseError) {
             console.error("iCarry token error (Not JSON):", text.substring(0, 200));
-            return null;
+            return { token: null, reason: "iCarry returned a non-JSON response" };
         }
     } catch (err) {
+        const isAbort = (err as any)?.name === 'AbortError';
         console.error("iCarry token fetch error:", err);
-        return null;
+        return { token: null, reason: isAbort ? "iCarry login timed out" : `iCarry login error: ${(err as Error).message}` };
     }
+};
+
+export const getIcarryToken = async (retryCount = 0): Promise<string | null> => {
+    const result = await getIcarryTokenDetailed(retryCount);
+    return result.token;
 };
 
 // iCarry rejects phones with "+91", leading 0, spaces, or non-digit characters.
@@ -139,11 +152,14 @@ const buildAddress = (shippingData: any): string => {
     return joined || String(shippingData.city || "").trim();
 };
 
+const ICARRY_SHIPMENT_TIMEOUT_MS = 12000;
+
 export const createShipment = async (orderData: any) => {
     try {
-        const apiToken = await getIcarryToken();
+        const tokenResult = await getIcarryTokenDetailed();
+        const apiToken = tokenResult.token;
         if (!apiToken) {
-            return { success: false, message: "Shipping authentication failed" };
+            return { success: false, message: tokenResult.reason || "Shipping authentication failed" };
         }
 
         const shippingData = typeof orderData.shipping_data === 'string'
@@ -156,10 +172,17 @@ export const createShipment = async (orderData: any) => {
         const city = String(shippingData.city || "").trim();
         const address = buildAddress(shippingData);
 
-        if (!fullName || phone.length !== 10 || pincode.length !== 6 || !city || !address) {
+        const missing: string[] = [];
+        if (!fullName) missing.push("name");
+        if (phone.length !== 10) missing.push("phone");
+        if (!/^[6-9]/.test(phone)) missing.push("phone (must start with 6-9)");
+        if (pincode.length !== 6) missing.push("pincode");
+        if (!city) missing.push("city");
+        if (!address) missing.push("address");
+        if (missing.length > 0) {
             return {
                 success: false,
-                message: `Missing or invalid shipping details (name/phone/pincode/city/address)`
+                message: `Missing or invalid shipping details: ${missing.join(", ")}`
             };
         }
 
@@ -209,15 +232,26 @@ export const createShipment = async (orderData: any) => {
             payload: Object.fromEntries(payload.entries())
         });
 
-        const response = await fetch(apiUrl, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Accept": "application/json, text/plain, */*"
-            },
-            body: payload,
-        });
+        let response: Response;
+        try {
+            response = await fetchWithTimeout(apiUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Accept": "application/json, text/plain, */*"
+                },
+                body: payload,
+            }, ICARRY_SHIPMENT_TIMEOUT_MS);
+        } catch (e) {
+            const isAbort = (e as any)?.name === 'AbortError';
+            return {
+                success: false,
+                message: isAbort
+                    ? "iCarry shipment call timed out"
+                    : `iCarry shipment call failed: ${(e as Error).message}`
+            };
+        }
 
         const textResponse = await response.text();
         let result;

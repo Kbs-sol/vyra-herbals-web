@@ -162,7 +162,7 @@ export async function POST(req: Request) {
 
             const { data: createdOrder, error: insertError } = await supabase
                 .from('orders')
-                .insert([orderPayload])
+                .insert([{ ...orderPayload, delivery_status: 'Pending Sync' }])
                 .select()
                 .single();
 
@@ -192,45 +192,14 @@ export async function POST(req: Request) {
         }
 
         // 4. Create shipment in iCarry without auto-assignment.
+        // The order is already stamped with delivery_status='Pending Sync' so a Vercel
+        // function timeout here still leaves a recoverable state that /api/orders/sync-shipment
+        // (or the user's profile page on next load) can pick up and retry.
         let trackingId = '';
         if (inserted && !inserted.shipment_id) {
-            try {
-                const { createShipment } = await import('@/utils/shipping');
-                const shipmentResult = await createShipment({
-                    ...inserted,
-                    id: inserted.id,
-                    shipping_data: inserted.shipping_data,
-                    payment_method: inserted.payment_method,
-                    total_amount: inserted.total_amount,
-                });
-                console.log(`[Payment Success] Shipment creation result for order ${inserted.id}:`, shipmentResult);
-                if (shipmentResult.success) {
-                    trackingId = shipmentResult.trackingId || '';
-                    // Update order with tracking ID and unassigned iCarry shipment details.
-                    const { error: updateError } = await supabase.from('orders').update({
-                        tracking_id: trackingId,
-                        shipment_id: shipmentResult.shipment_id || null,
-                        awb_code: shipmentResult.awb_code || null,
-                        courier_name: shipmentResult.courier_name || null,
-                        label_url: shipmentResult.label_url || null,
-                        delivery_status: shipmentResult.delivery_status || 'Unassigned'
-                    }).eq('id', inserted.id);
-
-                    if (updateError) {
-                        console.error(`[Payment Success] Failed to update order ${inserted.id} with tracking info:`, updateError);
-                    }
-                } else {
-                    console.error(`[Payment Success] Shipment creation failed for order ${inserted.id}:`, shipmentResult.message);
-                    await supabase.from('orders').update({
-                        delivery_status: `Sync Failed: ${shipmentResult.message || 'unknown error'}`.slice(0, 255)
-                    }).eq('id', inserted.id);
-                }
-            } catch (shipError) {
-                console.error('[Payment Success] Shipment creation exception:', shipError);
-                await supabase.from('orders').update({
-                    delivery_status: `Sync Failed: ${(shipError as Error).message || 'exception'}`.slice(0, 255)
-                }).eq('id', inserted.id);
-            }
+            const { syncOrderShipment } = await import('@/utils/orderShipment');
+            const result = await syncOrderShipment(supabase, inserted);
+            if (result.success) trackingId = result.trackingId || '';
         } else if (inserted?.shipment_id) {
             trackingId = inserted.tracking_id || '';
             console.log(`[Payment Success] Shipment already exists for order ${inserted.id}, skipping re-creation.`);

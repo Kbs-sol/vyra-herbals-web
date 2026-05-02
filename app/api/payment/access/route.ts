@@ -7,10 +7,21 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { amount, firstname, email, phone, productinfo } = body || {};
 
-    // Validate required fields
-    if (!amount || !firstname || !email || !phone || !productinfo) {
-      console.log('Missing fields debug:', { amount, firstname, email, phone, productinfo, body });
-      return NextResponse.json({ error: 'Missing required fields', debug: { amount, firstname, email, phone, productinfo } }, { status: 400 });
+    // Validate required fields with explicit, user-actionable messages.
+    const missing: string[] = [];
+    if (!firstname) missing.push('name');
+    if (!email) missing.push('email');
+    if (!phone) missing.push('phone');
+    if (!productinfo) missing.push('product info');
+    if (missing.length) {
+      return NextResponse.json({ error: `Missing required fields: ${missing.join(', ')}` }, { status: 400 });
+    }
+    const numericAmount = Number(amount);
+    if (!numericAmount || isNaN(numericAmount) || numericAmount < 1) {
+      return NextResponse.json({ error: 'Payment amount must be at least ₹1.' }, { status: 400 });
+    }
+    if (!/^[6-9]\d{9}$/.test(String(phone))) {
+      return NextResponse.json({ error: 'Phone must be a 10-digit Indian mobile number starting with 6-9.' }, { status: 400 });
     }
 
     const supabase = createServerSupabase();
