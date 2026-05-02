@@ -208,7 +208,7 @@ export const createShipment = async (orderData: any) => {
         payload.append("consignee[state]", stateCode);
         payload.append("consignee[country_code]", "IN");
 
-        // iCarry requires a positive decimal for parcel value; floor at 1 so save_only never hits zero.
+        // iCarry requires a positive decimal for parcel value; floor at 1 so it never hits zero.
         const parcelValue = Math.max(1, Number(orderData.total_amount) || 0);
         payload.append("parcel[type]", orderData.payment_method === 'online' ? 'Prepaid' : 'COD');
         payload.append("parcel[value]", String(parcelValue));
@@ -221,9 +221,16 @@ export const createShipment = async (orderData: any) => {
         payload.append("parcel[dimensions][height]", "10");
         payload.append("parcel[dimensions][unit]", "cm");
 
-        // Keep shipment unassigned in iCarry so admin can manually assign a courier later.
-        // Per iCarry API v14: any value in `save_only` saves the order without booking a courier.
-        payload.append("save_only", "1");
+        // Create the shipment but tell iCarry not to auto-assign a courier. The
+        // shipment then shows up in the dashboard under "Unassigned", and the admin
+        // picks the courier manually from iCarry's UI.
+        //
+        // - DON'T use `save_only=1` — that hides the shipment as an invisible draft.
+        // - DO set the auto-assign flags to 0 — that creates a real, listed shipment
+        //   without booking a courier.
+        payload.append("auto_assign", "0");
+        payload.append("is_auto_assign", "0");
+        payload.append("assign_courier", "0");
 
         const apiUrl = `https://www.icarry.in/api_add_shipment_surface?api_token=${apiToken}`;
 
@@ -284,18 +291,24 @@ export const createShipment = async (orderData: any) => {
             Boolean(shipmentId)
         );
 
+        // iCarry sometimes nests the courier full name under `courier_name_full`.
+        const courierFull =
+            resultData?.courier_name_full ||
+            result?.courier_name_full ||
+            null;
+
         if (isSuccess && shipmentId) {
             return {
                 success: true,
                 trackingId: String(awb || shipmentId),
                 shipment_id: String(shipmentId),
                 awb_code: awb ? String(awb) : '',
-                // save_only keeps the shipment unassigned — no courier or AWB will be returned until
-                // admin manually books it from the iCarry dashboard.
-                courier_name: courierName ? String(courierName) : '',
+                courier_name: String(courierFull || courierName || ''),
                 label_url: String(labelUrl),
+                // Always start at "Unassigned". Admin advances the status (Pending Pickup,
+                // Shipped, Delivered, etc.) manually from the orders dashboard.
                 delivery_status: 'Unassigned',
-                data: result
+                data: result,
             };
         }
 

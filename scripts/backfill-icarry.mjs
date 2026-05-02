@@ -92,7 +92,11 @@ async function shipOne(order) {
     payload.append("parcel[dimensions][breadth]", "10");
     payload.append("parcel[dimensions][height]", "10");
     payload.append("parcel[dimensions][unit]", "cm");
-    payload.append("save_only", "1");
+    // Keep the shipment unassigned so admin picks the courier from iCarry's UI.
+    // (save_only=1 would hide it as a draft; no flags would auto-book a courier.)
+    payload.append("auto_assign", "0");
+    payload.append("is_auto_assign", "0");
+    payload.append("assign_courier", "0");
 
     const res = await fetch(`https://www.icarry.in/api_add_shipment_surface?api_token=${token}`, {
         method: "POST",
@@ -107,7 +111,8 @@ async function shipOne(order) {
     const errMsg = typeof result.error === "string" ? result.error.trim() : (result.error || "");
     const shipId = result.shipment_id || result.data?.shipment_id;
     const awb = result.awb || result.data?.awb;
-    const courier = result.courier_name || result.data?.courier_name || null;
+    const courier = result.courier_name_full || result.data?.courier_name_full
+        || result.courier_name || result.data?.courier_name || null;
     const labelUrl = result.label_url || result.data?.label_url || "";
 
     if (!errMsg && shipId) {
@@ -118,24 +123,42 @@ async function shipOne(order) {
             awb_code: awb ? String(awb) : "",
             courier_name: courier ? String(courier) : "",
             label_url: String(labelUrl),
+            // Always start at "Unassigned"; admin advances the status manually.
+            delivery_status: "Unassigned",
         };
     }
     return { ok: false, reason: errMsg || "missing shipment_id" };
 }
 
 async function main() {
-    const { data: orders, error } = await supabase
+    // Two cohorts to fix:
+    //  1. shipment_id IS NULL                — never reached iCarry.
+    //  2. shipment_id IS NOT NULL AND awb_code IS NULL/empty — drafted via the
+    //     old `save_only=1` flow; not visible in the iCarry dashboard. Re-book
+    //     them so they appear under "Pending Pickup" / "Unassigned".
+    const { data: missing, error: e1 } = await supabase
         .from("orders")
         .select("*")
         .is("shipment_id", null)
         .neq("status", "Failed")
         .order("created_at", { ascending: false });
+    if (e1) { console.error(e1); process.exit(1); }
 
-    if (error) { console.error(error); process.exit(1); }
-    console.log(`Found ${orders.length} order(s) needing iCarry sync.`);
+    const { data: drafts, error: e2 } = await supabase
+        .from("orders")
+        .select("*")
+        .not("shipment_id", "is", null)
+        .or("awb_code.is.null,awb_code.eq.")
+        .neq("status", "Failed")
+        .order("created_at", { ascending: false });
+    if (e2) { console.error(e2); process.exit(1); }
+
+    const orders = [...(missing || []), ...(drafts || [])];
+    console.log(`Missing iCarry shipment: ${missing?.length || 0} | Drafts to re-book: ${drafts?.length || 0}`);
 
     for (const order of orders) {
-        process.stdout.write(`Order ${order.id} (${order.payment_method}, ₹${order.total_amount}) ... `);
+        const tag = order.shipment_id ? `re-book (was ${order.shipment_id})` : "first-time";
+        process.stdout.write(`Order ${order.id} ${tag} (${order.payment_method}, ₹${order.total_amount}) ... `);
         try {
             const r = await shipOne(order);
             if (r.ok) {
@@ -145,10 +168,10 @@ async function main() {
                     awb_code: r.awb_code,
                     courier_name: r.courier_name,
                     label_url: r.label_url,
-                    delivery_status: "Unassigned",
+                    delivery_status: r.delivery_status,
                 }).eq("id", order.id);
                 if (upErr) console.log(`DB update failed: ${upErr.message}`);
-                else console.log(`OK shipment_id=${r.shipment_id}`);
+                else console.log(`OK shipment_id=${r.shipment_id} awb=${r.awb_code || '(none)'}`);
             } else {
                 await supabase.from("orders").update({
                     delivery_status: `Sync Failed: ${r.reason}`.slice(0, 255),
@@ -158,7 +181,6 @@ async function main() {
         } catch (e) {
             console.log(`EXCEPTION: ${e.message}`);
         }
-        // gentle pacing so we don't hammer iCarry
         await new Promise((r) => setTimeout(r, 500));
     }
 }
