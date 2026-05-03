@@ -262,11 +262,11 @@ export const createShipment = async (orderData: any) => {
         try {
             result = JSON.parse(textResponse);
         } catch (e) {
-            console.error("iCarry.in Result Error (Not JSON):", textResponse.substring(0, 150));
-            return { success: false, message: "Invalid API response from shipping provider" };
+            console.error(`iCarry.in Result Error (Not JSON, status ${response.status}):`, textResponse.substring(0, 400));
+            return { success: false, message: `Invalid API response from shipping provider (status ${response.status})` };
         }
 
-        console.log("iCarry.in Result:", result);
+        console.log(`iCarry.in Result (status ${response.status}, keys=${Object.keys(result || {}).join(',')}):`, result);
 
         const resultData = result?.data || result;
         const shipmentId = resultData?.shipment_id || result?.shipment_id;
@@ -309,7 +309,14 @@ export const createShipment = async (orderData: any) => {
             };
         }
 
-        return { success: false, message: errorMessage || "Shipment creation failed" };
+        // Surface what iCarry actually sent so failures don't show up as a bare
+        // "Shipment creation failed" — that hid a save_only response where the id
+        // was returned under a different key.
+        const detail = errorMessage
+            || (typeof successField === 'string' && successField.trim())
+            || `unexpected response (keys=${Object.keys(result || {}).join(',')})`;
+        console.error(`iCarry.in shipment not recognized as success. Detail: ${detail}`);
+        return { success: false, message: `Shipment creation failed: ${detail}` };
     } catch (error) {
         console.error("Error creating shipment:", error);
         return { success: false, message: (error as Error).message };
