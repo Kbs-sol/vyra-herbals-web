@@ -17,10 +17,10 @@ export const syncOrderShipment = async (supabase: any, order: any): Promise<Sync
         return { success: false, message: "Missing order" };
     }
 
-    // Skip only when iCarry has actually booked the shipment (AWB present). A row
-    // with a shipment_id but no AWB is a draft from the old `save_only=1` flow —
-    // those don't show up in iCarry's dashboard and need to be re-booked.
-    if (order.shipment_id && order.awb_code) {
+    // Skip if iCarry already has this order. We send save_only=1, so a freshly
+    // created shipment has no AWB yet — that's normal until admin picks a courier
+    // in iCarry's UI. Re-syncing on missing AWB would create duplicate iCarry rows.
+    if (order.shipment_id) {
         return {
             success: true,
             trackingId: order.tracking_id || order.awb_code || String(order.shipment_id),

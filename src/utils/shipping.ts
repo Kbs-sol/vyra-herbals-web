@@ -221,16 +221,13 @@ export const createShipment = async (orderData: any) => {
         payload.append("parcel[dimensions][height]", "10");
         payload.append("parcel[dimensions][unit]", "cm");
 
-        // Create the shipment but tell iCarry not to auto-assign a courier. The
-        // shipment then shows up in the dashboard under "Unassigned", and the admin
-        // picks the courier manually from iCarry's UI.
-        //
-        // - DON'T use `save_only=1` — that hides the shipment as an invisible draft.
-        // - DO set the auto-assign flags to 0 — that creates a real, listed shipment
-        //   without booking a courier.
-        payload.append("auto_assign", "0");
-        payload.append("is_auto_assign", "0");
-        payload.append("assign_courier", "0");
+        // Save the order without booking a courier. Per iCarry API doc v14 p14,
+        // any value in `save_only` means "save the order, do not assign a courier" —
+        // the order then sits in iCarry's dashboard waiting for the admin to pick
+        // a courier manually. The `auto_assign` / `assign_courier` flags we used
+        // before are not in iCarry's docs and the surface endpoint ignored them,
+        // so every order was getting booked on Delhivery automatically.
+        payload.append("save_only", "1");
 
         const apiUrl = `https://www.icarry.in/api_add_shipment_surface?api_token=${apiToken}`;
 
