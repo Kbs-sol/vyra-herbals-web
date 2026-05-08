@@ -197,30 +197,57 @@ const ProfilePage = () => {
 
             setOrders(validOrders);
 
-            // Best-effort retry for any orders whose iCarry shipment didn't sync
-            // (timeout, transient gateway failure). The sync-shipment route is
-            // idempotent — if it already has a shipment_id it returns early.
+            // Retry every order without a shipment_id (except Failed payments) — sync is
+            // idempotent and the server already short-circuits when shipment_id is set,
+            // so this is safe even on every page load. We don't filter by delivery_status
+            // because timeouts can leave the row in unexpected intermediate states (null,
+            // 'Pending Sync', 'Sync Failed: …', or even an old success status that didn't
+            // get overwritten because the row was never updated).
             const pending = validOrders.filter((o: any) =>
-                !o.shipment_id &&
-                o.status !== 'Failed' &&
-                (o.delivery_status === null ||
-                 o.delivery_status === 'Pending Sync' ||
-                 (typeof o.delivery_status === 'string' && o.delivery_status.startsWith('Sync Failed')))
+                !o.shipment_id && o.status !== 'Failed'
             );
             if (pending.length > 0) {
                 const { data: { session } } = await supabase.auth.getSession();
                 const token = session?.access_token;
                 if (token) {
-                    pending.slice(0, 3).forEach((o: any) => {
-                        fetch('/api/orders/sync-shipment', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                Authorization: `Bearer ${token}`,
-                            },
-                            body: JSON.stringify({ order_id: o.id }),
-                        }).catch((e) => console.warn('sync-shipment retry failed:', e));
-                    });
+                    // Fire all retries in parallel; await so we can refresh the UI once
+                    // they're done. Each call has its own ~25s server-side ceiling.
+                    const results = await Promise.all(
+                        pending.map((o: any) =>
+                            fetch('/api/orders/sync-shipment', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    Authorization: `Bearer ${token}`,
+                                },
+                                body: JSON.stringify({ order_id: o.id }),
+                            })
+                                .then((r) => r.ok)
+                                .catch((e) => {
+                                    console.warn('sync-shipment retry failed:', e);
+                                    return false;
+                                })
+                        )
+                    );
+                    // If any succeeded, re-fetch orders so the user sees the updated
+                    // tracking id / delivery status without needing another reload.
+                    if (results.some(Boolean)) {
+                        const { data: refreshed } = await supabase
+                            .from('orders')
+                            .select('*')
+                            .eq('user_id', user.id)
+                            .order('created_at', { ascending: false });
+                        if (refreshed) {
+                            setOrders(
+                                refreshed.map((order: any) => ({
+                                    ...order,
+                                    id: order.id || order.order_id,
+                                    items: order.items || order.products || [],
+                                    created_at: order.created_at || order.order_date || new Date().toISOString(),
+                                })).filter((o: any) => o.id)
+                            );
+                        }
+                    }
                 }
             }
         } catch (error) {

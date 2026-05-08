@@ -4,6 +4,24 @@ type SyncResult =
     | { success: true; trackingId: string; shipmentId: string; alreadySynced?: boolean }
     | { success: false; message: string };
 
+// Hard ceiling on the entire iCarry sync call. Internal fetches in shipping.ts
+// have their own AbortControllers (5s token, 10s shipment, +1s retry backoff),
+// so 24s is "everything went wrong but we still gave up cleanly" — well under
+// Vercel's 30s function budget.
+const SYNC_HARD_TIMEOUT_MS = 24000;
+
+const withTimeout = <T,>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+            reject(new Error(`${label} exceeded ${ms}ms ceiling`));
+        }, ms);
+        promise.then(
+            (value) => { clearTimeout(timer); resolve(value); },
+            (err) => { clearTimeout(timer); reject(err); }
+        );
+    });
+};
+
 /**
  * Create or retry an iCarry shipment for an order and persist the result.
  *
@@ -29,13 +47,40 @@ export const syncOrderShipment = async (supabase: any, order: any): Promise<Sync
         };
     }
 
+    // Race guard: the caller's `order` snapshot may be stale. The success handler
+    // hits this path right after INSERT, but the profile-page retry can fire on
+    // the same order milliseconds later if the success handler timed out. Check
+    // the live row to avoid double-booking on iCarry's end.
     try {
-        const shipmentResult = await createShipment({
-            id: order.id,
-            shipping_data: order.shipping_data,
-            payment_method: order.payment_method,
-            total_amount: order.total_amount,
-        });
+        const { data: latest } = await supabase
+            .from('orders')
+            .select('shipment_id, tracking_id, awb_code')
+            .eq('id', order.id)
+            .maybeSingle();
+        if (latest?.shipment_id) {
+            return {
+                success: true,
+                trackingId: latest.tracking_id || latest.awb_code || String(latest.shipment_id),
+                shipmentId: String(latest.shipment_id),
+                alreadySynced: true,
+            };
+        }
+    } catch {
+        // If the DB read fails, fall through and let createShipment handle it —
+        // worst case we get one duplicate, far better than failing the sync entirely.
+    }
+
+    try {
+        const shipmentResult = await withTimeout(
+            createShipment({
+                id: order.id,
+                shipping_data: order.shipping_data,
+                payment_method: order.payment_method,
+                total_amount: order.total_amount,
+            }),
+            SYNC_HARD_TIMEOUT_MS,
+            `iCarry sync for order ${order.id}`
+        );
 
         console.log(`[OrderShipment] iCarry result for order ${order.id}:`, shipmentResult);
 

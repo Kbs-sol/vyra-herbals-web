@@ -46,7 +46,12 @@ export const stateMapping: Record<string, string> = {
 
 export type IcarryTokenResult = { token: string | null; reason?: string };
 
-const ICARRY_TOKEN_FETCH_TIMEOUT_MS = 7000;
+// Worst-case budget on Vercel is 30s for /api/payment/success. Token (5s + 1s
+// backoff + 5s retry = 11s) + shipment (10s) = 21s leaves ~9s headroom for
+// cold-start, Supabase reads, and the redirect itself. Don't widen these
+// without also bumping vercel.json maxDuration.
+const ICARRY_TOKEN_FETCH_TIMEOUT_MS = 5000;
+const ICARRY_TOKEN_MAX_RETRIES = 1;
 
 const fetchWithTimeout = async (url: string, init: RequestInit, timeoutMs: number) => {
     const controller = new AbortController();
@@ -89,13 +94,12 @@ export const getIcarryTokenDetailed = async (retryCount = 0): Promise<IcarryToke
 
         const text = await loginRes.text();
 
-        // Cloudflare / error HTML response. Retry with shorter backoff so we stay
-        // inside the serverless function budget.
+        // Cloudflare / error HTML response. One retry only — going further blows
+        // the 30s function budget when chained with the shipment call.
         const looksHtml = text.includes("<!DOCTYPE") || text.includes("<html");
         if (looksHtml || loginRes.status >= 400) {
-            if (retryCount < 2) {
-                const delay = 1000 * Math.pow(2, retryCount); // 1s, 2s
-                await new Promise(resolve => setTimeout(resolve, delay));
+            if (retryCount < ICARRY_TOKEN_MAX_RETRIES) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
                 return getIcarryTokenDetailed(retryCount + 1);
             }
             const snippet = text.replace(/\s+/g, " ").trim().substring(0, 160);
@@ -152,7 +156,7 @@ const buildAddress = (shippingData: any): string => {
     return joined || String(shippingData.city || "").trim();
 };
 
-const ICARRY_SHIPMENT_TIMEOUT_MS = 12000;
+const ICARRY_SHIPMENT_TIMEOUT_MS = 10000;
 
 export const createShipment = async (orderData: any) => {
     try {

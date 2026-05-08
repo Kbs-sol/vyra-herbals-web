@@ -109,8 +109,23 @@ export async function POST(req: Request) {
 
     // 2. Create Shipment in iCarry. The order is already stamped 'Pending Sync', so
     //    if this call times out the row is still recoverable via /api/orders/sync-shipment.
+    //    Wrapped in a 25s race so we never blow the 30s function budget.
     const { syncOrderShipment } = await import('@/utils/orderShipment');
-    const shipmentSync = await syncOrderShipment(supabase, order);
+    let shipmentSync: any = { success: false, message: 'not attempted' };
+    try {
+        shipmentSync = await Promise.race([
+            syncOrderShipment(supabase, order),
+            new Promise((resolve) =>
+                setTimeout(
+                    () => resolve({ success: false, message: 'iCarry sync ceiling hit in COD handler' }),
+                    25000
+                )
+            ),
+        ]);
+    } catch (syncErr) {
+        console.error(`[COD] iCarry sync threw for order ${order?.id}:`, syncErr);
+        shipmentSync = { success: false, message: (syncErr as Error).message || 'sync exception' };
+    }
     const trackingId = shipmentSync.success ? shipmentSync.trackingId : '';
 
     // 3. Record coupon usage (after order is durably created)

@@ -195,11 +195,32 @@ export async function POST(req: Request) {
         // The order is already stamped with delivery_status='Pending Sync' so a Vercel
         // function timeout here still leaves a recoverable state that /api/orders/sync-shipment
         // (or the user's profile page on next load) can pick up and retry.
+        //
+        // syncOrderShipment has its own 24s hard ceiling (see orderShipment.ts).
+        // We wrap it in *one more* race against a 25s timeout here so that even
+        // if Supabase writes inside sync hang, the user still gets redirected to
+        // /profile within Vercel's 30s budget instead of seeing a 504.
         let trackingId = '';
         if (inserted && !inserted.shipment_id) {
             const { syncOrderShipment } = await import('@/utils/orderShipment');
-            const result = await syncOrderShipment(supabase, inserted);
-            if (result.success) trackingId = result.trackingId || '';
+            const syncWithCeiling = Promise.race([
+                syncOrderShipment(supabase, inserted),
+                new Promise<{ success: false; message: string }>((resolve) =>
+                    setTimeout(
+                        () => resolve({ success: false, message: 'iCarry sync ceiling hit in success handler' }),
+                        25000
+                    )
+                ),
+            ]);
+            try {
+                const result = await syncWithCeiling;
+                if (result.success) trackingId = (result as any).trackingId || '';
+                else console.warn(`[Payment Success] iCarry sync did not complete for order ${inserted.id}: ${result.message}`);
+            } catch (syncErr) {
+                // Never let a sync exception block the redirect — the row stays in
+                // 'Pending Sync' and the profile page will retry on next load.
+                console.error(`[Payment Success] iCarry sync threw for order ${inserted.id}:`, syncErr);
+            }
         } else if (inserted?.shipment_id) {
             trackingId = inserted.tracking_id || '';
             console.log(`[Payment Success] Shipment already exists for order ${inserted.id}, skipping re-creation.`);
