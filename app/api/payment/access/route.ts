@@ -2,27 +2,91 @@ import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
 import crypto from 'crypto';
 
+// Easebuzz rejects payloads as "Parameter validation failed" when fields contain
+// characters outside their allowlist. Mobile keyboards, autocorrect, voice input,
+// and Chrome autofill regularly inject smart quotes (’ ), em-dashes (—), unicode
+// spaces ( ), or trailing whitespace — invisible on the form but lethal to
+// Easebuzz's regex validator. We sanitize aggressively here so the gateway only
+// ever sees its allowlisted character sets.
+const sanitizeFirstname = (raw: unknown): string => {
+  // Easebuzz allows letters, spaces, and periods. Strip everything else, collapse
+  // whitespace, trim. Cap at 60 chars (Easebuzz's documented max is 60).
+  return String(raw ?? '')
+    .normalize('NFKD')                    // smart quotes / accents -> base form
+    .replace(/[^A-Za-z .]/g, '')          // drop disallowed chars
+    .replace(/\s+/g, ' ')                 // collapse runs of whitespace
+    .trim()
+    .slice(0, 60);
+};
+
+const sanitizeEmail = (raw: unknown): string => {
+  return String(raw ?? '')
+    .replace(/\s+/g, '')                  // emails never contain whitespace
+    .trim()
+    .slice(0, 80);
+};
+
+const sanitizePhone = (raw: unknown): string => {
+  // Strip non-digits, drop leading 91/0 country prefixes, take last 10 digits.
+  const digits = String(raw ?? '').replace(/\D/g, '');
+  if (digits.length === 12 && digits.startsWith('91')) return digits.slice(2);
+  if (digits.length === 11 && digits.startsWith('0')) return digits.slice(1);
+  return digits.slice(-10);
+};
+
+const sanitizeProductinfo = (raw: unknown): string => {
+  // Easebuzz accepts a fairly narrow set here. Allow alphanumerics, common safe
+  // punctuation, and spaces — anything else (em-dashes, ₹, emojis, asterisks) gets
+  // dropped because we've seen those reliably trigger Parameter validation failed.
+  return String(raw ?? '')
+    .normalize('NFKD')
+    .replace(/[^A-Za-z0-9 ._,\-\/()]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 100) || 'Vyra Herbals Order';
+};
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { amount, firstname, email, phone, productinfo } = body || {};
+    const rawFirstname = body?.firstname;
+    const rawEmail = body?.email;
+    const rawPhone = body?.phone;
+    const rawProductinfo = body?.productinfo;
+    const rawAmount = body?.amount;
 
-    // Validate required fields with explicit, user-actionable messages.
-    const missing: string[] = [];
-    if (!firstname) missing.push('name');
-    if (!email) missing.push('email');
-    if (!phone) missing.push('phone');
-    if (!productinfo) missing.push('product info');
-    if (missing.length) {
-      return NextResponse.json({ error: `Missing required fields: ${missing.join(', ')}` }, { status: 400 });
+    const firstname = sanitizeFirstname(rawFirstname);
+    const email = sanitizeEmail(rawEmail);
+    const phone = sanitizePhone(rawPhone);
+    const productinfo = sanitizeProductinfo(rawProductinfo);
+
+    // Validate required fields AFTER sanitization (raw input might have looked OK
+    // but become empty after we stripped disallowed chars). Each error message
+    // names the field so the inline modal banner is actionable on mobile too.
+    const fieldErrors: string[] = [];
+    if (!firstname) fieldErrors.push('Full name (letters only)');
+    if (!email) fieldErrors.push('email');
+    if (!phone) fieldErrors.push('phone');
+    if (!productinfo) fieldErrors.push('product info');
+    if (fieldErrors.length) {
+      return NextResponse.json({ error: `Please fix: ${fieldErrors.join(', ')}` }, { status: 400 });
     }
-    const numericAmount = Number(amount);
+
+    if (!/^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$/.test(email)) {
+      return NextResponse.json({ error: 'Please enter a valid email address.' }, { status: 400 });
+    }
+
+    const numericAmount = Number(rawAmount);
     if (!numericAmount || isNaN(numericAmount) || numericAmount < 1) {
       return NextResponse.json({ error: 'Payment amount must be at least ₹1.' }, { status: 400 });
     }
-    if (!/^[6-9]\d{9}$/.test(String(phone))) {
+    if (!/^[6-9]\d{9}$/.test(phone)) {
       return NextResponse.json({ error: 'Phone must be a 10-digit Indian mobile number starting with 6-9.' }, { status: 400 });
     }
+
+    // From here, work only with the sanitized values. Aliasing rawAmount so the
+    // existing transaction insert below stays unchanged.
+    const amount = numericAmount;
 
     const supabase = createServerSupabase();
 
@@ -130,8 +194,15 @@ export async function POST(req: Request) {
         paymentUrl: `${payBaseUrl}${result.data}`
       });
     } else {
-      console.error('Easebuzz Error:', result);
-      return NextResponse.json({ error: result.data || 'Payment initiation failed' }, { status: 400 });
+      // Surface the sanitized payload alongside Easebuzz's response in logs so we
+      // can diagnose any future "Parameter validation failed" without guessing.
+      // `result.data` is usually a one-line error like "Parameter validation
+      // failed"; `error_desc` (when present) names the specific field.
+      console.error('Easebuzz Error:', result, {
+        sentFields: { firstname, email, phone, productinfo, amount: formattedAmount },
+      });
+      const easebuzzMsg = result?.error_desc || result?.error || result?.data || 'Payment initiation failed';
+      return NextResponse.json({ error: String(easebuzzMsg) }, { status: 400 });
     }
 
   } catch (err) {
