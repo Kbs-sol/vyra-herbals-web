@@ -8,9 +8,11 @@ import { WishlistProvider } from '@/Components/Contexts/WishlistContext';
 import Header from '@/Components/Common/Header';
 import Footer from '@/Components/Common/Footer';
 import ConditionalLayout from '@/Components/Common/ConditionalLayout';
+import { ToastContainer } from 'react-toastify';
 import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import 'react-toastify/dist/ReactToastify.css';
 import '@/index.css';
 import './globals.css';
 
@@ -137,6 +139,17 @@ export default function RootLayout({
             </WishlistProvider>
           </CartProvider>
         </AuthProvider>
+        {/* z-index above Bootstrap modal (1055) so errors during checkout are visible on mobile too */}
+        <ToastContainer
+          position="bottom-center"
+          autoClose={4000}
+          newestOnTop
+          closeOnClick
+          pauseOnHover
+          draggable
+          theme="light"
+          style={{ zIndex: 99999 }}
+        />
       </body>
     </html>
   );

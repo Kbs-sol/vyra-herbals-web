@@ -114,6 +114,10 @@ const Checkout = ({
   const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
   const [loadingAddresses, setLoadingAddresses] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
+  // Inline payment error shown inside the modal. Toasts can be missed on mobile
+  // (covered by keyboard, scrolled out of view, or dismissed too fast), so we
+  // also render the failure reason right next to the Confirm Order button.
+  const [paymentError, setPaymentError] = useState<string>("");
 
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({}); // Store refs dynamically
 
@@ -464,17 +468,26 @@ const Checkout = ({
     });
   };
 
+  // Centralised error reporting — toast + inline + console — so a failure is
+  // never silent. Mobile users frequently miss the toast (keyboard up, scroll
+  // position, modal backdrop), and a silent loader looks like the page is broken.
+  const reportPaymentError = (msg: string) => {
+    console.error("[checkout] payment error:", msg);
+    setPaymentError(msg);
+    notifyError(msg);
+  };
+
   const handlePayment = async () => {
     if (disableBtn) return; // double-tap guard
     setDisableBtn(true);
     setLoading(true);
+    setPaymentError("");
     try {
       // Guard against payment-gateway misconfiguration / zero-amount orders before
       // we even hit the gateway — those would otherwise return a generic error.
       if (paymentMethod === 'online' && (!transactionPrice || transactionPrice < 1)) {
-        notifyError(
-          "Payment amount must be at least ₹1. Please remove the coupon or contact support.",
-          7000
+        reportPaymentError(
+          "Payment amount must be at least ₹1. Please remove the coupon or contact support."
         );
         return;
       }
@@ -484,12 +497,12 @@ const Checkout = ({
         const reason =
           responseData?.error ||
           "Couldn't reach the payment gateway. Please check your internet and try again.";
-        notifyError(`Order failed: ${reason}`);
+        reportPaymentError(`Order failed: ${reason}`);
         return;
       }
       const paymentTxnId = responseData.txnid;
       if (!paymentTxnId) {
-        notifyError("Order failed: payment gateway did not return a transaction ID.");
+        reportPaymentError("Order failed: payment gateway did not return a transaction ID.");
         return;
       }
 
@@ -529,16 +542,38 @@ const Checkout = ({
       const sessionData = await sessionRes.json().catch(() => null);
       if (!sessionRes.ok || sessionData?.status !== 'ok') {
         const reason = sessionData?.error || `Server returned ${sessionRes.status}`;
-        notifyError(`Could not save your order before payment: ${reason}`);
+        reportPaymentError(`Could not save your order before payment: ${reason}`);
         return;
       }
 
-      // Order session saved successfully — safe to clear the cached form and redirect
+      // Order session saved successfully — safe to clear the cached form and redirect.
       clearStoredForm();
-      window.location.href = paymentUrl;
+
+      // Mobile Safari/Chrome occasionally drop a `window.location.href` set after
+      // a long await chain (treated as out-of-user-gesture). A synthetic anchor
+      // click within the same tick is the most reliable cross-browser redirect.
+      // We keep `window.location.assign` as a belt-and-braces fallback.
+      try {
+        const a = document.createElement("a");
+        a.href = paymentUrl;
+        a.rel = "noopener";
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        // Fallback: if for some reason the click didn't navigate within 400ms,
+        // force a same-tab redirect so the user is never left on a stuck modal.
+        setTimeout(() => {
+          if (typeof window !== "undefined" && window.location.href !== paymentUrl) {
+            window.location.assign(paymentUrl);
+          }
+        }, 400);
+      } catch (navErr) {
+        console.error("[checkout] redirect failed:", navErr);
+        window.location.href = paymentUrl;
+      }
     } catch (err) {
       console.error("handlePayment error:", err);
-      notifyError(`Unexpected error: ${(err as Error).message || 'please try again.'}`);
+      reportPaymentError(`Unexpected error: ${(err as Error).message || 'please try again.'}`);
     } finally {
       setLoading(false);
       setDisableBtn(false);
@@ -835,6 +870,21 @@ const Checkout = ({
         >
           {showOrderSummary ? renderOrderSummary() : renderForm()}
         </Modal.Body>
+        {paymentError && showOrderSummary && (
+          <div
+            role="alert"
+            style={{
+              backgroundColor: "#fdecea",
+              color: "#a31515",
+              borderTop: "1px solid #f5c2c0",
+              padding: "0.75rem 1rem",
+              fontSize: "0.9rem",
+              lineHeight: 1.35,
+            }}
+          >
+            {paymentError}
+          </div>
+        )}
         <Modal.Footer style={{ backgroundColor: "white" }}>
           <Button
             variant="secondary"
