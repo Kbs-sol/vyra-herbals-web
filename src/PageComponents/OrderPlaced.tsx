@@ -1,0 +1,416 @@
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import styled from 'styled-components';
+import { FaCheckCircle, FaWhatsapp, FaInstagram } from 'react-icons/fa';
+import { API_PATH } from '../constants';
+import LoadingIndicator from '../Components/Common/LoadingIndicator';
+import { supabase } from '@/utils/supabaseClient';
+import { useCart } from '../Components/Contexts/CartContext';
+import { trackEvent } from '@/utils/analytics';
+
+interface OrderInfo {
+  id: number | string;
+  order_id?: string;
+  txn_id?: string;
+  total_amount?: number;
+  order_amount?: number;
+  payment_method?: string;
+  status?: string;
+  shipment_id?: string | number | null;
+  tracking_id?: string | null;
+  delivery_status?: string;
+  created_at?: string;
+  order_date?: string;
+  items?: any[];
+  products?: any[];
+  shipping_address?: string;
+  shipping_data?: any;
+}
+
+const formatAddress = (raw: any) => {
+  try {
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : (raw || {});
+    if (parsed.address && !parsed.houseNumber) {
+      return {
+        name: parsed.fullName || 'Customer',
+        mobile: parsed.phone || parsed.mobile || 'N/A',
+        email: parsed.email || 'Not provided',
+        address: parsed.address,
+      };
+    }
+    const { fullName, phone, email, houseNumber, area, pincode, city, state, country } = parsed;
+    const addressLine = [houseNumber, area, city, state]
+      .filter((p) => p && String(p).trim())
+      .join(', ');
+    const tail = [pincode, country].filter((p) => p && String(p).trim()).join(', ');
+    return {
+      name: fullName || 'Customer',
+      mobile: phone || 'N/A',
+      email: email || 'Not provided',
+      address: tail ? `${addressLine} - ${tail}` : addressLine,
+    };
+  } catch {
+    return { name: 'Customer', mobile: 'N/A', email: 'Not provided', address: '—' };
+  }
+};
+
+const formatDate = (iso?: string) => {
+  if (!iso) return '—';
+  try {
+    return new Date(iso).toLocaleDateString('en-IN', {
+      day: 'numeric', month: 'short', year: 'numeric',
+    });
+  } catch {
+    return iso;
+  }
+};
+
+const OrderPlaced = () => {
+  const params = useParams();
+  const router = useRouter();
+  const orderId = String(params?.orderId || '');
+  const [order, setOrder] = useState<OrderInfo | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string>('');
+  const { cartItems, clearCart } = useCart();
+
+  useEffect(() => {
+    if (!orderId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const headers: any = { 'Content-Type': 'application/json' };
+        if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+        const res = await fetch(`${API_PATH}/orders/info?order_id=${encodeURIComponent(orderId)}`, { headers });
+        const json = await res.json();
+        if (cancelled) return;
+        if (json.status !== 'success' || !json.data) {
+          setErrorMsg(json.message || 'Order not found.');
+          setLoading(false);
+          return;
+        }
+        const data = json.data;
+        setOrder(data);
+        setLoading(false);
+
+        // One-time conversion event for analytics, like the old transaction page did.
+        trackEvent('Purchase', {
+          transaction_id: data.txn_id || String(data.id),
+          value: Number(data.total_amount ?? data.order_amount ?? 0),
+          currency: 'INR',
+          num_items: (data.items || data.products || []).length,
+        });
+
+        // Best-effort cart cleanup if any of the cart items match this order.
+        if (cartItems.length > 0) {
+          const map = new Map<any, number>(
+            (data.items || data.products || []).map((p: any) => [
+              p.product_id || p.id, Number(p.quantity || p.qty || 1),
+            ]),
+          );
+          const matches = cartItems.every((c: any) =>
+            map.get(c.product_id || c.id) === Number(c.quantity)
+          );
+          if (matches) clearCart();
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setErrorMsg((e as Error).message || 'Failed to load order.');
+          setLoading(false);
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderId]);
+
+  if (loading) {
+    return (
+      <Wrapper>
+        <div className="loading"><LoadingIndicator variant="spinner" /></div>
+      </Wrapper>
+    );
+  }
+
+  if (errorMsg || !order) {
+    return (
+      <Wrapper>
+        <div className="container py-5">
+          <div className="error-card">
+            <h3 className="mb-3">We couldn't load your order.</h3>
+            <p className="text-muted mb-4">{errorMsg || 'Please open your purchase history to confirm.'}</p>
+            <button onClick={() => router.push('/profile#orders')} className="btn-primary-vyra">
+              Go to My Orders
+            </button>
+          </div>
+        </div>
+      </Wrapper>
+    );
+  }
+
+  const addr = formatAddress(order.shipping_address || order.shipping_data);
+  const items = order.items || order.products || [];
+  const amount = Number(order.total_amount ?? order.order_amount ?? 0);
+  const orderDate = formatDate(order.created_at || order.order_date);
+  const orderIdDisplay = order.order_id || `ORD-${order.id}`;
+
+  return (
+    <Wrapper>
+      <div className="container py-5">
+        <div className="success-card">
+          <div className="text-center mb-4">
+            <FaCheckCircle className="success-icon" />
+            <h1 className="success-title">Order Placed Successfully!</h1>
+            <p className="success-subtitle">Thank you for shopping with us. Here are your order details:</p>
+            <p className="success-note">Kindly note the Order ID for further tracking.</p>
+          </div>
+
+          <Section>
+            <h3 className="section-title">Order Information</h3>
+            <Row label="Order ID" value={orderIdDisplay} />
+            <Row label="Shipping ID" value={order.shipment_id ? String(order.shipment_id) : 'Pending sync'} />
+            <Row label="Order Amount" value={`₹${amount}`} />
+            <Row label="Order Date" value={orderDate} />
+            <Row label="Payment Method" value={(order.payment_method || 'online').toUpperCase()} />
+            <Row label="Transaction ID" value={order.txn_id || '—'} />
+          </Section>
+
+          <Section>
+            <h3 className="section-title">Shipping Address</h3>
+            <p className="addr-line"><strong>Name:</strong> {addr.name}</p>
+            <p className="addr-line"><strong>Mobile:</strong> {addr.mobile}</p>
+            <p className="addr-line"><strong>Email:</strong> {addr.email}</p>
+            <p className="addr-line"><strong>Address:</strong> {addr.address}</p>
+          </Section>
+
+          <Section>
+            <h3 className="section-title">Products</h3>
+            {items.length === 0 ? (
+              <p className="text-muted">No items recorded.</p>
+            ) : (
+              items.map((item: any, idx: number) => (
+                <div key={item.product_id || item.id || idx} className="product-row">
+                  <img
+                    src={item.product_image || item.image_url || '/home-hair-oil.jpg'}
+                    alt={item.product_title || item.title || 'Product'}
+                    onError={(e) => { (e.target as HTMLImageElement).src = '/home-hair-oil.jpg'; }}
+                  />
+                  <div className="product-meta">
+                    <p className="product-title"><strong>Product Title:</strong> {item.product_title || item.title || 'Vyra Herbals Product'}</p>
+                    <p className="product-line"><strong>Quantity:</strong> {item.quantity || item.qty || 1}</p>
+                    <p className="product-line"><strong>Item Amount:</strong> ₹{item.price || 0}</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </Section>
+
+          <ContactStrip>
+            <p>
+              If you have any queries, contact us via{' '}
+              <a href="https://wa.me/919866082590" target="_blank" rel="noopener noreferrer">
+                <FaWhatsapp /> <strong>WhatsApp: 9866082590</strong>
+              </a>{' '}
+              or{' '}
+              <a href="https://www.instagram.com/vyraherbals" target="_blank" rel="noopener noreferrer">
+                <FaInstagram /> <strong>Instagram: @vyraherbals</strong>
+              </a>
+              .
+            </p>
+          </ContactStrip>
+
+          <div className="actions">
+            <Link href={`/orders/${order.id}`} className="btn-primary-vyra">View Order</Link>
+            <Link href="/search?searchtext=all" className="btn-outline-vyra">Continue Shopping</Link>
+          </div>
+        </div>
+      </div>
+    </Wrapper>
+  );
+};
+
+const Row = ({ label, value }: { label: string; value: React.ReactNode }) => (
+  <p className="kv-row"><strong>{label}:</strong> {value}</p>
+);
+
+const Section = ({ children }: { children: React.ReactNode }) => (
+  <section className="block">{children}</section>
+);
+
+export default OrderPlaced;
+
+const Wrapper = styled.div`
+  background: #f4f6f8;
+  min-height: 100vh;
+
+  .loading {
+    min-height: 60vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .error-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 3rem 2rem;
+    text-align: center;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+    max-width: 540px;
+    margin: 0 auto;
+  }
+
+  .success-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 2.5rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+    max-width: 760px;
+    margin: 0 auto;
+  }
+
+  .success-icon {
+    color: #16a34a;
+    font-size: 4rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .success-title {
+    color: #16a34a;
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+
+  .success-subtitle {
+    color: #555;
+    margin-bottom: 0.25rem;
+  }
+
+  .success-note {
+    color: #b91c1c;
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+
+  .block {
+    border-top: 1px solid #e5e7eb;
+    padding: 1.5rem 0;
+  }
+
+  .section-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: #1f2937;
+  }
+
+  .kv-row,
+  .addr-line {
+    margin-bottom: 0.5rem;
+    color: #1f2937;
+  }
+
+  .product-row {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    padding: 1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    margin-bottom: 0.75rem;
+    background: #fafbfc;
+  }
+
+  .product-row img {
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+    border-radius: 8px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    padding: 4px;
+    flex-shrink: 0;
+  }
+
+  .product-meta {
+    flex-grow: 1;
+  }
+
+  .product-title {
+    margin-bottom: 0.25rem;
+    color: #111827;
+  }
+
+  .product-line {
+    margin-bottom: 0.25rem;
+    color: #4b5563;
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+  }
+
+  .btn-primary-vyra {
+    background: #704a0d;
+    color: #fff;
+    border: 1px solid #704a0d;
+    padding: 0.6rem 1.4rem;
+    border-radius: 8px;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-block;
+    cursor: pointer;
+  }
+
+  .btn-primary-vyra:hover {
+    background: #5e3f0a;
+    color: #fff;
+  }
+
+  .btn-outline-vyra {
+    background: transparent;
+    color: #704a0d;
+    border: 1px solid #704a0d;
+    padding: 0.6rem 1.4rem;
+    border-radius: 8px;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-block;
+  }
+
+  .btn-outline-vyra:hover {
+    background: #f4ead4;
+    color: #704a0d;
+  }
+`;
+
+const ContactStrip = styled.div`
+  border-top: 1px solid #e5e7eb;
+  padding-top: 1.25rem;
+  margin-top: 1rem;
+  text-align: center;
+  color: #4b5563;
+
+  a {
+    color: #704a0d;
+    text-decoration: none;
+    margin: 0 0.25rem;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+
+  svg {
+    margin-right: 0.25rem;
+    vertical-align: middle;
+  }
+`;

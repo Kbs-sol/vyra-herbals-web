@@ -218,11 +218,14 @@ export const createShipment = async (orderData: any) => {
         payload.append("parcel[value]", String(parcelValue));
         payload.append("parcel[contents]", shippingData.productTitle || "Vyra Herbals Product");
 
-        payload.append("parcel[weight][weight]", "500");
+        // Default parcel dimensions for a single 100ml hair-oil bottle (the
+        // current SKU). Update here if the catalog grows past one box size —
+        // iCarry rates and the volumetric-weight calculation depend on these.
+        payload.append("parcel[weight][weight]", "499");
         payload.append("parcel[weight][unit]", "gm");
-        payload.append("parcel[dimensions][length]", "10");
-        payload.append("parcel[dimensions][breadth]", "10");
-        payload.append("parcel[dimensions][height]", "10");
+        payload.append("parcel[dimensions][length]", "18");
+        payload.append("parcel[dimensions][breadth]", "13");
+        payload.append("parcel[dimensions][height]", "8");
         payload.append("parcel[dimensions][unit]", "cm");
 
         // Save the order without booking a courier. Per iCarry API doc v14 p14,

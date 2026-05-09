@@ -242,8 +242,16 @@ export async function POST(req: Request) {
             payment_method: paymentMethod
         }).eq('id', Number(txnIdStr));
 
-        // 6. Redirect to Order page or Profile
-        return NextResponse.redirect(`${appUrl}/profile?toast=order_success#orders`, 303);
+        // 6. Redirect to the dedicated "Order Placed Successfully" page so the
+        //    user lands on a confirmation screen with their full order details
+        //    (Order ID, Shipping ID, address, products, contact info) instead
+        //    of the generic profile page. Falls back to /profile if for some
+        //    reason the inserted row has no id (shouldn't happen, but keep the
+        //    user out of a dead end).
+        const successUrl = inserted?.id
+            ? `${appUrl}/order-placed/${inserted.id}`
+            : `${appUrl}/profile?toast=order_success#orders`;
+        return NextResponse.redirect(successUrl, 303);
 
     } catch (err) {
         console.error('Payment success exception:', err);

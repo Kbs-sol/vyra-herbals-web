@@ -174,6 +174,7 @@ const Checkout = ({
         regular_price: item.regular_price || item.price,
         title: item.title,
         handle: item.handle,
+        sku: item.sku || '',
         image_url: item.image_url,
       }))
     );
