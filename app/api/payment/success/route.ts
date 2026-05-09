@@ -40,7 +40,7 @@ export async function POST(req: Request) {
             if (origin.includes('vercel.app')) {
                 appUrl = origin;
             } else {
-                appUrl = 'https://vyra-herbals.vercel.app';
+                appUrl = 'https://vyraherbals.com';
             }
             console.log(`[Payment Success] AppUrl corrected to: ${appUrl}`);
         } else {
