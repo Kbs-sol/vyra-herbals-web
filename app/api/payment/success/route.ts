@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
 import { validateCoupon, recordCouponUsage } from '@/utils/coupons';
+import { syncOrderShipment } from '@/utils/orderShipment';
 
 export const runtime = 'nodejs';
 export const preferredRegion = 'bom1';
@@ -200,9 +201,12 @@ export async function POST(req: Request) {
         // We wrap it in *one more* race against a 25s timeout here so that even
         // if Supabase writes inside sync hang, the user still gets redirected to
         // /profile within Vercel's 30s budget instead of seeing a 504.
+        // Static import (above) instead of `await import(...)` — the dynamic
+        // form was inexplicably skipping the sync on Vercel even though the
+        // utility itself worked when called directly via /api/debug-db/icarry-ping.
         let trackingId = '';
+        console.log(`[Payment Success] Starting iCarry sync for order ${inserted?.id}, shipment_id=${inserted?.shipment_id}`);
         if (inserted && !inserted.shipment_id) {
-            const { syncOrderShipment } = await import('@/utils/orderShipment');
             const syncWithCeiling = Promise.race([
                 syncOrderShipment(supabase, inserted),
                 new Promise<{ success: false; message: string }>((resolve) =>

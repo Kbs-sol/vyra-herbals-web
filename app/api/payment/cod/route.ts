@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
 import { validateCoupon, recordCouponUsage } from '@/utils/coupons';
+import { syncOrderShipment } from '@/utils/orderShipment';
 
 export const runtime = 'nodejs';
 export const preferredRegion = 'bom1';
@@ -110,7 +111,6 @@ export async function POST(req: Request) {
     // 2. Create Shipment in iCarry. The order is already stamped 'Pending Sync', so
     //    if this call times out the row is still recoverable via /api/orders/sync-shipment.
     //    Wrapped in a 25s race so we never blow the 30s function budget.
-    const { syncOrderShipment } = await import('@/utils/orderShipment');
     let shipmentSync: any = { success: false, message: 'not attempted' };
     try {
         shipmentSync = await Promise.race([
