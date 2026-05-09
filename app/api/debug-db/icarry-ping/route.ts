@@ -33,6 +33,36 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: 'forbidden' }, { status: 403 });
     }
 
+    // ?check=<order_id> reads the row's delivery_status & shipment_id so we know
+    // whether /api/payment/success even attempted iCarry sync for that order.
+    const checkOrderId = url.searchParams.get('check');
+    if (checkOrderId) {
+        const supabase = createServerSupabase();
+        const { data, error } = await supabase
+            .from('orders')
+            .select('id, order_id, status, delivery_status, shipment_id, awb_code, tracking_id, courier_name, txn_id, created_at, shipping_data')
+            .eq('id', checkOrderId)
+            .maybeSingle();
+        if (error) return NextResponse.json({ ok: false, error: error.message });
+        if (!data) return NextResponse.json({ ok: false, error: 'Order not found' });
+        // Truncate shipping_data so the response stays readable.
+        const sd = typeof data.shipping_data === 'string' ? data.shipping_data : JSON.stringify(data.shipping_data);
+        return NextResponse.json({
+            ok: true,
+            id: data.id,
+            order_id: data.order_id,
+            status: data.status,
+            delivery_status: data.delivery_status,
+            shipment_id: data.shipment_id,
+            awb_code: data.awb_code,
+            tracking_id: data.tracking_id,
+            courier_name: data.courier_name,
+            txn_id: data.txn_id,
+            created_at: data.created_at,
+            shipping_data_snippet: sd ? sd.substring(0, 300) : null,
+        });
+    }
+
     const username = process.env.ICARRY_USERNAME;
     const key = process.env.ICARRY_KEY;
     const pickupId = process.env.ICARRY_PICKUP_ADDRESS_ID;
