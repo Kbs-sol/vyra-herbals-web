@@ -1,11 +1,18 @@
 import { NextResponse } from 'next/server';
+import { createServerSupabase } from '@/utils/supabaseClient';
+import { syncOrderShipment } from '@/utils/orderShipment';
 
 // Temporary diagnostic. Hit GET /api/debug-db/icarry-ping?key=vyra-debug-2026
 // from the deployed Vercel URL to see why iCarry sync isn't working in
 // production. Delete this route once the cause is identified.
+//
+// Add ?mode=full to also exercise our syncOrderShipment utility against a
+// throwaway order row, which mirrors what /api/payment/success does. The
+// throwaway order is deleted before we return.
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
 
 const DEBUG_KEY = 'vyra-debug-2026';
 const TIMEOUT_MS = 8000;
@@ -186,7 +193,7 @@ export async function GET(req: Request) {
         // not JSON
     }
 
-    return NextResponse.json({
+    const rawShipmentResult = {
         stage: 'shipment',
         ok: shipmentRes.ok && Boolean(parsedBody?.shipment_id || parsedBody?.success),
         loginElapsedMs: loginElapsed,
@@ -198,5 +205,69 @@ export async function GET(req: Request) {
             server: shipmentRes.headers.get('server'),
         },
         envCheck,
+    };
+
+    // ?mode=full also exercises our actual syncOrderShipment utility (the same
+    // one /api/payment/success calls). It inserts a throwaway order row, runs
+    // sync, then deletes the row regardless of outcome. Use a server-side ID
+    // far away from real timestamps so it can't collide.
+    const mode = url.searchParams.get('mode');
+    if (mode !== 'full') {
+        return NextResponse.json(rawShipmentResult);
+    }
+
+    const supabase = createServerSupabase();
+    const fakeOrderId = -1 * Date.now(); // negative ID = obviously synthetic
+    const fakeOrder = {
+        id: fakeOrderId,
+        order_id: `DEBUG-PING-ORD-${Date.now()}`,
+        items: [{ id: 'debug', title: 'Debug ping', price: 1, quantity: 1 }],
+        total_amount: 1,
+        transaction_price: 1,
+        shipping_data: {
+            fullName: 'DebugPingFull',
+            phone: '9876543210',
+            email: 'debug@vyraherbals.com',
+            houseNumber: '32-75',
+            area: 'Debug area',
+            landmark: 'Debug landmark',
+            pincode: '751001',
+            city: 'Bhubaneswar',
+            state: 'Odisha',
+            country: 'India',
+            productTitle: '1XDebug',
+        },
+        payment_method: 'online',
+        status: 'placed',
+        delivery_status: 'Pending Sync',
+        user_id: null,
+        created_at: new Date().toISOString(),
+        order_date: new Date().toISOString(),
+    };
+
+    const utilityStart = Date.now();
+    let insertError: any = null;
+    let syncResult: any = null;
+    let utilityException: any = null;
+    try {
+        const { error } = await supabase.from('orders').insert([fakeOrder]).select().single();
+        insertError = error?.message || null;
+        if (!error) {
+            syncResult = await syncOrderShipment(supabase, fakeOrder);
+        }
+    } catch (e) {
+        utilityException = (e as Error).message;
+    } finally {
+        await supabase.from('orders').delete().eq('id', fakeOrderId);
+    }
+
+    return NextResponse.json({
+        ...rawShipmentResult,
+        utility: {
+            elapsedMs: Date.now() - utilityStart,
+            insertError,
+            syncResult,
+            utilityException,
+        },
     });
 }
