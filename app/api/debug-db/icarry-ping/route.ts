@@ -123,13 +123,80 @@ export async function GET(req: Request) {
         });
     }
 
-    // Login worked. Don't actually create a shipment — just confirm the token is usable.
+    // Login worked. Now stress-test the actual /api/payment/success path: try a
+    // save_only=1 shipment with a known-good payload so we know whether the
+    // failure is in createShipment, not just the login round-trip.
+    const apiToken = loginData.api_token as string;
+    const shipmentStart = Date.now();
+    const payload = new URLSearchParams();
+    payload.append('pickup_address_id', pickupId || '27914');
+    payload.append('client_order_id', `DEBUG-PING-${Date.now()}`);
+    payload.append('consignee[name]', 'DebugPing');
+    payload.append('consignee[mobile]', '9876543210');
+    payload.append('consignee[address]', 'Debug addr');
+    payload.append('consignee[city]', 'Bhubaneswar');
+    payload.append('consignee[pincode]', '751001');
+    payload.append('consignee[state]', 'OD');
+    payload.append('consignee[country_code]', 'IN');
+    payload.append('parcel[type]', 'Prepaid');
+    payload.append('parcel[value]', '1');
+    payload.append('parcel[contents]', 'Debug ping payload');
+    payload.append('parcel[weight][weight]', '500');
+    payload.append('parcel[weight][unit]', 'gm');
+    payload.append('parcel[dimensions][length]', '10');
+    payload.append('parcel[dimensions][breadth]', '10');
+    payload.append('parcel[dimensions][height]', '10');
+    payload.append('parcel[dimensions][unit]', 'cm');
+    payload.append('save_only', '1');
+
+    let shipmentRes: Response;
+    let shipmentBody = '';
+    try {
+        shipmentRes = await fetchWithTimeout(
+            `https://www.icarry.in/api_add_shipment_surface?api_token=${apiToken}`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'User-Agent':
+                        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    Accept: 'application/json, text/plain, */*',
+                },
+                body: payload,
+            },
+        );
+        shipmentBody = await shipmentRes.text();
+    } catch (err) {
+        return NextResponse.json({
+            stage: 'shipment',
+            ok: false,
+            loginElapsedMs: loginElapsed,
+            shipmentElapsedMs: Date.now() - shipmentStart,
+            error: (err as Error).message,
+            isAbort: (err as any)?.name === 'AbortError',
+            envCheck,
+        });
+    }
+
+    const shipmentElapsed = Date.now() - shipmentStart;
+    let parsedBody: any = null;
+    try {
+        parsedBody = JSON.parse(shipmentBody);
+    } catch {
+        // not JSON
+    }
+
     return NextResponse.json({
-        stage: 'login',
-        ok: true,
-        elapsedMs: loginElapsed,
-        tokenPrefix: String(loginData.api_token).substring(0, 8) + '...',
-        cfHeaders,
+        stage: 'shipment',
+        ok: shipmentRes.ok && Boolean(parsedBody?.shipment_id || parsedBody?.success),
+        loginElapsedMs: loginElapsed,
+        shipmentElapsedMs: shipmentElapsed,
+        shipmentHttpStatus: shipmentRes.status,
+        shipmentResponse: parsedBody ?? shipmentBody.substring(0, 400),
+        cfHeaders: {
+            'cf-ray': shipmentRes.headers.get('cf-ray'),
+            server: shipmentRes.headers.get('server'),
+        },
         envCheck,
     });
 }
