@@ -18,6 +18,18 @@
     },
     "app/api/payment/success/route.ts": {
       "maxDuration": 30
+    },
+    "app/api/payment/reconcile/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/cron/reconcile-payments/route.ts": {
+      "maxDuration": 60
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/reconcile-payments",
+      "schedule": "*/10 * * * *"
+    }
+  ]
 }

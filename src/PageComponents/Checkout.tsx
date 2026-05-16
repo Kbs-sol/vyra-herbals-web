@@ -550,6 +550,19 @@ const Checkout = ({
       // Order session saved successfully — safe to clear the cached form and redirect.
       clearStoredForm();
 
+      // Stash the pending txn so /order-placed (or anywhere else the user
+      // lands back on after a failed surl POST) can call /api/payment/reconcile
+      // and recover the order without admin intervention.
+      try {
+        localStorage.setItem(
+          'vyra_pending_txn',
+          JSON.stringify({ txnId: paymentTxnId, at: Date.now() })
+        );
+      } catch {
+        // Storage unavailable (Safari private mode, etc.) — surl POST will
+        // still create the order normally, and the cron sweep covers the rest.
+      }
+
       // Mobile Safari/Chrome occasionally drop a `window.location.href` set after
       // a long await chain (treated as out-of-user-gesture). A synthetic anchor
       // click within the same tick is the most reliable cross-browser redirect.

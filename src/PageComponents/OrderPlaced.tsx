@@ -80,8 +80,35 @@ const OrderPlaced = () => {
   useEffect(() => {
     if (!orderId) return;
     let cancelled = false;
+
+    // If the user landed here from a successful payment, the surl callback
+    // should have already created the order. If for any reason that callback
+    // failed (closed tab, dropped network, function timeout), we still stored
+    // the pending txnid in localStorage — ask /api/payment/reconcile to
+    // verify with Easebuzz and finalize the order before we try to render it.
+    const reconcileIfPending = async () => {
+      try {
+        const raw = localStorage.getItem('vyra_pending_txn');
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        const txnId = parsed?.txnId;
+        if (!txnId) return;
+        await fetch(`${API_PATH}/payment/reconcile`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ txnid: String(txnId) }),
+        }).catch(() => null);
+        localStorage.removeItem('vyra_pending_txn');
+      } catch {
+        // Best-effort only. If reconcile is unreachable, the cron sweep will
+        // still pick up the stuck transaction within a few minutes.
+      }
+    };
+
     (async () => {
       try {
+        await reconcileIfPending();
+
         const { data: { session } } = await supabase.auth.getSession();
         const headers: any = { 'Content-Type': 'application/json' };
         if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;

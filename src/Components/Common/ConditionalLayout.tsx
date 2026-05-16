@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import { Suspense } from 'react';
 import Header from './Header';
 import Footer from './Footer';
+import PendingTxnReconciler from './PendingTxnReconciler';
 
 export default function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -22,6 +23,7 @@ export default function ConditionalLayout({ children }: { children: React.ReactN
       <Suspense fallback={<div />}>
         <Header />
       </Suspense>
+      <PendingTxnReconciler />
       {children}
       <Footer />
     </>
