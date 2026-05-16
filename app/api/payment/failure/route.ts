@@ -14,11 +14,7 @@ export async function POST(req: Request) {
         if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
             appUrl = origin;
         } else if (!appUrl || appUrl.includes('supabase.co')) {
-            if (origin.includes('vercel.app')) {
-                appUrl = origin;
-            } else {
-                appUrl = 'https://vyraherbals.com';
-            }
+            appUrl = 'https://vyraherbals.com';
         }
 
         if (!txnid) {

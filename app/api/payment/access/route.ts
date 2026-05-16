@@ -164,11 +164,7 @@ export async function POST(req: Request) {
     }
     // 2. Fallback if App URL is missing or incorrect (Supabase)
     else if (!appUrl || appUrl.includes('supabase.co')) {
-      if (origin.includes('vercel.app')) {
-        appUrl = origin;
-      } else {
-        appUrl = 'https://vyraherbals.com';
-      }
+      appUrl = 'https://vyraherbals.com';
     }
     paymentData.append('surl', `${appUrl}/api/payment/success`);
     paymentData.append('furl', `${appUrl}/api/payment/failure`);

@@ -13,7 +13,7 @@ const resolveAppUrl = (req: Request): string => {
         return origin;
     }
     if (!appUrl || appUrl.includes('supabase.co')) {
-        return origin.includes('vercel.app') ? origin : 'https://vyraherbals.com';
+        return 'https://vyraherbals.com';
     }
     return appUrl;
 };
