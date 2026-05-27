@@ -17,7 +17,7 @@ jobs:
       - name: Call reconcile endpoint
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          RECONCILE_URL: ${{ vars.RECONCILE_URL || 'https://vyraherbals.com/api/cron/reconcile-payments' }}
+          RECONCILE_URL: ${{ vars.RECONCILE_URL || 'https://www.vyraherbals.com/api/cron/reconcile-payments' }}
         run: |
           set -euo pipefail
 
