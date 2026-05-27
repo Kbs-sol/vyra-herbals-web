@@ -32,11 +32,17 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
     const search = searchParams.get('search') || '';
+    const sortBy = searchParams.get('sortBy') || 'totalSpent';
+    const sortOrder = searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc';
+
+    // Only count successfully placed orders (exclude pending/failed/cancelled)
+    const SUCCESSFUL_STATUSES = ['placed', 'confirmed', 'shipped', 'delivered'];
 
     // Get unique customers from orders
     let query = supabase
       .from('orders')
-      .select('shipping_data, total_amount, created_at, status');
+      .select('shipping_data, total_amount, created_at, status')
+      .in('status', SUCCESSFUL_STATUSES);
 
     const { data: orders, error } = await query;
 
@@ -48,7 +54,7 @@ export async function GET(request: NextRequest) {
     orders?.forEach((order: any) => {
       const shipping = order.shipping_data || {};
       const identifier = shipping.email || shipping.phone || shipping.mobile || 'unknown';
-      
+
       if (identifier === 'unknown') return;
 
       if (!customerMap.has(identifier)) {
@@ -68,7 +74,7 @@ export async function GET(request: NextRequest) {
       const customer = customerMap.get(identifier);
       customer.orderCount += 1;
       customer.totalSpent += order.total_amount || 0;
-      
+
       const orderDate = new Date(order.created_at);
       if (!customer.lastOrderDate || orderDate > new Date(customer.lastOrderDate)) {
         customer.lastOrderDate = order.created_at;
@@ -80,15 +86,35 @@ export async function GET(request: NextRequest) {
     // Apply search filter
     if (search) {
       const searchLower = search.toLowerCase();
-      customers = customers.filter(c => 
+      customers = customers.filter(c =>
         c.name.toLowerCase().includes(searchLower) ||
         c.email.toLowerCase().includes(searchLower) ||
         c.phone.includes(search)
       );
     }
 
-    // Sort by total spent descending
-    customers.sort((a, b) => b.totalSpent - a.totalSpent);
+    // Sort
+    const dir = sortOrder === 'asc' ? 1 : -1;
+    customers.sort((a, b) => {
+      switch (sortBy) {
+        case 'orderCount':
+          return (a.orderCount - b.orderCount) * dir;
+        case 'lastOrderDate': {
+          const aTime = a.lastOrderDate ? new Date(a.lastOrderDate).getTime() : 0;
+          const bTime = b.lastOrderDate ? new Date(b.lastOrderDate).getTime() : 0;
+          return (aTime - bTime) * dir;
+        }
+        case 'name':
+          return a.name.localeCompare(b.name) * dir;
+        case 'totalSpent':
+        default:
+          return (a.totalSpent - b.totalSpent) * dir;
+      }
+    });
+
+    // Overall totals across all customers (after search filter, before pagination)
+    const totalRevenue = customers.reduce((sum, c) => sum + c.totalSpent, 0);
+    const totalOrders = customers.reduce((sum, c) => sum + c.orderCount, 0);
 
     // Paginate
     const total = customers.length;
@@ -98,6 +124,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: paginatedCustomers,
+      totals: {
+        totalRevenue,
+        totalOrders,
+        totalCustomers: total,
+        avgCustomerValue: total > 0 ? totalRevenue / total : 0,
+      },
       pagination: {
         page,
         limit,

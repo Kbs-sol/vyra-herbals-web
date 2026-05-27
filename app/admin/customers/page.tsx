@@ -23,10 +23,13 @@ export default function CustomersPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [sortBy, setSortBy] = useState<'totalSpent' | 'orderCount' | 'lastOrderDate' | 'name'>('totalSpent');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [totals, setTotals] = useState({ totalRevenue: 0, totalOrders: 0, totalCustomers: 0, avgCustomerValue: 0 });
 
   useEffect(() => {
     fetchCustomers();
-  }, [currentPage]);
+  }, [currentPage, sortBy, sortOrder]);
 
   const fetchCustomers = async () => {
     setLoading(true);
@@ -35,6 +38,8 @@ export default function CustomersPage() {
         page: currentPage.toString(),
         limit: '10',
         search: searchQuery,
+        sortBy,
+        sortOrder,
       });
 
       const res = await fetch(`/api/admin/customers?${params}`);
@@ -44,6 +49,7 @@ export default function CustomersPage() {
         setCustomers(data.data);
         setTotalPages(data.pagination.totalPages);
         setTotalItems(data.pagination.total);
+        if (data.totals) setTotals(data.totals);
       }
     } catch (error) {
       console.error('Error fetching customers:', error);
@@ -90,7 +96,7 @@ export default function CustomersPage() {
           </div>
         </div>
 
-        {/* Search */}
+        {/* Search & Sort */}
         <div className="filters">
           <form onSubmit={handleSearch} className="search-form">
             <div className="search-input">
@@ -107,6 +113,34 @@ export default function CustomersPage() {
             </div>
             <button type="submit" className="search-btn">Search</button>
           </form>
+
+          <div className="sort-controls">
+            <label className="sort-label">Sort by</label>
+            <select
+              className="sort-select"
+              value={sortBy}
+              onChange={(e) => {
+                setSortBy(e.target.value as typeof sortBy);
+                setCurrentPage(1);
+              }}
+            >
+              <option value="totalSpent">Total Spent</option>
+              <option value="orderCount">Orders</option>
+              <option value="lastOrderDate">Last Order</option>
+              <option value="name">Name</option>
+            </select>
+            <button
+              type="button"
+              className="sort-order-btn"
+              onClick={() => {
+                setSortOrder(o => (o === 'desc' ? 'asc' : 'desc'));
+                setCurrentPage(1);
+              }}
+              title={sortOrder === 'desc' ? 'Descending (high to low)' : 'Ascending (low to high)'}
+            >
+              {sortOrder === 'desc' ? '↓ Desc' : '↑ Asc'}
+            </button>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -135,7 +169,7 @@ export default function CustomersPage() {
             </div>
             <div className="stat-info">
               <span className="stat-value">
-                {formatCurrency(customers.reduce((sum, c) => sum + c.totalSpent, 0))}
+                {formatCurrency(totals.totalRevenue)}
               </span>
               <span className="stat-label">Total Revenue</span>
             </div>
@@ -150,7 +184,7 @@ export default function CustomersPage() {
             </div>
             <div className="stat-info">
               <span className="stat-value">
-                {customers.reduce((sum, c) => sum + c.orderCount, 0)}
+                {totals.totalOrders}
               </span>
               <span className="stat-label">Total Orders</span>
             </div>
@@ -166,7 +200,7 @@ export default function CustomersPage() {
             </div>
             <div className="stat-info">
               <span className="stat-value">
-                {formatCurrency(totalItems > 0 ? customers.reduce((sum, c) => sum + c.totalSpent, 0) / totalItems : 0)}
+                {formatCurrency(totals.avgCustomerValue)}
               </span>
               <span className="stat-label">Avg. Customer Value</span>
             </div>
@@ -394,12 +428,64 @@ export default function CustomersPage() {
 
           .filters {
             margin-bottom: 24px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            justify-content: space-between;
           }
 
           .search-form {
             display: flex;
             gap: 12px;
+            flex: 1;
+            min-width: 280px;
             max-width: 500px;
+          }
+
+          .sort-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          }
+
+          .sort-label {
+            font-size: 13px;
+            color: #6b7280;
+            font-weight: 500;
+          }
+
+          .sort-select {
+            padding: 10px 12px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 14px;
+            color: #1f2937;
+            cursor: pointer;
+            outline: none;
+          }
+
+          .sort-select:focus {
+            border-color: #10b981;
+          }
+
+          .sort-order-btn {
+            padding: 10px 14px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #1f2937;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+          }
+
+          .sort-order-btn:hover {
+            background: #f9fafb;
+            border-color: #d1d5db;
           }
 
           .search-input {
