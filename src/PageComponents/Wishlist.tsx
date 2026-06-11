@@ -17,7 +17,7 @@ import SEOComponent from '@/Components/Shared/SEOComponent';
 const Wishlist = () => {
     const { wishlistItems, wishlistCount, removeFromWishlist } = useWishlist();
     const { addItemToCart, cartItems } = useCart();
-    const { user } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const router = useRouter();
 
     const isInCart = (productId: number) => {
@@ -31,6 +31,26 @@ const Wishlist = () => {
     const handleRemoveFromWishlist = async (productId: number) => {
         await removeFromWishlist(productId);
     };
+
+    // Wait for auth to finish initialising before deciding what to render —
+    // otherwise a logged-in user briefly sees the "please login" prompt on a
+    // direct/cold page load (user is null until the session is restored).
+    if (authLoading) {
+        return (
+            <StyledWishlist>
+                <SEOComponent title="Wishlist" description="View your wishlist" />
+                <section className="wishlist-section py-5">
+                    <div className="container">
+                        <div className="text-center py-5">
+                            <div className="spinner-border text-secondary" role="status">
+                                <span className="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </StyledWishlist>
+        );
+    }
 
     if (!user) {
         return (

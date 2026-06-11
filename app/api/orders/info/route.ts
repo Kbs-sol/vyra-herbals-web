@@ -15,7 +15,16 @@ export async function GET(req: Request) {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
       const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(token);
-      if (!authError) user = authUser;
+      if (!authError) {
+        user = authUser;
+      } else {
+        // Surface WHY a presented token was rejected (e.g. "JWT expired",
+        // "invalid signature") — this is what to look for in the server logs
+        // when an owner unexpectedly gets a 403.
+        console.warn(`[orders/info] token rejected for order ${order_id}:`, authError.message, '| status', (authError as any).status);
+      }
+    } else {
+      console.warn(`[orders/info] no Authorization header for order ${order_id}`);
     }
 
     // 2. Fetch order
@@ -66,6 +75,9 @@ export async function GET(req: Request) {
     // If still not authorized, check if it's a guest order or legacy view (less secure, but needed for some flows)
     // For now, if no auth token but ID matches, we return error if we want it "fail-proof"
     if (!isAuthorized && order.user_id) {
+      console.warn(
+        `[orders/info] 403 for order ${order_id}: authenticated user=${user?.id || 'none'} (role ${userRole}, email ${user?.email || 'n/a'}), order owner=${order.user_id}, order email=${shippingData?.email || 'n/a'}`
+      );
       return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 403 });
     }
 

@@ -67,22 +67,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const fetchUserProfile = async (authUser: SupabaseUser) => {
-    // Skip the DB roundtrip if we've already loaded this profile in this session.
-    // This is hit on every TOKEN_REFRESHED event from supabase.
+    // 1) Resolve auth IMMEDIATELY with a provisional user built from the session
+    //    itself, and mark loading complete. Every gated page (profile, orders,
+    //    wishlist, ...) waits on `loading`, so unblocking it here — instead of
+    //    after a `users` table round-trip that can be slow or hang — is what
+    //    fixes pages bouncing to /login on a direct/cold load.
+    setUserIfChanged({
+      id: authUser.id,
+      email: authUser.email || '',
+      name: authUser.user_metadata?.name || '',
+      role: 1,
+      created_at: (authUser as any).created_at,
+    });
+    setLoading(false);
+
+    // 2) Enrich with the persisted profile (real name/role) in the background.
+    //    Skip the DB roundtrip if we've already loaded this profile this session
+    //    — this is hit on every TOKEN_REFRESHED event from supabase.
     if (loadedProfileForId.current === authUser.id) {
-      setLoading(false);
       return;
     }
     loadedProfileForId.current = authUser.id;
     try {
-      // First try to get profile from public.users with an explicit timeout
       const profilePromise = supabase
         .from('users')
         .select('*')
         .eq('id', authUser.id)
         .maybeSingle();
 
-      let { data, error } = await withTimeout(
+      const { data } = await withTimeout(
         Promise.resolve(profilePromise),
         15000,
         "Timeout while fetching user profile"
@@ -96,71 +109,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           role: data.role,
           created_at: data.created_at,
         });
-      } else {
-        setUserIfChanged({
-          id: authUser.id,
-          email: authUser.email || '',
-          name: authUser.user_metadata?.name || '',
-          role: 1
-        });
       }
     } catch (error) {
-      console.error("Error fetching user profile:", error);
-      setUserIfChanged({
-        id: authUser.id,
-        email: authUser.email || '',
-        name: authUser.user_metadata?.name || '',
-        role: 1
-      });
-    } finally {
-      setLoading(false);
+      // Non-fatal: the provisional user stays in place and the app remains
+      // usable. We only lose the enriched name/role until the next load.
+      console.error("Error enriching user profile:", error);
     }
   };
 
   useEffect(() => {
     let mounted = true;
+    let resolved = false;
 
-    const getSession = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        console.log('[AuthContext] getSession initial check. Session exists?', !!session, 'Error?', error);
-        if (!mounted) return;
-
-        if (error) {
-          console.error("[AuthContext] Supabase getSession error:", error);
-          loadedProfileForId.current = null;
-          setUserIfChanged(null);
-          setLoading(false);
-          return;
-        }
-
-        if (session?.user) {
-          console.log('[AuthContext] getSession found user:', session.user.id);
-          await fetchUserProfile(session.user);
-        } else {
-          console.log('[AuthContext] getSession found no session, setting user to null');
-          loadedProfileForId.current = null;
-          setUserIfChanged(null);
-          setLoading(false);
-        }
-      } catch (err) {
-        console.error("[AuthContext] Unexpected error in getSession:", err);
-        if (mounted) {
-          loadedProfileForId.current = null;
-          setUserIfChanged(null);
-          setLoading(false);
-        }
+    const applySession = (session: { user?: SupabaseUser | null } | null) => {
+      if (session?.user) {
+        // Fire-and-forget: fetchUserProfile sets a provisional user + loading
+        // synchronously and enriches in the background. We must NOT await other
+        // supabase calls inside the onAuthStateChange callback — that can
+        // deadlock the auth lock — so the enrichment is intentionally detached.
+        void fetchUserProfile(session.user);
+      } else {
+        loadedProfileForId.current = null;
+        setUserIfChanged(null);
+        setLoading(false);
       }
     };
 
-    // Initial check
-    getSession();
-
-    // Listen for auth events (e.g., login/logout in this tab or sync events from Supabase)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log(`[AuthContext] onAuthStateChange event: ${event}. Session exists?`, !!session);
+    // onAuthStateChange emits an INITIAL_SESSION event once the client has
+    // finished restoring any persisted session from storage (carrying the
+    // restored session, or null when signed out). We treat that as the single
+    // authoritative "auth resolved" signal. This is reliable on a cold/direct
+    // page load — unlike racing a bare getSession() against it, which was what
+    // made pages require visiting the homepage first before auth "worked".
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;
-      // Skip TOKEN_REFRESHED entirely if we've already resolved this user — no need
+      console.log(`[AuthContext] onAuthStateChange event: ${event}. Session exists?`, !!session);
+
+      // Ignore periodic token refreshes for an already-resolved user — no need
       // to re-touch React state on an hourly cadence.
       if (
         event === 'TOKEN_REFRESHED' &&
@@ -169,24 +154,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       ) {
         return;
       }
+
+      resolved = true;
+      applySession(session);
+    });
+
+    // Safety net: if INITIAL_SESSION never arrives (very rare), fall back to an
+    // explicit getSession so the UI never hangs on the loading spinner. The
+    // `resolved` guard makes this a no-op on the normal path.
+    const fallbackTimer = setTimeout(async () => {
+      if (!mounted || resolved) return;
       try {
-        if (session?.user) {
-          await fetchUserProfile(session.user);
-        } else {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!mounted || resolved) return;
+        resolved = true;
+        applySession(session);
+      } catch (err) {
+        console.error("[AuthContext] Fallback getSession error:", err);
+        if (mounted && !resolved) {
+          resolved = true;
           loadedProfileForId.current = null;
           setUserIfChanged(null);
           setLoading(false);
         }
-      } catch (err) {
-        console.error("[AuthContext] Auth state change error:", err);
-        loadedProfileForId.current = null;
-        setUserIfChanged(null);
-        setLoading(false);
       }
-    });
+    }, 3000);
 
     return () => {
       mounted = false;
+      resolved = true;
+      clearTimeout(fallbackTimer);
       subscription.unsubscribe();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

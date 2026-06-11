@@ -8,9 +8,11 @@ import styled from "styled-components";
 import { FaCheckCircle } from "react-icons/fa";
 import LoadingIndicator from "../Components/Common/LoadingIndicator";
 import { useCart } from "../Components/Contexts/CartContext";
+import { useAuth } from "../Components/Contexts/AuthContext";
 import OrderTracker from "../Components/Orders/OrderTracker";
 import OrderProductItem from "../Components/Orders/OrderProductItem";
 import { generateInvoice } from "../utils/invoiceGenerator";
+import { resolveCurrentHandle } from "../utils/productHandle";
 import { supabase } from "@/utils/supabaseClient";
 
 
@@ -30,17 +32,25 @@ interface OrderData {
 const Orders = () => {
   const [orderData, setOrderData] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [accessError, setAccessError] = useState<null | 'forbidden'>(null);
   const params = useParams();
   const router = useRouter();
   const orderId = params?.orderId || '';
   const { cartItems, clearCart } = useCart();
+  const { user, loading: authLoading } = useAuth();
 
   useEffect(() => {
-    // Fetch order data from API
+    // Wait until auth has finished initialising before fetching. The order API
+    // authorises the request using the logged-in user's access token, so firing
+    // the fetch before the session is restored (e.g. on a direct/cold page load)
+    // would send no token and get a 403. Gating on authLoading guarantees the
+    // session is ready and avoids the "must open homepage first" race.
+    if (authLoading) return;
     fetchOrderData(orderId);
-  }, [orderId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderId, authLoading, user?.id]);
 
-  const fetchOrderData = (orderId) => {
+  const fetchOrderData = async (orderId) => {
     if (orderId === 'legacy-view') {
       try {
         const cachedOrder = localStorage.getItem('legacy_order_view');
@@ -70,59 +80,98 @@ const Orders = () => {
     const effectiveOrderId = String(orderId);
     if (!effectiveOrderId) return;
 
-    // Get access token for secure fetching
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    setAccessError(null);
+
+    const requestWithToken = (token?: string | null) => {
       const headers: any = { "Content-Type": "application/json" };
-      if (session?.access_token) {
-        headers["Authorization"] = `Bearer ${session.access_token}`;
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      // This endpoint authenticates via the Authorization header, NOT cookies.
+      // Omitting credentials stops the browser from attaching the (potentially
+      // very large) cookie jar to the request — otherwise the cookies + the JWT
+      // can exceed the server's max header size and fail with HTTP 431
+      // (Request Header Fields Too Large).
+      return fetch(`${API_PATH}/orders/info?order_id=${effectiveOrderId}`, {
+        headers,
+        credentials: 'omit',
+      });
+    };
+
+    try {
+      let { data: { session } } = await supabase.auth.getSession();
+      let response = await requestWithToken(session?.access_token);
+
+      // If we sent a token but still got rejected, the access token is likely
+      // stale (long-idle tab, or a client/server clock skew that makes a token
+      // the client thinks is valid look expired to the server). Force a refresh
+      // and retry ONCE before concluding the visitor doesn't own this order —
+      // this is what makes a direct/cold page load reliable for the owner.
+      if ((response.status === 401 || response.status === 403) && session?.access_token) {
+        const { data: refreshed } = await supabase.auth.refreshSession();
+        if (refreshed?.session?.access_token && refreshed.session.access_token !== session.access_token) {
+          session = refreshed.session;
+          response = await requestWithToken(session.access_token);
+        }
       }
 
-      fetch(`${API_PATH}/orders/info?order_id=${effectiveOrderId}`, {
-        headers: headers
-      })
-        .then((response) => response.json())
-        .then((data) => {
-          if (data.status === "success") {
-            // Normalize data
-            const normalizedData = {
-              ...data.data,
-              products: data.data.products || data.data.items || [],
-              status: data.data.status || 'placed',
-              order_amount: data.data.order_amount || data.data.total_amount || 0,
-              courier_name: data.data.courier_name,
-              awb_code: data.data.awb_code,
-              label_url: data.data.label_url,
-              delivery_status: data.data.delivery_status
-            };
-            setOrderData(normalizedData);
+      // The order API authorises by the logged-in user. A 401/403 that survives
+      // the refresh means either we're not logged in, or we're logged in as
+      // someone who doesn't own this order — handle each distinctly instead of
+      // showing a bare "no order found" message.
+      if (response.status === 401 || response.status === 403) {
+        if (!session?.access_token) {
+          router.push(`/login?next=${encodeURIComponent(`/orders/${effectiveOrderId}`)}`);
+        } else {
+          setAccessError('forbidden');
+          setLoading(false);
+        }
+        return;
+      }
 
-            if (cartItems.length > 0) {
-              const orderProductsMap = new Map(
-                normalizedData.products.map(product => [
-                  product.product_id || product.id,
-                  Number(product.quantity || product.qty || 1)
-                ])
-              );
-              const isOrderMatching = cartItems.every(cartItem =>
-                orderProductsMap.get(cartItem.product_id || cartItem.id) === Number(cartItem.quantity)
-              );
+      // Read as text first and parse defensively — an error response (e.g. a
+      // 4xx/5xx) may not carry a JSON body, and response.json() would throw.
+      const rawBody = await response.text();
+      let data: any = null;
+      try { data = JSON.parse(rawBody); } catch { /* non-JSON body */ }
 
-              if (isOrderMatching) {
-                clearCart();
-              }
-            }
-          } else {
-            console.error("Error fetching order data:", data.message);
-            setOrderData(null);
+      if (data && data.status === "success") {
+        // Normalize data
+        const normalizedData = {
+          ...data.data,
+          products: data.data.products || data.data.items || [],
+          status: data.data.status || 'placed',
+          order_amount: data.data.order_amount || data.data.total_amount || 0,
+          courier_name: data.data.courier_name,
+          awb_code: data.data.awb_code,
+          label_url: data.data.label_url,
+          delivery_status: data.data.delivery_status
+        };
+        setOrderData(normalizedData);
+
+        if (cartItems.length > 0) {
+          const orderProductsMap = new Map(
+            normalizedData.products.map(product => [
+              product.product_id || product.id,
+              Number(product.quantity || product.qty || 1)
+            ])
+          );
+          const isOrderMatching = cartItems.every(cartItem =>
+            orderProductsMap.get(cartItem.product_id || cartItem.id) === Number(cartItem.quantity)
+          );
+
+          if (isOrderMatching) {
+            clearCart();
           }
-          setLoading(false);
-        })
-        .catch((error) => {
-          console.error("Error fetching order data:", error);
-          setOrderData(null);
-          setLoading(false);
-        });
-    });
+        }
+      } else {
+        console.error("Error fetching order data:", data?.message || `HTTP ${response.status}`);
+        setOrderData(null);
+      }
+      setLoading(false);
+    } catch (error: any) {
+      console.error("Error fetching order data:", error);
+      setOrderData(null);
+      setLoading(false);
+    }
   };
 
   const formatShippingAddress = (shippingAddress) => {
@@ -167,20 +216,42 @@ const Orders = () => {
     }
   };
 
-  const handleOrderAgain = () => {
-    const firstOrderedItem = orderData?.products?.[0] || {};
-    const productHandle =
+  const [orderingAgain, setOrderingAgain] = useState(false);
+
+  const handleOrderAgain = async () => {
+    const firstOrderedItem: any = orderData?.products?.[0] || {};
+
+    // The handle stored on the order line-item is a snapshot from purchase time
+    // and may be stale if an admin has since changed the product's URL slug.
+    // Resolve the CURRENT handle from the stable product id so the link always
+    // points at the live product page; fall back to the snapshot handle if the
+    // lookup fails.
+    const productId =
+      firstOrderedItem.product_id ??
+      firstOrderedItem.id ??
+      null;
+    const snapshotHandle =
       firstOrderedItem.handle ||
       firstOrderedItem.product_handle ||
       firstOrderedItem.productHandle ||
       '';
 
-    if (!productHandle) {
-      console.error('Order again failed: product handle not found in order items');
+    if (!productId && !snapshotHandle) {
+      console.error('Order again failed: no product id or handle found in order items');
       return;
     }
 
-    router.push(`/product/${productHandle}?orderAgain=1`);
+    setOrderingAgain(true);
+    try {
+      const handle = await resolveCurrentHandle(productId, snapshotHandle);
+      if (!handle) {
+        console.error('Order again failed: could not resolve a product handle');
+        return;
+      }
+      router.push(`/product/${handle}?orderAgain=1`);
+    } finally {
+      setOrderingAgain(false);
+    }
   };
 
   return (
@@ -287,10 +358,11 @@ const Orders = () => {
 
               <button
                 type="button"
-                className="btn btn-primary w-100 mb-3 rounded-3"
+                className="btn btn-order-again w-100 mb-3 rounded-3"
                 onClick={handleOrderAgain}
+                disabled={orderingAgain}
               >
-                Order Again
+                {orderingAgain ? 'Opening…' : 'Order Again'}
               </button>
 
               {/* More Actions */}
@@ -308,6 +380,26 @@ const Orders = () => {
                   </ul>
                 </div>
               </div>
+            </div>
+          </div>
+        ) : accessError === 'forbidden' ? (
+          <div className="loading-container flex-column text-center py-5">
+            <h5 className="fw-bold mb-2">This order isn't linked to your account</h5>
+            <p className="text-muted mb-4" style={{ maxWidth: 460 }}>
+              You're signed in, but this order was placed with a different account.
+              Log in with the mobile number used to place this order to view it.
+            </p>
+            <div className="d-flex gap-2">
+              <button
+                type="button"
+                className="btn btn-order-again rounded-3 px-4"
+                onClick={() => router.push(`/login?next=${encodeURIComponent(`/orders/${orderId}`)}`)}
+              >
+                Switch account
+              </button>
+              <Link href="/profile" className="btn btn-outline-secondary rounded-3 px-4">
+                My Orders
+              </Link>
             </div>
           </div>
         ) : (
@@ -336,10 +428,29 @@ const StyledOrders = styled.div`
   .action-link {
       transition: background-color 0.2s;
       font-weight: 500;
-      color: #2874f0;
-      
+      color: var(--primary);
+
       &:hover {
           background-color: #f8f9fa;
+      }
+  }
+
+  .btn-order-again {
+      background-color: var(--primary);
+      border: 1px solid var(--primary);
+      color: #fff;
+      font-weight: 600;
+      transition: background-color 0.2s, opacity 0.2s;
+
+      &:hover,
+      &:focus {
+          background-color: #5a3a0a;
+          border-color: #5a3a0a;
+          color: #fff;
+      }
+
+      &:disabled {
+          opacity: 0.7;
       }
   }
 `;

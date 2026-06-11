@@ -94,7 +94,7 @@ const ProfilePage = () => {
         } else if (!authLoading && !user) {
             const urlParams = new URL(window.location.href).searchParams;
             const isSuccessMsg = urlParams.get('toast') === 'order_success';
-            router.push(`/login${isSuccessMsg ? '?toast=order_success' : ''}`);
+            router.push(`/login?next=/profile${isSuccessMsg ? '&toast=order_success' : ''}`);
         }
     }, [user?.id, authLoading, router]);
 
@@ -221,6 +221,10 @@ const ProfilePage = () => {
                                     Authorization: `Bearer ${token}`,
                                 },
                                 body: JSON.stringify({ order_id: o.id }),
+                                // Auth is via the Bearer header, not cookies — omit
+                                // credentials so a large cookie jar can't push the
+                                // request over the header limit (HTTP 431).
+                                credentials: 'omit',
                             })
                                 .then((r) => r.ok)
                                 .catch((e) => {
@@ -734,9 +738,13 @@ const ProfilePage = () => {
 
     useEffect(() => {
         if (authLoading) {
+            // Safety net only. AuthContext now resolves `loading` quickly and
+            // reliably (immediately on INITIAL_SESSION, or via its own 3s
+            // fallback), so this never fires for a genuinely logged-in user — it
+            // just prevents an indefinite spinner if auth init ever stalls.
             const timer = setTimeout(() => {
                 setStuckLoading(true);
-            }, 5000); // 5 seconds threshold
+            }, 8000);
             return () => clearTimeout(timer);
         }
     }, [authLoading]);
@@ -755,7 +763,7 @@ const ProfilePage = () => {
         // Force redirect if stuck loading and no user
         const urlParams = new URLSearchParams(window.location.search);
         const isSuccessMsg = urlParams.get('toast') === 'order_success';
-        router.push(`/login?redirected=auth_timeout${isSuccessMsg ? '&toast=order_success' : ''}`);
+        router.push(`/login?next=/profile&redirected=auth_timeout${isSuccessMsg ? '&toast=order_success' : ''}`);
         return null;
     }
 

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
 import { useRouter } from 'next/navigation';
+import { resolveCurrentHandle } from '../../utils/productHandle';
 
 interface OrderProductItemProps {
   product: {
@@ -18,6 +19,7 @@ interface OrderProductItemProps {
 
 const OrderProductItem: React.FC<OrderProductItemProps> = ({ product }) => {
   const router = useRouter();
+  const [navigating, setNavigating] = useState(false);
 
   // Normalize product data to handle different API responses
   // Prioritize image_url over product_image as it aligns with CartItem/API response structure
@@ -26,17 +28,25 @@ const OrderProductItem: React.FC<OrderProductItemProps> = ({ product }) => {
   const displayPrice = product.item_amount || (product as any).price || (product as any).total_price || 0;
   const displayQty = product.quantity || (product as any).qty || 1;
 
-  // Use handle for redirection if available, otherwise fallback to ID (though handle is preferred)
-  const targetHandle = product.handle || (product as any).handle;
+  // The handle stored on the order line-item is a snapshot from purchase time and
+  // can be stale if the admin later changed the product's URL slug. Resolve the
+  // CURRENT handle from the stable product id before navigating, falling back to
+  // the snapshot handle if the lookup fails.
+  const snapshotHandle = product.handle || (product as any).handle;
   const targetId = product.product_id || (product as any).id;
 
-  const handleProductClick = () => {
-    if (targetHandle) {
-      router.push(`/product/${targetHandle}`);
-    } else if (targetId) {
-      // Fallback to ID if handle is missing, though this might lead to the issue user reported if the route doesn't support ID perfectly
-      // Ideally we should always have a handle.
-      router.push(`/product/${targetId}`);
+  const handleProductClick = async () => {
+    if (navigating) return;
+    if (!targetId && !snapshotHandle) return;
+
+    setNavigating(true);
+    try {
+      const handle = await resolveCurrentHandle(targetId, snapshotHandle);
+      if (handle) {
+        router.push(`/product/${handle}`);
+      }
+    } finally {
+      setNavigating(false);
     }
   };
 
