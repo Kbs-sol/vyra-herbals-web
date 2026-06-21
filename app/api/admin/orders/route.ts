@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
+import { verifyAdminAuth } from '@/utils/adminAuth';
 
 // GET - Fetch all orders with pagination and filters
 export async function GET(request: NextRequest) {
+  if (!(await verifyAdminAuth(request))) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const supabase = createServerSupabase();
     const searchParams = request.nextUrl.searchParams;
@@ -78,6 +82,9 @@ export async function GET(request: NextRequest) {
 
 // PUT - Update order status
 export async function PUT(request: NextRequest) {
+  if (!(await verifyAdminAuth(request))) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const supabase = createServerSupabase();
     const body = await request.json();
@@ -119,6 +126,9 @@ export async function PUT(request: NextRequest) {
 
 // DELETE - Delete order
 export async function DELETE(request: NextRequest) {
+  if (!(await verifyAdminAuth(request))) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const supabase = createServerSupabase();
     const searchParams = request.nextUrl.searchParams;

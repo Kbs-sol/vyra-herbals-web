@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
+import { isRealOrderStatus, isSuccessfulOrderStatus } from '@/utils/orderStatus';
+import { verifyAdminAuth } from '@/utils/adminAuth';
 
 export async function GET(request: NextRequest) {
+  if (!(await verifyAdminAuth(request))) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const supabase = createServerSupabase();
     
@@ -40,8 +45,13 @@ export async function GET(request: NextRequest) {
       .from('testimonials')
       .select('*', { count: 'exact', head: true });
 
-    // Calculate order statistics
-    const allOrders = orders || [];
+    // Only genuine orders count toward dashboard metrics. Abandoned/failed
+    // online payments are NOT orders — counting their amount used to inflate
+    // "Total Revenue" well above what was actually earned (the number that
+    // looked like dummy data). `realOrders` excludes those; `successful` is the
+    // subset that earned money (excludes cancelled too).
+    const allOrders = (orders || []).filter(o => isRealOrderStatus(o.status));
+    const successfulOrders = allOrders.filter(o => isSuccessfulOrderStatus(o.status));
     const totalOrders = allOrders.length;
     const ordersPlaced = allOrders.filter(o => o.status === 'placed').length;
     const ordersConfirmed = allOrders.filter(o => o.status === 'confirmed').length;
@@ -49,9 +59,8 @@ export async function GET(request: NextRequest) {
     const ordersDelivered = allOrders.filter(o => o.status === 'delivered').length;
     const ordersCancelled = allOrders.filter(o => o.status === 'cancelled').length;
 
-    // Calculate revenue
-    const totalRevenue = allOrders
-      .filter(o => o.status !== 'cancelled')
+    // Revenue = money actually earned: successful (paid/COD, non-cancelled) orders.
+    const totalRevenue = successfulOrders
       .reduce((acc, o) => acc + (parseFloat(o.total_amount) || 0), 0);
 
     const deliveredRevenue = allOrders
@@ -65,27 +74,29 @@ export async function GET(request: NextRequest) {
     });
 
     const recentRevenue = recentOrders
-      .filter(o => o.status !== 'cancelled')
+      .filter(o => isSuccessfulOrderStatus(o.status))
       .reduce((acc, o) => acc + (parseFloat(o.total_amount) || 0), 0);
 
-    // Payment method breakdown
+    // Payment method breakdown (real orders only)
     const codOrders = allOrders.filter(o => o.payment_method === 'cod').length;
     const onlineOrders = allOrders.filter(o => o.payment_method === 'online').length;
 
-    // Daily orders for chart (last 7 days)
-    const dailyOrders = [];
+    // Daily orders for chart (last 7 days) — real orders, revenue from successful ones
+    const dailyOrders: Array<{ date: string; label: string; orders: number; revenue: number }> = [];
     for (let i = 6; i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split('T')[0];
-      const dayOrders = allOrders.filter(o => 
+      const dayOrders = allOrders.filter(o =>
         o.created_at && o.created_at.split('T')[0] === dateStr
       );
       dailyOrders.push({
         date: dateStr,
         label: date.toLocaleDateString('en-US', { weekday: 'short' }),
         orders: dayOrders.length,
-        revenue: dayOrders.reduce((acc, o) => acc + (parseFloat(o.total_amount) || 0), 0)
+        revenue: dayOrders
+          .filter(o => isSuccessfulOrderStatus(o.status))
+          .reduce((acc, o) => acc + (parseFloat(o.total_amount) || 0), 0)
       });
     }
 

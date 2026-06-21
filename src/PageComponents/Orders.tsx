@@ -436,17 +436,18 @@ const StyledOrders = styled.div`
   }
 
   .btn-order-again {
-      background-color: var(--primary);
-      border: 1px solid var(--primary);
+      background-color: #704a0d;
+      border: 1px solid #704a0d;
       color: #fff;
       font-weight: 600;
       transition: background-color 0.2s, opacity 0.2s;
 
       &:hover,
-      &:focus {
-          background-color: #5a3a0a;
-          border-color: #5a3a0a;
-          color: #fff;
+      &:focus,
+      &:active {
+          background-color: #5a3a0a !important;
+          border-color: #5a3a0a !important;
+          color: #fff !important;
       }
 
       &:disabled {

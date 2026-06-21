@@ -4,12 +4,13 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import styled from 'styled-components';
-import { FaCheckCircle, FaWhatsapp, FaInstagram } from 'react-icons/fa';
+import { FaCheckCircle, FaTimesCircle, FaWhatsapp, FaInstagram } from 'react-icons/fa';
 import { API_PATH } from '../constants';
 import LoadingIndicator from '../Components/Common/LoadingIndicator';
 import { supabase } from '@/utils/supabaseClient';
 import { useCart } from '../Components/Contexts/CartContext';
 import { trackEvent } from '@/utils/analytics';
+import { isSuccessfulOrderStatus } from '@/utils/orderStatus';
 
 interface OrderInfo {
   id: number | string;
@@ -124,6 +125,13 @@ const OrderPlaced = () => {
         setOrder(data);
         setLoading(false);
 
+        // Only a genuinely placed (paid) order is a conversion. Firing Purchase
+        // for a failed/abandoned payment would corrupt analytics + the pixel and
+        // wrongly clear the user's cart, so we bail out early for those.
+        if (!isSuccessfulOrderStatus(data.status)) {
+          return;
+        }
+
         // One-time conversion event for analytics, like the old transaction page did.
         trackEvent('Purchase', {
           transaction_id: data.txn_id || String(data.id),
@@ -173,6 +181,36 @@ const OrderPlaced = () => {
             <button onClick={() => router.push('/profile#orders')} className="btn-primary-vyra">
               Go to My Orders
             </button>
+          </div>
+        </div>
+      </Wrapper>
+    );
+  }
+
+  // Defence in depth: this page must never claim success for a payment that
+  // didn't actually go through. If the order we loaded isn't in a genuinely
+  // placed/paid state, show the honest "payment not completed" view instead.
+  if (!isSuccessfulOrderStatus(order.status)) {
+    return (
+      <Wrapper>
+        <div className="container py-5">
+          <div className="error-card">
+            <FaTimesCircle className="failed-icon" />
+            <h3 className="mb-2">Payment not completed</h3>
+            <p className="text-muted mb-1">
+              Your order was <strong>not placed</strong> because the payment wasn't completed.
+            </p>
+            <p className="text-muted mb-4">
+              If any amount was deducted, it will be refunded automatically within 3–5 business days.
+            </p>
+            <div className="actions justify-content-center">
+              <button onClick={() => router.push('/cart')} className="btn-primary-vyra">
+                Try Payment Again
+              </button>
+              <button onClick={() => router.push('/profile#orders')} className="btn-outline-vyra">
+                View My Orders
+              </button>
+            </div>
           </div>
         </div>
       </Wrapper>
@@ -289,6 +327,12 @@ const Wrapper = styled.div`
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
     max-width: 540px;
     margin: 0 auto;
+  }
+
+  .failed-icon {
+    color: #dc2626;
+    font-size: 3.5rem;
+    margin-bottom: 1rem;
   }
 
   .success-card {

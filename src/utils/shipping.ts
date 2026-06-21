@@ -157,6 +157,116 @@ const buildAddress = (shippingData: any): string => {
 };
 
 const ICARRY_SHIPMENT_TIMEOUT_MS = 10000;
+const ICARRY_ESTIMATE_TIMEOUT_MS = 6000;
+
+// Sender pincode for iCarry's rate/serviceability lookup. This is the registered
+// pickup address (Mandamarri, Telangana - 504231). Override via env if the
+// pickup location ever changes — it must match the pincode of the pickup
+// address referenced by ICARRY_PICKUP_ADDRESS_ID.
+const ICARRY_ORIGIN_PINCODE = (process.env.ICARRY_ORIGIN_PINCODE || "504231").replace(/\D/g, "").slice(0, 6);
+
+// Preferred couriers in priority order. On every booking we pull the live list
+// of serviceable couriers from iCarry's estimate API and assign the first one
+// that matches this list — Xpressbees first, then Delhivery. If none of these
+// are serviceable (or the estimate call fails) the order is saved Unassigned for
+// manual assignment from iCarry's dashboard, exactly as before.
+const ICARRY_COURIER_PRIORITY = (process.env.ICARRY_COURIER_PRIORITY || "Xpressbees,Delhivery")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+// Master switch for auto-assignment. Set ICARRY_BOOK_ON_CREATE=false to instantly
+// revert to the previous "save Unassigned, assign courier manually" behaviour
+// without a code deploy. Any other value (including unset) keeps auto-assign on.
+const isAutoAssignEnabled = (): boolean => process.env.ICARRY_BOOK_ON_CREATE !== "false";
+
+type CourierEstimate = {
+    courier_id?: string | number;
+    courier_name?: string;
+    courier_group_name?: string;
+};
+
+// Same browser-like headers iCarry's WAF expects on the other endpoints.
+const ICARRY_REQUEST_HEADERS = {
+    "Content-Type": "application/x-www-form-urlencoded",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "application/json, text/plain, */*",
+};
+
+/**
+ * Read-only: ask iCarry which couriers can service this parcel and at what cost.
+ * Returns [] on any failure (timeout, WAF block, non-JSON) so the caller can
+ * fall back to saving the order Unassigned. The weight/dimensions passed here
+ * MUST match the booking payload — iCarry's returned courier_id is tied to the
+ * weight slab, and booking with a mismatched weight can reject the courier.
+ */
+const getCourierEstimate = async (
+    apiToken: string,
+    args: {
+        destinationPincode: string;
+        weightGm: number;
+        lengthCm: number;
+        breadthCm: number;
+        heightCm: number;
+        shipmentType: "P" | "C"; // P = Prepaid, C = COD
+        value: number;
+    }
+): Promise<CourierEstimate[]> => {
+    try {
+        const body = new URLSearchParams({
+            length: String(args.lengthCm),
+            breadth: String(args.breadthCm),
+            height: String(args.heightCm),
+            weight: String(args.weightGm),
+            destination_pincode: args.destinationPincode,
+            origin_pincode: ICARRY_ORIGIN_PINCODE,
+            destination_country_code: "IN",
+            origin_country_code: "IN",
+            shipment_mode: "S", // Surface (matches api_add_shipment_surface)
+            shipment_type: args.shipmentType,
+            shipment_value: String(args.value),
+        });
+
+        const res = await fetchWithTimeout(
+            `https://www.icarry.in/api_get_estimate?api_token=${apiToken}`,
+            { method: "POST", headers: ICARRY_REQUEST_HEADERS, body },
+            ICARRY_ESTIMATE_TIMEOUT_MS
+        );
+        const text = await res.text();
+        if (text.includes("<!DOCTYPE") || text.includes("<html")) {
+            console.warn("iCarry estimate returned HTML (WAF block); will save order Unassigned");
+            return [];
+        }
+        const json = JSON.parse(text);
+        const list = json?.estimate || json?.data?.estimate || [];
+        return Array.isArray(list) ? list : [];
+    } catch (e) {
+        const isAbort = (e as any)?.name === "AbortError";
+        console.warn(`iCarry estimate lookup failed (${isAbort ? "timeout" : (e as Error).message}); will save order Unassigned`);
+        return [];
+    }
+};
+
+/**
+ * Pick the highest-priority serviceable courier (Xpressbees → Delhivery).
+ * Matches against both the courier group name and the full courier name, so
+ * e.g. "Xpressbees Surface 0.5Kg" is recognised as Xpressbees. Returns null when
+ * none of the preferred couriers appear in the estimate.
+ */
+const resolvePreferredCourier = (
+    estimate: CourierEstimate[]
+): { courierId: string; group: string } | null => {
+    for (const pref of ICARRY_COURIER_PRIORITY) {
+        const needle = pref.toLowerCase();
+        const match = estimate.find((c) =>
+            `${c.courier_group_name || ""} ${c.courier_name || ""}`.toLowerCase().includes(needle)
+        );
+        if (match?.courier_id !== undefined && match.courier_id !== null && String(match.courier_id) !== "") {
+            return { courierId: String(match.courier_id), group: match.courier_group_name || pref };
+        }
+    }
+    return null;
+};
 
 export const createShipment = async (orderData: any) => {
     try {
@@ -200,6 +310,36 @@ export const createShipment = async (orderData: any) => {
             }
         }
 
+        // iCarry requires a positive decimal for parcel value; floor at 1 so it never hits zero.
+        const parcelValue = Math.max(1, Number(orderData.total_amount) || 0);
+        const isPrepaid = orderData.payment_method === 'online';
+
+        // Resolve which courier to auto-assign (Xpressbees → Delhivery). We ask
+        // iCarry which couriers can actually service THIS parcel, then pick the
+        // first preferred one. The weight/dimensions here mirror the booking
+        // payload below so the returned courier_id stays valid at booking time.
+        let chosenCourierId: string | null = null;
+        let chosenCourierGroup: string | null = null;
+        if (isAutoAssignEnabled()) {
+            const estimate = await getCourierEstimate(apiToken, {
+                destinationPincode: pincode,
+                weightGm: 499,
+                lengthCm: 18,
+                breadthCm: 13,
+                heightCm: 8,
+                shipmentType: isPrepaid ? "P" : "C",
+                value: parcelValue,
+            });
+            const picked = resolvePreferredCourier(estimate);
+            if (picked) {
+                chosenCourierId = picked.courierId;
+                chosenCourierGroup = picked.group;
+                console.log(`[Shipping] Auto-assigning ${picked.group} (courier_id ${picked.courierId}) for order ${orderData.id}`);
+            } else {
+                console.warn(`[Shipping] No preferred courier serviceable for order ${orderData.id} (pincode ${pincode}); saving Unassigned`);
+            }
+        }
+
         // 2. Map payload for Standard Shipment (Surface)
         const payload = new URLSearchParams();
         payload.append("pickup_address_id", process.env.ICARRY_PICKUP_ADDRESS_ID || "1");
@@ -212,9 +352,7 @@ export const createShipment = async (orderData: any) => {
         payload.append("consignee[state]", stateCode);
         payload.append("consignee[country_code]", "IN");
 
-        // iCarry requires a positive decimal for parcel value; floor at 1 so it never hits zero.
-        const parcelValue = Math.max(1, Number(orderData.total_amount) || 0);
-        payload.append("parcel[type]", orderData.payment_method === 'online' ? 'Prepaid' : 'COD');
+        payload.append("parcel[type]", isPrepaid ? 'Prepaid' : 'COD');
         payload.append("parcel[value]", String(parcelValue));
         payload.append("parcel[contents]", shippingData.productTitle || "Vyra Herbals Product");
 
@@ -228,13 +366,18 @@ export const createShipment = async (orderData: any) => {
         payload.append("parcel[dimensions][height]", "8");
         payload.append("parcel[dimensions][unit]", "cm");
 
-        // Save the order without booking a courier. Per iCarry API doc v14 p14,
-        // any value in `save_only` means "save the order, do not assign a courier" —
-        // the order then sits in iCarry's dashboard waiting for the admin to pick
-        // a courier manually. The `auto_assign` / `assign_courier` flags we used
-        // before are not in iCarry's docs and the surface endpoint ignored them,
-        // so every order was getting booked on Delhivery automatically.
-        payload.append("save_only", "1");
+        // Courier assignment (iCarry API doc v14, "Book SINGLE Shipment"):
+        //   - With a `courier_id` and NO `save_only`, iCarry books the shipment on
+        //     that courier and returns an AWB immediately.
+        //   - With `save_only` (any value), the order is saved but no courier is
+        //     assigned — it waits in iCarry's dashboard for manual assignment.
+        // We auto-assign Xpressbees (falling back to Delhivery) when one of them is
+        // serviceable; otherwise we save Unassigned so nothing in the flow breaks.
+        if (chosenCourierId) {
+            payload.append("courier_id", chosenCourierId);
+        } else {
+            payload.append("save_only", "1");
+        }
 
         const apiUrl = `https://www.icarry.in/api_add_shipment_surface?api_token=${apiToken}`;
 
@@ -307,11 +450,13 @@ export const createShipment = async (orderData: any) => {
                 trackingId: String(awb || shipmentId),
                 shipment_id: String(shipmentId),
                 awb_code: awb ? String(awb) : '',
-                courier_name: String(courierFull || courierName || ''),
+                courier_name: String(courierFull || courierName || chosenCourierGroup || ''),
                 label_url: String(labelUrl),
-                // Always start at "Unassigned". Admin advances the status (Pending Pickup,
-                // Shipped, Delivered, etc.) manually from the orders dashboard.
-                delivery_status: 'Unassigned',
+                // "Booked" once a courier is auto-assigned (AWB issued, awaiting pickup);
+                // "Unassigned" when we saved the order for manual assignment. Live courier
+                // status then flows in via the tracking API; admin can still advance it
+                // manually from the orders dashboard.
+                delivery_status: chosenCourierId ? 'Booked' : 'Unassigned',
                 data: result,
             };
         }

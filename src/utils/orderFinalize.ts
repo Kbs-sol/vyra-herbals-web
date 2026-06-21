@@ -1,5 +1,6 @@
 import { validateCoupon, recordCouponUsage } from '@/utils/coupons';
 import { syncOrderShipment } from '@/utils/orderShipment';
+import { SUCCESSFUL_ORDER_STATUSES } from '@/utils/orderStatus';
 
 export type FinalizeResult =
   | { ok: true; order: any; alreadyExisted: boolean; trackingId: string }
@@ -22,11 +23,15 @@ export const finalizeOrderFromSession = async (
   txnIdStr: string,
   opts: { paymentAmount?: number | string | null; paymentMethod?: string | null } = {}
 ): Promise<FinalizeResult> => {
-  // Idempotency check: did a prior call already create the order?
+  // Idempotency check: did a prior call already create a *successful* order?
+  // Restricting to successful statuses means a stale 'Failed' row (legacy data)
+  // can never be returned as the finalized order — finalize is only ever called
+  // once payment is confirmed, so the correct action is to create the real one.
   const { data: existingOrders, error: existingErr } = await supabase
     .from('orders')
     .select('*')
     .eq('txn_id', txnIdStr)
+    .in('status', SUCCESSFUL_ORDER_STATUSES as unknown as string[])
     .order('created_at', { ascending: false })
     .limit(1);
 

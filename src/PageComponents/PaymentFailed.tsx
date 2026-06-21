@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import styled from 'styled-components';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -10,6 +10,13 @@ const PaymentFailedContent = () => {
     const searchParams = useSearchParams();
     const orderId = searchParams?.get('order_id') || '';
     const reason = searchParams?.get('reason') || 'Transaction was cancelled or failed.';
+
+    // The payment failed, so the pending-txn marker is dead. Clear it here so the
+    // global PendingTxnReconciler doesn't keep re-checking it on every page load
+    // (and can never bounce the user to a "success" page for this txn).
+    useEffect(() => {
+        try { localStorage.removeItem('vyra_pending_txn'); } catch { /* ignore */ }
+    }, []);
 
     return (
         <Container className="container">

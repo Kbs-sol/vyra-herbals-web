@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
 import { verifyEasebuzzTransaction } from '@/utils/easebuzz';
 import { finalizeOrderFromSession } from '@/utils/orderFinalize';
+import { SUCCESSFUL_ORDER_STATUSES } from '@/utils/orderStatus';
 
 export const runtime = 'nodejs';
 export const preferredRegion = 'bom1';
@@ -37,11 +38,14 @@ type ReconcileOutcome =
 const reconcileOne = async (supabase: any, txn: any): Promise<ReconcileOutcome> => {
   const txnid = String(txn.id);
 
-  // Skip if order already exists.
+  // Skip only if a *genuinely successful* order already exists for this txn.
+  // A 'Failed' order (legacy data) must NOT count as "already placed" — that is
+  // exactly what used to redirect abandoned payments to the success page.
   const { data: existing } = await supabase
     .from('orders')
     .select('id, order_id')
     .eq('txn_id', txnid)
+    .in('status', SUCCESSFUL_ORDER_STATUSES as unknown as string[])
     .limit(1);
   if (existing?.length) {
     // Make sure the transactions row reflects the linked order even if a prior
@@ -71,9 +75,13 @@ const reconcileOne = async (supabase: any, txn: any): Promise<ReconcileOutcome> 
     return { txnid, status: 'failed', reason: verify.reason };
   }
   if (verify.status !== 'success') {
-    // Not actually paid yet (or failed). Don't create an order.
-    if (verify.status === 'failure' || verify.status === 'bounced' || verify.status === 'userCancelled' || verify.status === 'dropped') {
+    // Not actually paid. Distinguish a terminal failure (mark dead, tell the
+    // client to stop polling) from a still-in-flight payment ('pending').
+    const terminal = verify.status === 'failure' || verify.status === 'bounced'
+      || verify.status === 'userCancelled' || verify.status === 'dropped';
+    if (terminal) {
       await supabase.from('transactions').update({ status: 'failed' }).eq('id', txn.id);
+      return { txnid, status: 'failed', reason: `Easebuzz status=${verify.status}` };
     }
     return { txnid, status: 'pending', reason: `Easebuzz status=${verify.status}` };
   }

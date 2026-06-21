@@ -1,29 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import * as jose from 'jose';
+import { SUCCESSFUL_ORDER_STATUSES } from '@/utils/orderStatus';
+import { verifyAdminAuth } from '@/utils/adminAuth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key-here');
-
-async function verifyAuth(request: NextRequest) {
-  const token = request.cookies.get('admin_token')?.value;
-  if (!token) return false;
-
-  try {
-    await jose.jwtVerify(token, JWT_SECRET);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 // GET - Fetch all customers with order statistics
 export async function GET(request: NextRequest) {
-  if (!await verifyAuth(request)) {
+  if (!(await verifyAdminAuth(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -35,8 +22,9 @@ export async function GET(request: NextRequest) {
     const sortBy = searchParams.get('sortBy') || 'totalSpent';
     const sortOrder = searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc';
 
-    // Only count successfully placed orders (exclude pending/failed/cancelled)
-    const SUCCESSFUL_STATUSES = ['placed', 'confirmed', 'shipped', 'delivered'];
+    // Only count successfully placed orders (exclude pending/failed/cancelled).
+    // Uses the shared definition so this can never drift from the dashboard.
+    const SUCCESSFUL_STATUSES = SUCCESSFUL_ORDER_STATUSES as unknown as string[];
 
     // Get unique customers from orders
     let query = supabase

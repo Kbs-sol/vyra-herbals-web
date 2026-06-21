@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
 import { verifyEasebuzzTransaction } from '@/utils/easebuzz';
 import { finalizeOrderFromSession } from '@/utils/orderFinalize';
+import { SUCCESSFUL_ORDER_STATUSES } from '@/utils/orderStatus';
 
 export const runtime = 'nodejs';
 export const preferredRegion = 'bom1';
@@ -46,11 +47,13 @@ export async function GET(req: Request) {
     for (const txn of pending || []) {
         const txnid = String(txn.id);
         try {
-            // Skip if order already exists.
+            // Skip only if a genuinely successful order already exists — a
+            // legacy 'Failed' order must not block recovery or be treated as paid.
             const { data: existing } = await supabase
                 .from('orders')
                 .select('id, order_id')
                 .eq('txn_id', txnid)
+                .in('status', SUCCESSFUL_ORDER_STATUSES as unknown as string[])
                 .limit(1);
             if (existing?.length) {
                 await supabase.from('transactions').update({

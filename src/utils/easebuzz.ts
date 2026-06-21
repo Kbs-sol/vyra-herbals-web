@@ -21,6 +21,58 @@ const getEasebuzzCreds = () => {
   return { key, salt, env };
 };
 
+/** Constant-time hex compare so we never leak hash bytes via timing. */
+const safeHexEqual = (a: string, b: string): boolean => {
+  const aa = String(a || '').toLowerCase();
+  const bb = String(b || '').toLowerCase();
+  if (!aa || !bb || aa.length !== bb.length) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(aa, 'hex'), Buffer.from(bb, 'hex'));
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Verify the reverse-hash Easebuzz signs every surl/furl callback with. This is
+ * how we know a POST to /api/payment/success genuinely came from Easebuzz and
+ * wasn't forged by someone hitting our endpoint with `status=success` to mint a
+ * free order.
+ *
+ * Easebuzz response hash (no additional_charges):
+ *   sha512(salt|status|udf10|udf9|udf8|udf7|udf6|udf5|udf4|udf3|udf2|udf1|email|firstname|productinfo|amount|txnid|key)
+ *
+ * All the echoed fields (amount, productinfo, firstname, email) must be taken
+ * verbatim from the callback body — Easebuzz computed the hash over exactly the
+ * strings it is sending back to us.
+ */
+export const verifyEasebuzzCallbackHash = (data: Record<string, any>): boolean => {
+  const creds = getEasebuzzCreds();
+  if (!creds) return false;
+  const { key, salt } = creds;
+
+  const provided = String(data.hash || '');
+  if (!provided) return false;
+
+  const v = (k: string) => (data[k] == null ? '' : String(data[k]));
+  const udf = (n: number) => v(`udf${n}`);
+
+  const parts = [
+    salt,
+    v('status'),
+    udf(10), udf(9), udf(8), udf(7), udf(6),
+    udf(5), udf(4), udf(3), udf(2), udf(1),
+    v('email'),
+    v('firstname'),
+    v('productinfo'),
+    v('amount'),
+    v('txnid'),
+    key,
+  ];
+  const computed = crypto.createHash('sha512').update(parts.join('|')).digest('hex');
+  return safeHexEqual(computed, provided);
+};
+
 // Easebuzz hosts the retrieve endpoint on the dashboard subdomain — pay.* is
 // the gateway, dashboard.* is the merchant API. Probed against live creds
 // (see commit history), v2.1 with `sha512(key|txnid|salt)` is the only working
