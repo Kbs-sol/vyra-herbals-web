@@ -10,11 +10,20 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = createServerSupabase();
     
-    // Get date range from query params
+    // Date range from query params. `startDate`/`endDate` (YYYY-MM-DD) scope the
+    // headline metrics to a selected month/range (dashboard month picker). When
+    // absent, figures are all-time. `days` still drives the trailing "recent" window.
     const searchParams = request.nextUrl.searchParams;
     const days = parseInt(searchParams.get('days') || '30');
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
+    const startParam = searchParams.get('startDate');
+    const endParam = searchParams.get('endDate');
+
+    const recentStart = new Date();
+    recentStart.setDate(recentStart.getDate() - days);
+
+    const rangeStart = startParam ? new Date(`${startParam}T00:00:00`) : null;
+    const rangeEnd = endParam ? new Date(`${endParam}T23:59:59.999`) : null;
+    const hasRange = !!(rangeStart || rangeEnd);
 
     // Fetch all orders
     const { data: orders, error: ordersError } = await supabase
@@ -51,35 +60,44 @@ export async function GET(request: NextRequest) {
     // looked like dummy data). `realOrders` excludes those; `successful` is the
     // subset that earned money (excludes cancelled too).
     const allOrders = (orders || []).filter(o => isRealOrderStatus(o.status));
-    const successfulOrders = allOrders.filter(o => isSuccessfulOrderStatus(o.status));
-    const totalOrders = allOrders.length;
-    const ordersPlaced = allOrders.filter(o => o.status === 'placed').length;
-    const ordersConfirmed = allOrders.filter(o => o.status === 'confirmed').length;
-    const ordersShipped = allOrders.filter(o => o.status === 'shipped').length;
-    const ordersDelivered = allOrders.filter(o => o.status === 'delivered').length;
-    const ordersCancelled = allOrders.filter(o => o.status === 'cancelled').length;
 
-    // Revenue = money actually earned: successful (paid/COD, non-cancelled) orders.
+    // Scope headline metrics to the selected month/range when one is supplied
+    // (dashboard month picker); otherwise use all-time figures.
+    const inRange = (o: any) => {
+      const d = new Date(o.created_at);
+      if (rangeStart && d < rangeStart) return false;
+      if (rangeEnd && d > rangeEnd) return false;
+      return true;
+    };
+    const scopedOrders = hasRange ? allOrders.filter(inRange) : allOrders;
+    const successfulOrders = scopedOrders.filter(o => isSuccessfulOrderStatus(o.status));
+
+    const totalOrders = scopedOrders.length;
+    const ordersPlaced = scopedOrders.filter(o => o.status === 'placed').length;
+    const ordersConfirmed = scopedOrders.filter(o => o.status === 'confirmed').length;
+    const ordersShipped = scopedOrders.filter(o => o.status === 'shipped').length;
+    const ordersDelivered = scopedOrders.filter(o => o.status === 'delivered').length;
+    const ordersCancelled = scopedOrders.filter(o => o.status === 'cancelled').length;
+
+    // Money actually earned from successful (paid/COD, non-cancelled) orders.
     const totalRevenue = successfulOrders
       .reduce((acc, o) => acc + (parseFloat(o.total_amount) || 0), 0);
 
-    const deliveredRevenue = allOrders
+    // "Total Revenue" the client displays: revenue from orders actually DELIVERED
+    // (the requested definition — no dummy/inflated figures).
+    const deliveredRevenue = scopedOrders
       .filter(o => o.status === 'delivered')
       .reduce((acc, o) => acc + (parseFloat(o.total_amount) || 0), 0);
 
-    // Calculate recent orders (within date range)
-    const recentOrders = allOrders.filter(o => {
-      const orderDate = new Date(o.created_at);
-      return orderDate >= startDate;
-    });
-
-    const recentRevenue = recentOrders
-      .filter(o => isSuccessfulOrderStatus(o.status))
+    // Trailing `days` window (all-time source) used as a subtitle when no
+    // explicit range is selected.
+    const recentRevenue = allOrders
+      .filter(o => new Date(o.created_at) >= recentStart && isSuccessfulOrderStatus(o.status))
       .reduce((acc, o) => acc + (parseFloat(o.total_amount) || 0), 0);
 
-    // Payment method breakdown (real orders only)
-    const codOrders = allOrders.filter(o => o.payment_method === 'cod').length;
-    const onlineOrders = allOrders.filter(o => o.payment_method === 'online').length;
+    // Payment method breakdown (scoped)
+    const codOrders = scopedOrders.filter(o => o.payment_method === 'cod').length;
+    const onlineOrders = scopedOrders.filter(o => o.payment_method === 'online').length;
 
     // Daily orders for chart (last 7 days) — real orders, revenue from successful ones
     const dailyOrders: Array<{ date: string; label: string; orders: number; revenue: number }> = [];
@@ -100,8 +118,8 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Get recent 5 orders
-    const latestOrders = allOrders.slice(0, 5).map(o => ({
+    // Get recent 5 orders (scoped)
+    const latestOrders = scopedOrders.slice(0, 5).map(o => ({
       id: o.id,
       total_amount: o.total_amount,
       status: o.status,
@@ -122,6 +140,11 @@ export async function GET(request: NextRequest) {
           totalRevenue,
           deliveredRevenue,
           recentRevenue,
+        },
+        range: {
+          startDate: startParam,
+          endDate: endParam,
+          active: hasRange,
         },
         orderStats: {
           placed: ordersPlaced,

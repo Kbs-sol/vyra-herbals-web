@@ -1,13 +1,13 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { API_PATH } from "../../constants";
-import Link from "next/link";
 import { IoIosArrowBack } from "react-icons/io";
 import { IoIosArrowForward } from "react-icons/io";
 import Slider from "react-slick";
 import styled from "styled-components";
 import ReviewCard from "./ReviewCard";
 import LoadingIndicator from "../Common/LoadingIndicator";
+import SectionHeading from "../Common/SectionHeading";
 
 const Testimonial = () => {
   function SampleNextArrow(props) {
@@ -154,19 +154,7 @@ const Testimonial = () => {
   return (
     <StyledTestimonials className="inner-section about-testimonial">
       <div className="container">
-        <div className="row">
-          <div className="col-12">
-            <div className="section-heading position-relative">
-              <h2> Customer Testimonials </h2>
-              <div className="section-btn-25">
-                <Link href="/testimonials" className="">
-                  <span>View All</span>
-                  <i className="fas fa-arrow-right"></i>
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
+        <SectionHeading title="Customer Testimonials" viewAllHref="/testimonials" />
         <div className="slider-container">
           {!isLoading ? (
             <Slider {...getSliderSettings(testimonials.length)}>
@@ -192,20 +180,6 @@ const Testimonial = () => {
 export default Testimonial;
 
 const StyledTestimonials = styled.section`
-  .section-btn-25 {
-    position: absolute;
-    margin: 0 10px;
-    top: 25%;
-    right: 0;
-    a {
-      text-decoration: underline #000;
-      color: #000;
-      .fa-arrow-right:before {
-        color: black;
-        padding-left: 6px;
-      }
-    }
-  }
   .slider-container {
     .card-test {
       max-width: 920px; /* limit width so the card isn't too long */
@@ -242,15 +216,6 @@ const StyledTestimonials = styled.section`
   }
   //bootstrap break-point: md
   @media (max-width: 576px) {
-    .section-heading {
-      margin-bottom: 15px !important;
-      .section-btn-25 {
-        position: static;
-        text-align: end;
-        margin-top: 10px;
-      }
-    }
-
     .slider-container {
       .slick-slider {
         display: flex;

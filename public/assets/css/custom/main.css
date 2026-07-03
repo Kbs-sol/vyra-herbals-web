@@ -252,7 +252,8 @@ button:focus {
 }
 .marketplace-logos {
   display: flex;
-  gap: 32px;
+  flex-wrap: wrap;
+  gap: clamp(12px, 1.8vw, 32px);
   align-items: center;
   justify-content: flex-end;
 }
@@ -300,9 +301,16 @@ button:focus {
 }
 .btn-premium:hover,
 .btn-premium:focus {
+  color: #fff;
   transform: translateY(-1px);
   box-shadow: 0 20px 34px rgba(143,101,61,0.22);
   filter: brightness(1.02);
+}
+.btn-premium:hover span,
+.btn-premium:focus span,
+.btn-premium:hover i,
+.btn-premium:focus i {
+  color: #fff;
 }
 
 @media (max-width: 575px) {

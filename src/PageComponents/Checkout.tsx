@@ -509,9 +509,15 @@ const Checkout = ({
 
       const paymentUrl = responseData.paymentUrl;
 
-      // Extract product titles with quantity and sku
+      // Parcel contents from SKU. Single unit -> "VYRA-OIL-100";
+      // multiple units -> "2 × VYRA-OIL-100". Falls back to handle/title when a
+      // product has no SKU.
       const productDetails = (orderedItems || [])
-        .map((item) => `${item.quantity}X${item.sku || item.handle || item.title}`)
+        .map((item) => {
+          const label = item.sku || item.handle || item.title;
+          const qty = Number(item.quantity) || 1;
+          return qty > 1 ? `${qty} × ${label}` : `${label}`;
+        })
         .join(", ");
 
       const couponDiscount = Math.min(

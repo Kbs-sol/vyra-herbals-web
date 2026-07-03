@@ -14,9 +14,14 @@ import { toast } from 'react-toastify';
 import LazyImage from '@/Components/Common/LazyImage';
 import Utility from '@/utils/UtilityFunctions';
 import { generateInvoice } from '@/utils/invoiceGenerator';
+import { resolveCurrentHandle } from '@/utils/productHandle';
 
 interface Order {
     id: number;
+    order_id?: string;
+    txn_id?: string;
+    payment_method?: string;
+    delivery_status?: string;
     created_at: string;
     total_amount: number;
     status: string;
@@ -56,6 +61,7 @@ const ProfilePage = () => {
     const router = useRouter();
     const [orders, setOrders] = useState<Order[]>([]);
     const [loadingOrders, setLoadingOrders] = useState(false);
+    const [buyingAgainKey, setBuyingAgainKey] = useState<string | null>(null);
 
     // Addresses state
     const [addresses, setAddresses] = useState<Address[]>([]);
@@ -384,6 +390,34 @@ const ProfilePage = () => {
         return cartItems.some((item) => item.id === productId);
     };
 
+    // Re-buy an order's first item (matches the "Order Again" behaviour on the
+    // order-detail page). Order line-items snapshot the product's handle at
+    // purchase time, which can go stale if an admin later renames the
+    // product's URL slug — resolve the CURRENT handle from the stable product
+    // id before navigating.
+    const handleBuyAgain = async (order: Order, key: string) => {
+        const item: any = (order.products || order.items || [])[0] || {};
+        const productId = item.product_id ?? item.id ?? null;
+        const snapshotHandle = item.handle || item.product_handle || item.productHandle || '';
+
+        if (!productId && !snapshotHandle) {
+            toast.error('Could not find this product to reorder.');
+            return;
+        }
+
+        setBuyingAgainKey(key);
+        try {
+            const handle = await resolveCurrentHandle(productId, snapshotHandle);
+            if (!handle) {
+                toast.error('This product is no longer available.');
+                return;
+            }
+            router.push(`/product/${handle}?orderAgain=1`);
+        } finally {
+            setBuyingAgainKey(null);
+        }
+    };
+
     const renderOrdersContent = () => {
         if (loadingOrders) {
             return (
@@ -430,13 +464,23 @@ const ProfilePage = () => {
                                 </div>
                             </Card.Header>
                             <Card.Body className="p-4">
-                                <div className="d-flex flex-column flex-md-row gap-4 justify-content-between align-items-md-center">
-                                    <div className="flex-grow-1">
-                                        <div className="d-flex align-items-center mb-3 flex-wrap gap-2">
-                                            <StatusChip status={order.status.toLowerCase()} className="me-2">
+                                <div className="d-flex flex-column flex-lg-row gap-4 justify-content-between">
+                                    <div className="flex-grow-1" style={{ minWidth: 0 }}>
+                                        <div className="d-flex align-items-center flex-wrap gap-2 mb-3">
+                                            <StatusChip status={order.status.toLowerCase()}>
                                                 {order.status}
                                             </StatusChip>
-                                            <span className="text-muted small me-2">Order # {order.id}</span>
+                                            <span className="badge bg-light text-secondary border fw-normal">
+                                                Order ID: {order.order_id || order.id}
+                                            </span>
+                                            <span className="badge bg-light text-secondary border fw-normal">
+                                                {order.payment_method === 'cod' ? 'COD' : 'Prepaid'}
+                                            </span>
+                                            {order.txn_id && (
+                                                <span className="badge bg-light text-secondary border fw-normal">
+                                                    Txn: {order.txn_id}
+                                                </span>
+                                            )}
                                             {address && (
                                                 <span className="badge bg-light text-secondary border fw-normal">
                                                     Shipped to {address.name} {address.city ? `(${address.city})` : ''}
@@ -447,9 +491,9 @@ const ProfilePage = () => {
                                             </span>
                                         </div>
 
-                                        <div className="d-flex gap-3 overflow-auto pb-2" style={{ maxWidth: '100%' }}>
+                                        <div className="d-flex gap-2 flex-wrap">
                                             {(order.products || order.items || []).map((item: any, i: number) => (
-                                                <div key={i} style={{ width: 60, height: 60, flexShrink: 0 }} className="border rounded p-1 position-relative">
+                                                <div key={i} style={{ width: 56, height: 56, flexShrink: 0 }} className="border rounded p-1 position-relative bg-white">
                                                     <img
                                                         src={item.product_image || item.image_url || '/home-hair-oil.jpg'}
                                                         alt={item.product_title || item.title || 'Product'}
@@ -468,9 +512,20 @@ const ProfilePage = () => {
                                         </div>
                                     </div>
 
-                                    <div className="d-flex flex-column gap-2" style={{ minWidth: '140px' }}>
+                                    <div className="d-flex flex-row flex-lg-column gap-2 action-col">
                                         <Button
-                                            variant="dark"
+                                            className="w-100 rounded-pill buy-again-btn"
+                                            size="sm"
+                                            disabled={buyingAgainKey === String(order.id)}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleBuyAgain(order, String(order.id));
+                                            }}
+                                        >
+                                            {buyingAgainKey === String(order.id) ? 'Please wait…' : 'Buy Again'}
+                                        </Button>
+                                        <Button
+                                            variant="outline-dark"
                                             size="sm"
                                             className="w-100 rounded-pill"
                                             onClick={(e) => {
@@ -478,9 +533,9 @@ const ProfilePage = () => {
                                                 generateInvoice(order);
                                             }}
                                         >
-                                            Download Invoice
+                                            Invoice
                                         </Button>
-                                        <Link href={`/contact?orderId=${order.id}`} passHref onClick={(e) => e.stopPropagation()}>
+                                        <Link href={`/contact?orderId=${order.id}`} passHref onClick={(e) => e.stopPropagation()} className="w-100">
                                             <Button variant="outline-secondary" size="sm" className="w-100 rounded-pill">Need Help?</Button>
                                         </Link>
                                     </div>
@@ -797,11 +852,6 @@ const ProfilePage = () => {
                                             </Nav.Link>
                                         </Nav.Item>
                                         <Nav.Item>
-                                            <Nav.Link eventKey="payments" className="d-flex align-items-center">
-                                                <FaCreditCard className="me-3" /> Payment History
-                                            </Nav.Link>
-                                        </Nav.Item>
-                                        <Nav.Item>
                                             <Nav.Link eventKey="wishlist" className="d-flex align-items-center">
                                                 <FaHeart className="me-3" /> Wishlist
                                                 {wishlistCount > 0 && <Badge bg="danger" className="ms-auto" pill>{wishlistCount}</Badge>}
@@ -833,11 +883,6 @@ const ProfilePage = () => {
                                 <Tab.Pane eventKey="orders">
                                     <SectionTitle>Purchase History</SectionTitle>
                                     {renderOrdersContent()}
-                                </Tab.Pane>
-
-                                <Tab.Pane eventKey="payments">
-                                    <SectionTitle>Payment History</SectionTitle>
-                                    {renderTransactionsContent()}
                                 </Tab.Pane>
 
                                 <Tab.Pane eventKey="wishlist">
@@ -1097,6 +1142,34 @@ const OrderItem = styled(Card)`
     transition: transform 0.2s;
     &:hover {
         transform: translateY(-2px);
+    }
+
+    .action-col {
+        flex-shrink: 0;
+        width: 100%;
+
+        @media (min-width: 992px) {
+            width: 160px;
+        }
+    }
+
+    .buy-again-btn {
+        background-color: #556b2f;
+        border-color: #556b2f;
+        color: #fff;
+
+        &:hover,
+        &:focus {
+            background-color: #465a26;
+            border-color: #465a26;
+            color: #fff;
+        }
+
+        &:disabled {
+            background-color: #556b2f;
+            border-color: #556b2f;
+            opacity: 0.65;
+        }
     }
 `;
 

@@ -14,6 +14,11 @@ interface DashboardData {
     deliveredRevenue: number;
     recentRevenue: number;
   };
+  range?: {
+    startDate: string | null;
+    endDate: string | null;
+    active: boolean;
+  };
   orderStats: {
     placed: number;
     confirmed: number;
@@ -45,18 +50,42 @@ export default function AdminDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  // Empty = all-time; "YYYY-MM" scopes the dashboard to that month.
+  const [selectedMonth, setSelectedMonth] = useState('');
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    fetchDashboardData(selectedMonth);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMonth]);
 
-  const fetchDashboardData = async () => {
+  const monthToRange = (month: string) => {
+    if (!month) return null;
+    const [y, m] = month.split('-').map(Number);
+    if (!y || !m) return null;
+    const lastDay = new Date(y, m, 0).getDate(); // m is 1-based -> last day of month
+    return {
+      startDate: `${month}-01`,
+      endDate: `${month}-${String(lastDay).padStart(2, '0')}`,
+    };
+  };
+
+  const monthLabel = (month: string) => {
+    if (!month) return '';
+    const [y, m] = month.split('-').map(Number);
+    return new Date(y, m - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+  };
+
+  const fetchDashboardData = async (month = '') => {
+    setLoading(true);
     try {
-      const res = await fetch('/api/admin/dashboard');
+      const range = monthToRange(month);
+      const qs = range ? `?startDate=${range.startDate}&endDate=${range.endDate}` : '';
+      const res = await fetch(`/api/admin/dashboard${qs}`);
       const result = await res.json();
-      
+
       if (result.success) {
         setData(result.data);
+        setError('');
       } else {
         setError(result.error || 'Failed to fetch data');
       }
@@ -117,10 +146,61 @@ export default function AdminDashboard() {
         ) : error ? (
           <div className="error-container">
             <p>{error}</p>
-            <button onClick={fetchDashboardData}>Retry</button>
+            <button onClick={() => fetchDashboardData(selectedMonth)}>Retry</button>
           </div>
         ) : data && (
           <>
+            {/* Month filter */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '12px',
+                marginBottom: '20px',
+              }}
+            >
+              <label htmlFor="dashboard-month" style={{ fontWeight: 600, color: '#374151' }}>
+                Filter by month:
+              </label>
+              <input
+                id="dashboard-month"
+                type="month"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  color: '#111827',
+                }}
+              />
+              {selectedMonth ? (
+                <>
+                  <span style={{ color: '#6b7280', fontSize: '14px' }}>
+                    Showing {monthLabel(selectedMonth)}
+                  </span>
+                  <button
+                    onClick={() => setSelectedMonth('')}
+                    style={{
+                      padding: '8px 14px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '8px',
+                      background: '#fff',
+                      color: '#374151',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                    }}
+                  >
+                    Clear (All time)
+                  </button>
+                </>
+              ) : (
+                <span style={{ color: '#6b7280', fontSize: '14px' }}>Showing all time</span>
+              )}
+            </div>
+
             {/* Overview Stats */}
             <div className="stats-grid">
               <div className="stat-card primary">
@@ -131,10 +211,11 @@ export default function AdminDashboard() {
                   </svg>
                 </div>
                 <div className="stat-content">
-                  <p className="stat-label">Total Revenue</p>
-                  <h3 className="stat-value">{formatCurrency(data.overview.totalRevenue)}</h3>
+                  <p className="stat-label">Total Revenue (Delivered)</p>
+                  <h3 className="stat-value">{formatCurrency(data.overview.deliveredRevenue)}</h3>
                   <p className="stat-change positive">
-                    <span>{formatCurrency(data.overview.recentRevenue)}</span> this month
+                    <span>{data.orderStats.delivered}</span> delivered order{data.orderStats.delivered === 1 ? '' : 's'}
+                    {selectedMonth ? ` in ${monthLabel(selectedMonth)}` : ''}
                   </p>
                 </div>
               </div>

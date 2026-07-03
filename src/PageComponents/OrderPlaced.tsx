@@ -22,6 +22,8 @@ interface OrderInfo {
   status?: string;
   shipment_id?: string | number | null;
   tracking_id?: string | null;
+  awb_code?: string | null;
+  courier_name?: string | null;
   delivery_status?: string;
   created_at?: string;
   order_date?: string;
@@ -124,6 +126,26 @@ const OrderPlaced = () => {
         const data = json.data;
         setOrder(data);
         setLoading(false);
+
+        // If the AWB hasn't synced yet (sync timed out during finalize), retry
+        // shipment sync once and refetch so the customer sees a tracking number
+        // without manually refreshing.
+        if (!data.awb_code && isSuccessfulOrderStatus(data.status)) {
+          try {
+            await fetch(`${API_PATH}/orders/sync-shipment`, {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({ order_id: orderId }),
+            });
+            const res2 = await fetch(`${API_PATH}/orders/info?order_id=${encodeURIComponent(orderId)}`, { headers });
+            const json2 = await res2.json();
+            if (!cancelled && json2.status === 'success' && json2.data) {
+              setOrder(json2.data);
+            }
+          } catch {
+            // Best-effort; the profile page also retries sync on load.
+          }
+        }
 
         // Only a genuinely placed (paid) order is a conversion. Firing Purchase
         // for a failed/abandoned payment would corrupt analytics + the pixel and
@@ -238,6 +260,8 @@ const OrderPlaced = () => {
             <h3 className="section-title">Order Information</h3>
             <Row label="Order ID" value={orderIdDisplay} />
             <Row label="Shipping ID" value={order.shipment_id ? String(order.shipment_id) : 'Pending sync'} />
+            <Row label="AWB / Tracking No." value={order.awb_code || order.tracking_id || 'Will update shortly'} />
+            {order.courier_name ? <Row label="Courier" value={order.courier_name} /> : null}
             <Row label="Order Amount" value={`₹${amount}`} />
             <Row label="Order Date" value={orderDate} />
             <Row label="Payment Method" value={(order.payment_method || 'online').toUpperCase()} />

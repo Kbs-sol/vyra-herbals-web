@@ -23,6 +23,7 @@ export default function OrdersPage() {
   const [totalItems, setTotalItems] = useState(0);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [updating, setUpdating] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     fetchOrders();
@@ -111,6 +112,29 @@ export default function OrdersPage() {
     }
   };
 
+  // Pull live shipment status (shipped/delivered) from iCarry and persist it.
+  const syncFromIcarry = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch('/api/admin/orders/sync-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`iCarry sync complete: ${data.updated} of ${data.checked} order(s) updated.`);
+        fetchOrders();
+      } else {
+        alert(data.error || 'Sync failed');
+      }
+    } catch (e) {
+      alert('An error occurred during sync');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
@@ -188,6 +212,16 @@ export default function OrdersPage() {
             <option value="cod">Cash on Delivery</option>
             <option value="online">Online</option>
           </select>
+
+          <button
+            type="button"
+            className="sync-btn"
+            onClick={syncFromIcarry}
+            disabled={syncing}
+            title="Fetch live shipped/delivered status from iCarry and update orders"
+          >
+            {syncing ? 'Syncing…' : '⟳ Sync from iCarry'}
+          </button>
         </div>
 
         {/* Orders Table */}
@@ -627,6 +661,22 @@ export default function OrdersPage() {
             background: white;
             cursor: pointer;
             min-width: 160px;
+          }
+
+          .sync-btn {
+            padding: 12px 20px;
+            background: #556b2f;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            cursor: pointer;
+            white-space: nowrap;
+          }
+
+          .sync-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
           }
 
           .table-container {

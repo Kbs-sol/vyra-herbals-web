@@ -69,6 +69,54 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    // ---- Merge in registered users who logged in but haven't purchased ----
+    // These "leads" never appear in the orders table, but the admin still wants
+    // their name + mobile. Phone may live on the users row, or be embedded in the
+    // OTP internal email (`<phone>@phone.internal`).
+    const norm10 = (p: any) => {
+      const d = String(p || '').replace(/\D/g, '');
+      return d.length > 10 ? d.slice(-10) : d;
+    };
+    const purchaserKeys = new Set<string>();
+    customerMap.forEach((c) => {
+      if (c.email) purchaserKeys.add(String(c.email).toLowerCase());
+      const ph = norm10(c.phone);
+      if (ph) purchaserKeys.add(ph);
+    });
+
+    const { data: users } = await supabase
+      .from('users')
+      .select('id, name, email, phone, created_at, role');
+
+    (users || []).forEach((u: any) => {
+      if (u.role === 2) return; // skip admins
+      const rawEmail = String(u.email || '').toLowerCase();
+      const isInternal = rawEmail.endsWith('@phone.internal');
+      let phone = norm10(u.phone);
+      if (!phone && isInternal) phone = norm10(rawEmail.split('@')[0]);
+      const email = isInternal ? '' : rawEmail;
+
+      // Already counted via their orders (matched by email or phone)? skip.
+      if ((email && purchaserKeys.has(email)) || (phone && purchaserKeys.has(phone))) {
+        return;
+      }
+
+      const identifier = `user:${u.id}`;
+      if (customerMap.has(identifier)) return;
+      customerMap.set(identifier, {
+        id: identifier,
+        name: u.name || 'Unknown',
+        email: email || '',
+        phone: phone || '',
+        address: '',
+        orderCount: 0,
+        totalSpent: 0,
+        lastOrderDate: null,
+        registeredAt: u.created_at || null,
+        status: 'lead', // registered but hasn't purchased yet
+      });
+    });
+
     let customers = Array.from(customerMap.values());
 
     // Apply search filter
@@ -103,6 +151,7 @@ export async function GET(request: NextRequest) {
     // Overall totals across all customers (after search filter, before pagination)
     const totalRevenue = customers.reduce((sum, c) => sum + c.totalSpent, 0);
     const totalOrders = customers.reduce((sum, c) => sum + c.orderCount, 0);
+    const payingCustomers = customers.filter(c => c.orderCount > 0).length;
 
     // Paginate
     const total = customers.length;
@@ -116,7 +165,7 @@ export async function GET(request: NextRequest) {
         totalRevenue,
         totalOrders,
         totalCustomers: total,
-        avgCustomerValue: total > 0 ? totalRevenue / total : 0,
+        avgCustomerValue: payingCustomers > 0 ? totalRevenue / payingCustomers : 0,
       },
       pagination: {
         page,

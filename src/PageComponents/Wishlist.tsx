@@ -2,35 +2,18 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import styled from 'styled-components';
-import { FaHeart, FaTrash, FaShoppingCart } from 'react-icons/fa';
+import { FaHeart } from 'react-icons/fa';
 import { IoMdHome } from 'react-icons/io';
 
 import { useWishlist } from '@/Components/Contexts/WishlistContext';
-import { useCart } from '@/Components/Contexts/CartContext';
 import { useAuth } from '@/Components/Contexts/AuthContext';
-import LazyImage from '@/Components/Common/LazyImage';
-import Utility from '@/utils/UtilityFunctions';
 import SEOComponent from '@/Components/Shared/SEOComponent';
+import ProductCard2 from '@/Components/Shared/ProductCard2';
 
 const Wishlist = () => {
-    const { wishlistItems, wishlistCount, removeFromWishlist } = useWishlist();
-    const { addItemToCart, cartItems } = useCart();
+    const { wishlistItems, wishlistCount } = useWishlist();
     const { user, loading: authLoading } = useAuth();
-    const router = useRouter();
-
-    const isInCart = (productId: number) => {
-        return cartItems.some((item) => item.id === productId);
-    };
-
-    const handleAddToCart = async (product: any) => {
-        await addItemToCart(product.id, 1, product);
-    };
-
-    const handleRemoveFromWishlist = async (productId: number) => {
-        await removeFromWishlist(productId);
-    };
 
     // Wait for auth to finish initialising before deciding what to render —
     // otherwise a logged-in user briefly sees the "please login" prompt on a
@@ -131,59 +114,9 @@ const Wishlist = () => {
                             </Link>
                         </div>
                     ) : (
-                        <div className="wishlist-grid">
+                        <div className="row row-cols-1 row-cols-md-1 row-cols-lg-2 row-cols-xl-2">
                             {wishlistItems.map((product) => (
-                                <div key={product.id} className="wishlist-item">
-                                    <div className="product-image">
-                                        <Link href={`/product/${product.handle}`}>
-                                            <LazyImage src={product.image_url} alt={product.title} />
-                                        </Link>
-                                    </div>
-                                    <div className="product-details">
-                                        <h4 className="product-title">
-                                            <Link href={`/product/${product.handle}`}>
-                                                {product.title}
-                                            </Link>
-                                        </h4>
-                                        <div className="product-price">
-                                            <span className="current-price">₹{product.price}</span>
-                                            {product.regular_price && product.regular_price > product.price && (
-                                                <>
-                                                    <span className="original-price">₹{product.regular_price}</span>
-                                                    <span className="discount">
-                                                        {Math.floor(Utility.calculateDiscount(product.price, product.regular_price))}% Off
-                                                    </span>
-                                                </>
-                                            )}
-                                        </div>
-                                        <div className="product-actions">
-                                            {isInCart(product.id) ? (
-                                                <button
-                                                    className="btn btn-outline-success"
-                                                    onClick={() => router.push('/cart')}
-                                                >
-                                                    <FaShoppingCart className="me-2" />
-                                                    Go to Cart
-                                                </button>
-                                            ) : (
-                                                <button
-                                                    className="btn btn-primary"
-                                                    onClick={() => handleAddToCart(product)}
-                                                >
-                                                    <FaShoppingCart className="me-2" />
-                                                    Add to Cart
-                                                </button>
-                                            )}
-                                            <button
-                                                className="btn btn-outline-danger"
-                                                onClick={() => handleRemoveFromWishlist(product.id)}
-                                                title="Remove from wishlist"
-                                            >
-                                                <FaTrash />
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
+                                <ProductCard2 key={product.id} product={product} />
                             ))}
                         </div>
                     )}

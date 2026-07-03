@@ -54,7 +54,7 @@ const Singleproducts = () => {
   const reviewsPerPage = 8; //pagination
   const sortOptions = [
     { value: "mostRecent", label: "Most Recent" },
-    { value: "highestRating", label: "Highest Rating" },
+    { value: "highestRating", label: "Top Reviews" },
     { value: "lowestRating", label: "Lowest Rating" },
   ];
   const [reviewSortBy, setReviewSortBy] = useState(
@@ -82,7 +82,11 @@ const Singleproducts = () => {
     switch (reviewSortBy?.value) {
       case "mostRecent":
         // Sort by most recent (descending by date)
-        sortedArray.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
+        sortedArray.sort(
+          (a, b) =>
+            new Date(b.review_date || b.created_at || b.date || 0).getTime() -
+            new Date(a.review_date || a.created_at || a.date || 0).getTime()
+        );
         break;
       case "highestRating":
         // Sort by highest rating (descending by rating)
@@ -682,7 +686,14 @@ const Singleproducts = () => {
               </div>
             </div>
           </div>
+        </div>
+      </section>
 
+      {/* Ingredients shown before the reviews (Amazon-style) */}
+      <IngredientsSection productId={product.id} />
+
+      <section className="inner-section shop-part pt-0 pb-3">
+        <div className="container">
           <section className="add-review my-4">
             <AddReview
               reviewProductId={product.id}
@@ -709,9 +720,55 @@ const Singleproducts = () => {
           </section>
           {!!ratingDetails.stats && (
             <div id="reviews" className="review-list-container">
-              <h3 className="frame-title">
-                Reviews ({ratingDetails.count})
-              </h3>
+              <div
+                className="reviews-header"
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: "12px",
+                }}
+              >
+                <h3 className="frame-title" style={{ margin: 0 }}>
+                  Reviews ({ratingDetails.count})
+                </h3>
+                {filteredReviews && filteredReviews.length > 1 && (
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <label
+                      htmlFor="review-sort-select"
+                      style={{ fontSize: "14px", color: "#555", margin: 0 }}
+                    >
+                      Sort by:
+                    </label>
+                    <select
+                      id="review-sort-select"
+                      value={reviewSortBy?.value}
+                      onChange={(e) => {
+                        const opt = sortOptions.find((o) => o.value === e.target.value);
+                        handleSortChange(opt);
+                        setCurrentPage(1);
+                      }}
+                      style={{
+                        padding: "8px 12px",
+                        border: "1px solid #ddd",
+                        borderRadius: "8px",
+                        background: "#fff",
+                        color: "#333",
+                        fontSize: "14px",
+                        cursor: "pointer",
+                        outline: "none",
+                      }}
+                    >
+                      {sortOptions.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
 
               <ul className="review-list">
                 {paginatedReviews.map((review, index) => {
@@ -757,8 +814,6 @@ const Singleproducts = () => {
           )}
         </div>
       </section>
-
-      <IngredientsSection productId={product.id} />
 
       {handpickedProducts.length > 0 && (
         <section className="related-products">

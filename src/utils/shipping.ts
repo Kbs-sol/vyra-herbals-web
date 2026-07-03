@@ -180,10 +180,38 @@ const ICARRY_COURIER_PRIORITY = (process.env.ICARRY_COURIER_PRIORITY || "Xpressb
 // without a code deploy. Any other value (including unset) keeps auto-assign on.
 const isAutoAssignEnabled = (): boolean => process.env.ICARRY_BOOK_ON_CREATE !== "false";
 
+// When on (the default), we auto-assign the CHEAPEST serviceable courier from
+// iCarry's estimate instead of walking the fixed priority list. Set
+// ICARRY_SELECT_CHEAPEST=false to fall back to priority-order selection.
+const isCheapestEnabled = (): boolean => process.env.ICARRY_SELECT_CHEAPEST !== "false";
+
 type CourierEstimate = {
     courier_id?: string | number;
     courier_name?: string;
     courier_group_name?: string;
+    // iCarry returns the rate under one of several undocumented keys; keep the
+    // shape open so getCourierRate() can probe them.
+    [key: string]: any;
+};
+
+// iCarry's estimate response has no single documented price key, so we probe the
+// common ones (in order) and take the first positive number. Handles both plain
+// numbers and strings like "₹73.50".
+const COURIER_RATE_FIELDS = [
+    "rate", "total_charges", "total_charge", "total_amount", "total",
+    "freight_charge", "freight_charges", "chargeable_amount", "net_charges",
+    "net_charge", "final_charge", "final_charges", "grand_total",
+    "price", "amount", "charges", "charge", "cost", "estimated_cost",
+];
+
+const getCourierRate = (c: CourierEstimate): number | null => {
+    for (const key of COURIER_RATE_FIELDS) {
+        const raw = c?.[key];
+        if (raw === undefined || raw === null || raw === "") continue;
+        const num = typeof raw === "number" ? raw : parseFloat(String(raw).replace(/[^\d.]/g, ""));
+        if (Number.isFinite(num) && num > 0) return num;
+    }
+    return null;
 };
 
 // Same browser-like headers iCarry's WAF expects on the other endpoints.
@@ -268,6 +296,35 @@ const resolvePreferredCourier = (
     return null;
 };
 
+/**
+ * Pick the CHEAPEST serviceable courier from the estimate. Only couriers whose
+ * rate we can read AND that have a valid courier_id are considered; ties are
+ * broken by iCarry's own ordering. Returns null when no priced courier is
+ * available (e.g. the estimate omits rates), so the caller can fall back to the
+ * priority list.
+ */
+const resolveCheapestCourier = (
+    estimate: CourierEstimate[]
+): { courierId: string; group: string; rate: number } | null => {
+    const priced = estimate
+        .map((c) => ({ c, rate: getCourierRate(c) }))
+        .filter(
+            (x): x is { c: CourierEstimate; rate: number } =>
+                x.rate !== null &&
+                x.c.courier_id !== undefined &&
+                x.c.courier_id !== null &&
+                String(x.c.courier_id) !== ""
+        );
+    if (!priced.length) return null;
+    priced.sort((a, b) => a.rate - b.rate);
+    const best = priced[0];
+    return {
+        courierId: String(best.c.courier_id),
+        group: best.c.courier_group_name || best.c.courier_name || "",
+        rate: best.rate,
+    };
+};
+
 export const createShipment = async (orderData: any) => {
     try {
         const tokenResult = await getIcarryTokenDetailed();
@@ -330,13 +387,25 @@ export const createShipment = async (orderData: any) => {
                 shipmentType: isPrepaid ? "P" : "C",
                 value: parcelValue,
             });
-            const picked = resolvePreferredCourier(estimate);
+            // Prefer the cheapest serviceable courier. If iCarry's estimate has
+            // no readable rate, fall back to the priority order (Xpressbees →
+            // Delhivery) so behaviour degrades gracefully instead of failing.
+            let picked: { courierId: string; group: string; rate: number | null } | null = null;
+            if (isCheapestEnabled()) {
+                picked = resolveCheapestCourier(estimate);
+            }
+            if (!picked) {
+                const pref = resolvePreferredCourier(estimate);
+                if (pref) picked = { courierId: pref.courierId, group: pref.group, rate: null };
+            }
+
             if (picked) {
                 chosenCourierId = picked.courierId;
                 chosenCourierGroup = picked.group;
-                console.log(`[Shipping] Auto-assigning ${picked.group} (courier_id ${picked.courierId}) for order ${orderData.id}`);
+                const note = picked.rate !== null ? `@ ₹${picked.rate} (cheapest)` : "(priority order)";
+                console.log(`[Shipping] Auto-assigning ${picked.group} ${note} (courier_id ${picked.courierId}) for order ${orderData.id}`);
             } else {
-                console.warn(`[Shipping] No preferred courier serviceable for order ${orderData.id} (pincode ${pincode}); saving Unassigned`);
+                console.warn(`[Shipping] No serviceable courier for order ${orderData.id} (pincode ${pincode}); saving Unassigned`);
             }
         }
 
