@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { MessageCentral } from '@/utils/messageCentral';
+import { normalizePhone, isValidPhone } from '@/utils/authAdmin';
 
 export async function POST(req: Request) {
     try {
@@ -9,11 +10,10 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Phone number is required' }, { status: 400 });
         }
 
-        // Clean phone number (remove non-digits, handle +91 if present)
-        const cleanedPhone = phone.replace(/\D/g, '').slice(-10);
+        const cleanedPhone = normalizePhone(phone);
 
-        if (cleanedPhone.length !== 10) {
-            return NextResponse.json({ error: 'Invalid phone number' }, { status: 400 });
+        if (!isValidPhone(cleanedPhone)) {
+            return NextResponse.json({ error: 'Enter a valid 10-digit mobile number' }, { status: 400 });
         }
 
         const verificationId = await MessageCentral.sendOtp(cleanedPhone);

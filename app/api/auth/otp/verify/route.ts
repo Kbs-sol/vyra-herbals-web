@@ -1,53 +1,13 @@
 import { NextResponse } from 'next/server';
 import { MessageCentral } from '@/utils/messageCentral';
-import { createClient } from '@supabase/supabase-js';
-import crypto from 'crypto';
-import fetch from 'node-fetch'; // Force node-fetch which respects IPv4
-import https from 'https';
-import dns from 'dns';
-
-// Bypass Indian ISP (Jio) DNS sinkholes for Supabase by hardcoding the real Cloudflare edge IP
-const bypassAgent = new https.Agent({
-    lookup: (hostname, options, callback) => {
-        let cb = callback;
-        let opts: any = options;
-        if (typeof options === 'function') {
-            cb = options;
-            opts = {};
-        }
-        if (hostname.includes('supabase.co')) {
-            const ip = '172.64.149.246';
-            if (opts && opts.all) {
-                cb(null, [{ address: ip, family: 4 }]);
-            } else {
-                cb(null, ip, 4);
-            }
-        } else {
-            dns.lookup(hostname, opts, cb);
-        }
-    }
-});
-
-const customFetch = (url: RequestInfo | URL, options?: RequestInit) => {
-    return fetch(url as any, { ...options, agent: bypassAgent } as any);
-};
-
-// Use service role for admin operations
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-        auth: {
-            autoRefreshToken: false,
-            persistSession: false
-        },
-        global: {
-            fetch: customFetch as any
-        }
-    }
-);
-
-const SERVER_SECRET = process.env.OTP_SERVER_SECRET || 'vyra-herbals-fallback-secret-2026';
+import {
+    supabaseAdmin,
+    normalizePhone,
+    phoneToEmail,
+    isValidPhone,
+    findPhoneUser,
+    findAuthUserByEmailPaginated,
+} from '@/utils/authAdmin';
 
 export async function POST(req: Request) {
     try {
@@ -58,54 +18,96 @@ export async function POST(req: Request) {
         }
 
         if (!password || password.length < 6) {
-            return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 });
+            return NextResponse.json(
+                { error: 'Password must be at least 6 characters' },
+                { status: 400 }
+            );
         }
 
-        const isValid = await MessageCentral.verifyOtp(verificationId, code);
+        const cleanedPhone = normalizePhone(phone);
+        if (!isValidPhone(cleanedPhone)) {
+            return NextResponse.json({ error: 'Enter a valid 10-digit mobile number' }, { status: 400 });
+        }
 
+        // Verify the OTP first — proof of phone ownership gates both account
+        // creation and password reset.
+        const isValid = await MessageCentral.verifyOtp(verificationId, code);
         if (!isValid) {
             return NextResponse.json({ error: 'Invalid or expired OTP' }, { status: 400 });
         }
 
-        const cleanedPhone = phone.replace(/\D/g, '').slice(-10);
-        const internalEmail = `${cleanedPhone}@phone.internal`;
+        const internalEmail = phoneToEmail(cleanedPhone);
+        const trimmedName = typeof name === 'string' ? name.trim() : '';
 
-        // 1. Check if user exists in Auth
-        const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+        // Robust lookup (no listUsers page cap).
+        const existing = await findPhoneUser(internalEmail);
 
-        let targetUser = (users as any[])?.find(u => u.email === internalEmail);
-
-        if (!targetUser) {
-            // 2. Create new user if not exists
-            const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-                email: internalEmail,
-                password: password,
-                email_confirm: true,
-                user_metadata: { name, phone: cleanedPhone }
+        if (existing) {
+            // Existing account: set the password (forgot-password / OTP re-login).
+            const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(existing.id, {
+                password,
+                user_metadata: {
+                    name: existing.name || trimmedName || undefined,
+                    phone: cleanedPhone,
+                },
             });
+            if (updateError) throw updateError;
 
-            if (createError) throw createError;
-            targetUser = newUser.user;
+            // Backfill profile fields the signup trigger may have missed.
+            const profilePatch: Record<string, any> = {};
+            if (!existing.name && trimmedName) profilePatch.name = trimmedName;
+            if (!existing.phone) profilePatch.phone = cleanedPhone;
+            if (Object.keys(profilePatch).length > 0) {
+                await supabaseAdmin.from('users').update(profilePatch).eq('id', existing.id);
+            }
         } else {
-            // If user exists, update their password (forgot password flow)
-            // also update their name if provided and not already set
-            const updates: any = { password: password };
-            if (name && !targetUser.user_metadata?.name) {
-                updates.user_metadata = { ...targetUser.user_metadata, name };
+            // New account: name is required.
+            if (!trimmedName) {
+                return NextResponse.json(
+                    { error: 'Name is required to create an account' },
+                    { status: 400 }
+                );
             }
 
-            const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(targetUser.id, updates);
-            if (updateError) throw updateError;
+            const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+                email: internalEmail,
+                password,
+                email_confirm: true,
+                user_metadata: { name: trimmedName, phone: cleanedPhone },
+            });
+
+            if (createError) {
+                // Race / legacy orphan: an auth user already exists for this email
+                // even though the fast lookup missed it. Recover by updating it.
+                const alreadyExists =
+                    /already|registered|exists|duplicate/i.test(createError.message || '');
+                if (alreadyExists) {
+                    const authUser = await findAuthUserByEmailPaginated(internalEmail);
+                    if (!authUser) throw createError;
+                    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+                        authUser.id,
+                        { password, user_metadata: { name: trimmedName, phone: cleanedPhone } }
+                    );
+                    if (updateError) throw updateError;
+                } else {
+                    throw createError;
+                }
+            } else if (newUser?.user) {
+                // The handle_new_user trigger only copies name; persist phone too.
+                await supabaseAdmin
+                    .from('users')
+                    .update({ phone: cleanedPhone, name: trimmedName })
+                    .eq('id', newUser.user.id);
+            }
         }
 
-        // Return credentials to client for final sign-in
-        return NextResponse.json({
-            email: internalEmail,
-            password: password
-        });
-
+        // Return credentials so the client can establish its own session.
+        return NextResponse.json({ email: internalEmail, password });
     } catch (error: any) {
         console.error('OTP Verify Error:', error);
-        return NextResponse.json({ error: error.message || 'Failed to verify OTP' }, { status: 500 });
+        return NextResponse.json(
+            { error: error.message || 'Failed to verify OTP' },
+            { status: 500 }
+        );
     }
 }
