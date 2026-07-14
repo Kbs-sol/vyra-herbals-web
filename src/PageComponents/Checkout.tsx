@@ -114,6 +114,7 @@ const Checkout = ({
   const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
   const [loadingAddresses, setLoadingAddresses] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
+  const [saveAddressChecked, setSaveAddressChecked] = useState(true);
   // Inline payment error shown inside the modal. Toasts can be missed on mobile
   // (covered by keyboard, scrolled out of view, or dismissed too fast), so we
   // also render the failure reason right next to the Confirm Order button.
@@ -262,6 +263,47 @@ const Checkout = ({
       });
       setIsApiSuccess(true);
       setFormErrors({});
+    }
+  };
+
+  // Persists a freshly-typed address to the user's address book. No-op if the
+  // order is using an already-saved address (nothing new to add) or the user
+  // opted out via the checkbox. Idempotent: on success it selects the newly
+  // saved address, so a retried checkout (e.g. after a payment failure) won't
+  // insert a duplicate.
+  const saveAddressToBook = async () => {
+    if (!user || selectedAddressId) return;
+    try {
+      const isFirstAddress = savedAddresses.length === 0;
+      const { data, error } = await supabase
+        .from('user_addresses')
+        .insert([{
+          user_id: user.id,
+          full_name: formData.fullName,
+          phone: formData.phone,
+          house_number: formData.houseNumber,
+          area: formData.area,
+          landmark: formData.landmark,
+          city: formData.city,
+          state: formData.state,
+          pincode: formData.pincode,
+          country: formData.country || 'India',
+          address_type: 'home',
+          is_default: isFirstAddress,
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Failed to save address to address book:", error);
+        return;
+      }
+      if (data) {
+        setSavedAddresses((prev) => [data, ...prev]);
+        setSelectedAddressId(String(data.id));
+      }
+    } catch (e) {
+      console.error("Failed to save address to address book:", e);
     }
   };
 
@@ -491,6 +533,10 @@ const Checkout = ({
           "Payment amount must be at least ₹1. Please remove the coupon or contact support."
         );
         return;
+      }
+
+      if (saveAddressChecked) {
+        await saveAddressToBook();
       }
 
       const responseData = await getAccessKey();
@@ -817,6 +863,18 @@ const Checkout = ({
               </Form.Group>
             );
           })}
+
+          {!selectedAddressId && (
+            <Form.Group className="mb-3 form-group">
+              <Form.Check
+                type="checkbox"
+                id="saveAddressCheckbox"
+                label="Save this address to my address book for faster checkout next time"
+                checked={saveAddressChecked}
+                onChange={(e) => setSaveAddressChecked(e.target.checked)}
+              />
+            </Form.Group>
+          )}
 
           {/* New Payment Method Block */}
           <Form.Group controlId="paymentMethod">

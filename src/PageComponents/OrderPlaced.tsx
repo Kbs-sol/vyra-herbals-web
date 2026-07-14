@@ -259,13 +259,9 @@ const OrderPlaced = () => {
           <Section>
             <h3 className="section-title">Order Information</h3>
             <Row label="Order ID" value={orderIdDisplay} />
-            <Row label="Shipping ID" value={order.shipment_id ? String(order.shipment_id) : 'Pending sync'} />
-            <Row label="AWB / Tracking No." value={order.awb_code || order.tracking_id || 'Will update shortly'} />
-            {order.courier_name ? <Row label="Courier" value={order.courier_name} /> : null}
             <Row label="Order Amount" value={`₹${amount}`} />
             <Row label="Order Date" value={orderDate} />
             <Row label="Payment Method" value={(order.payment_method || 'online').toUpperCase()} />
-            <Row label="Transaction ID" value={order.txn_id || '—'} />
           </Section>
 
           <Section>
