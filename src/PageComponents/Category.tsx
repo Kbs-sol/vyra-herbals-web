@@ -243,7 +243,7 @@ const Category = () => {
               </FilterGroup>
 
               {/* Reset Filters Button */}
-              <FilterGroup>
+              <FilterGroup className="reset-group">
                 <button
                   onClick={() => {
                     setSortBy('price-low-high');
@@ -322,9 +322,15 @@ const FilterContainer = styled.div`
   }
 
   @media (max-width: 480px) {
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     align-items: stretch;
-    gap: 10px;
+    gap: 8px;
+    padding: 10px;
+
+    & > *:first-child {
+      grid-column: 1 / -1;
+    }
   }
 `;
 
@@ -400,15 +406,27 @@ const FilterGroup = styled.div`
   }
 
   @media (max-width: 480px) {
-    flex-direction: column;
-    align-items: stretch;
+    flex-wrap: wrap;
+    gap: 6px;
 
     label {
-      margin-bottom: 4px;
+      font-size: 12px;
     }
 
     .filter-select,
     .filter-input {
+      flex: 1;
+      min-width: 0;
+      padding: 6px 8px;
+      font-size: 13px;
+    }
+
+    &.reset-group,
+    &.results-count {
+      grid-column: 1 / -1;
+    }
+
+    .reset-btn {
       width: 100%;
     }
   }
