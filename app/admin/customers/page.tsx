@@ -25,11 +25,12 @@ export default function CustomersPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [sortBy, setSortBy] = useState<'totalSpent' | 'orderCount' | 'lastOrderDate' | 'name'>('totalSpent');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [filter, setFilter] = useState<'all' | 'purchasers' | 'leads'>('all');
   const [totals, setTotals] = useState({ totalRevenue: 0, totalOrders: 0, totalCustomers: 0, avgCustomerValue: 0 });
 
   useEffect(() => {
     fetchCustomers();
-  }, [currentPage, sortBy, sortOrder]);
+  }, [currentPage, sortBy, sortOrder, filter]);
 
   const fetchCustomers = async () => {
     setLoading(true);
@@ -40,6 +41,7 @@ export default function CustomersPage() {
         search: searchQuery,
         sortBy,
         sortOrder,
+        filter,
       });
 
       const res = await fetch(`/api/admin/customers?${params}`);
@@ -94,6 +96,28 @@ export default function CustomersPage() {
           <div className="header-info">
             <p className="subtitle">{totalItems} total customers</p>
           </div>
+        </div>
+
+        {/* Customer Tabs */}
+        <div className="customer-tabs">
+          <button 
+            className={`tab ${filter === 'all' ? 'active' : ''}`} 
+            onClick={() => { setFilter('all'); setCurrentPage(1); }}
+          >
+            All Customers
+          </button>
+          <button 
+            className={`tab ${filter === 'purchasers' ? 'active' : ''}`} 
+            onClick={() => { setFilter('purchasers'); setCurrentPage(1); }}
+          >
+            Purchasers
+          </button>
+          <button 
+            className={`tab ${filter === 'leads' ? 'active' : ''}`} 
+            onClick={() => { setFilter('leads'); setCurrentPage(1); }}
+          >
+            Signed Up (No Orders)
+          </button>
         </div>
 
         {/* Search & Sort */}
@@ -424,6 +448,36 @@ export default function CustomersPage() {
             color: #6b7280;
             font-size: 14px;
             margin: 0;
+          }
+
+          .customer-tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 12px;
+          }
+
+          .customer-tabs .tab {
+            padding: 8px 16px;
+            background: none;
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            color: #6b7280;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s;
+          }
+
+          .customer-tabs .tab:hover {
+            background: #f3f4f6;
+            color: #374151;
+          }
+
+          .customer-tabs .tab.active {
+            background: #1f2937;
+            color: white;
           }
 
           .filters {

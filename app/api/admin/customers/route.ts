@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || '';
     const sortBy = searchParams.get('sortBy') || 'totalSpent';
     const sortOrder = searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc';
+    const filter = searchParams.get('filter') || 'all';
 
     // Only count successfully placed orders (exclude pending/failed/cancelled).
     // Uses the shared definition so this can never drift from the dashboard.
@@ -118,6 +119,13 @@ export async function GET(request: NextRequest) {
     });
 
     let customers = Array.from(customerMap.values());
+
+    // Apply filter for all/purchasers/leads
+    if (filter === 'purchasers') {
+      customers = customers.filter(c => c.orderCount > 0);
+    } else if (filter === 'leads') {
+      customers = customers.filter(c => c.orderCount === 0);
+    }
 
     // Apply search filter
     if (search) {
