@@ -12,6 +12,7 @@ interface Customer {
   orderCount: number;
   totalSpent: number;
   lastOrderDate: string | null;
+  registeredAt?: string | null;
   status: string;
 }
 
@@ -23,7 +24,7 @@ export default function CustomersPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [sortBy, setSortBy] = useState<'totalSpent' | 'orderCount' | 'lastOrderDate' | 'name'>('totalSpent');
+  const [sortBy, setSortBy] = useState<'totalSpent' | 'orderCount' | 'lastOrderDate' | 'name' | 'registeredAt'>('totalSpent');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [filter, setFilter] = useState<'all' | 'purchasers' | 'leads'>('all');
   const [totals, setTotals] = useState({ totalRevenue: 0, totalOrders: 0, totalCustomers: 0, avgCustomerValue: 0 });
@@ -82,6 +83,61 @@ export default function CustomersPage() {
     });
   };
 
+  const exportToCSV = async () => {
+    try {
+      const params = new URLSearchParams({
+        page: '1',
+        limit: '100000',
+        search: searchQuery,
+        sortBy,
+        sortOrder,
+        filter,
+      });
+
+      const res = await fetch(`/api/admin/customers?${params}`);
+      const data = await res.json();
+
+      if (data.success && data.data.length > 0) {
+        const csvRows = [];
+        if (filter === 'leads') {
+          csvRows.push(['Name', 'Email', 'Phone', 'Registered At'].join(','));
+          data.data.forEach((c: Customer) => {
+            csvRows.push([
+              `"${String(c.name || '').replace(/"/g, '""')}"`,
+              `"${c.email || ''}"`,
+              `"${c.phone || ''}"`,
+              `"${c.registeredAt ? formatDate(c.registeredAt) : ''}"`
+            ].join(','));
+          });
+        } else {
+          csvRows.push(['Name', 'Email', 'Phone', 'Orders', 'Total Spent', 'Last Order'].join(','));
+          data.data.forEach((c: Customer) => {
+            csvRows.push([
+              `"${String(c.name || '').replace(/"/g, '""')}"`,
+              `"${c.email || ''}"`,
+              `"${c.phone || ''}"`,
+              c.orderCount || 0,
+              c.totalSpent || 0,
+              `"${c.lastOrderDate ? formatDate(c.lastOrderDate) : ''}"`
+            ].join(','));
+          });
+        }
+
+        const csvString = csvRows.join('\n');
+        const blob = new Blob([csvString], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `customers_${filter}_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      alert('Failed to export CSV');
+    }
+  };
+
   const getCustomerTier = (totalSpent: number) => {
     if (totalSpent >= 10000) return { name: 'Gold', color: '#f59e0b', bg: '#fef3c7' };
     if (totalSpent >= 5000) return { name: 'Silver', color: '#6b7280', bg: '#f3f4f6' };
@@ -96,25 +152,31 @@ export default function CustomersPage() {
           <div className="header-info">
             <p className="subtitle">{totalItems} total customers</p>
           </div>
+          <button onClick={exportToCSV} className="export-btn">
+            <svg viewBox="0 0 24 24" fill="none" width="16" height="16" style={{ marginRight: '8px' }}>
+              <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Export CSV
+          </button>
         </div>
 
         {/* Customer Tabs */}
         <div className="customer-tabs">
           <button 
             className={`tab ${filter === 'all' ? 'active' : ''}`} 
-            onClick={() => { setFilter('all'); setCurrentPage(1); }}
+            onClick={() => { setFilter('all'); setCurrentPage(1); setSortBy('totalSpent'); setSortOrder('desc'); }}
           >
             All Customers
           </button>
           <button 
             className={`tab ${filter === 'purchasers' ? 'active' : ''}`} 
-            onClick={() => { setFilter('purchasers'); setCurrentPage(1); }}
+            onClick={() => { setFilter('purchasers'); setCurrentPage(1); setSortBy('totalSpent'); setSortOrder('desc'); }}
           >
             Purchasers
           </button>
           <button 
             className={`tab ${filter === 'leads' ? 'active' : ''}`} 
-            onClick={() => { setFilter('leads'); setCurrentPage(1); }}
+            onClick={() => { setFilter('leads'); setCurrentPage(1); setSortBy('registeredAt'); setSortOrder('desc'); }}
           >
             Signed Up (No Orders)
           </button>
@@ -152,6 +214,7 @@ export default function CustomersPage() {
               <option value="orderCount">Orders</option>
               <option value="lastOrderDate">Last Order</option>
               <option value="name">Name</option>
+              {filter === 'leads' && <option value="registeredAt">Registration Date</option>}
             </select>
             <button
               type="button"
@@ -252,11 +315,15 @@ export default function CustomersPage() {
                 <tr>
                   <th>Customer</th>
                   <th>Contact</th>
-                  <th>Orders</th>
-                  <th>Total Spent</th>
-                  <th>Tier</th>
-                  <th>Last Order</th>
-                  <th>Actions</th>
+                  {filter !== 'leads' && (
+                    <>
+                      <th>Orders</th>
+                      <th>Total Spent</th>
+                      <th>Tier</th>
+                      <th>Last Order</th>
+                      <th>Actions</th>
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -279,27 +346,31 @@ export default function CustomersPage() {
                           <span className="phone">{customer.phone || '-'}</span>
                         </div>
                       </td>
-                      <td className="orders-count">{customer.orderCount}</td>
-                      <td className="amount">{formatCurrency(customer.totalSpent)}</td>
-                      <td>
-                        <span 
-                          className="tier-badge"
-                          style={{ backgroundColor: tier.bg, color: tier.color }}
-                        >
-                          {tier.name}
-                        </span>
-                      </td>
-                      <td className="date">
-                        {customer.lastOrderDate ? formatDate(customer.lastOrderDate) : '-'}
-                      </td>
-                      <td>
-                        <button 
-                          className="view-btn"
-                          onClick={() => setSelectedCustomer(customer)}
-                        >
-                          View Details
-                        </button>
-                      </td>
+                      {filter !== 'leads' && (
+                        <>
+                          <td className="orders-count">{customer.orderCount}</td>
+                          <td className="amount">{formatCurrency(customer.totalSpent)}</td>
+                          <td>
+                            <span 
+                              className="tier-badge"
+                              style={{ backgroundColor: tier.bg, color: tier.color }}
+                            >
+                              {tier.name}
+                            </span>
+                          </td>
+                          <td className="date">
+                            {customer.lastOrderDate ? formatDate(customer.lastOrderDate) : '-'}
+                          </td>
+                          <td>
+                            <button 
+                              className="view-btn"
+                              onClick={() => setSelectedCustomer(customer)}
+                            >
+                              View Details
+                            </button>
+                          </td>
+                        </>
+                      )}
                     </tr>
                   );
                 })}
@@ -448,6 +519,24 @@ export default function CustomersPage() {
             color: #6b7280;
             font-size: 14px;
             margin: 0;
+          }
+
+          .export-btn {
+            display: flex;
+            align-items: center;
+            padding: 8px 16px;
+            background-color: #10b981;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+          }
+
+          .export-btn:hover {
+            background-color: #059669;
           }
 
           .customer-tabs {

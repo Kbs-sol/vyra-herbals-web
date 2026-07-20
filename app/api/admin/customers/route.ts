@@ -150,6 +150,11 @@ export async function GET(request: NextRequest) {
         }
         case 'name':
           return a.name.localeCompare(b.name) * dir;
+        case 'registeredAt': {
+          const aTime = a.registeredAt ? new Date(a.registeredAt).getTime() : 0;
+          const bTime = b.registeredAt ? new Date(b.registeredAt).getTime() : 0;
+          return (aTime - bTime) * dir;
+        }
         case 'totalSpent':
         default:
           return (a.totalSpent - b.totalSpent) * dir;
