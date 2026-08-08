@@ -28,6 +28,20 @@ interface CartContextType {
   appliedCoupon: AppliedCoupon | null;
   applyCoupon: (code: string) => Promise<{ ok: boolean; reason?: string }>;
   removeCoupon: () => void;
+  /**
+   * "Buy now" bypasses the cart entirely — Checkout is handed the product
+   * directly. Coupons must still validate against *something*, so the
+   * buy-now flow registers its line items here and the coupon logic below
+   * prefers them over `cartItems` (which is legitimately empty in that flow).
+   */
+  directCheckoutItems: CouponLineItem[] | null;
+  setDirectCheckoutItems: (items: CouponLineItem[] | null) => void;
+}
+
+interface CouponLineItem {
+  id: number | string;
+  price: number;
+  quantity: number;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -36,7 +50,20 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cartCount, setCartCount] = useState<number>(0);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
+  const [directCheckoutItems, setDirectCheckoutItems] = useState<CouponLineItem[] | null>(null);
   const router = useRouter();
+
+  // Items a coupon is validated against: the buy-now line items when the
+  // direct-checkout flow is active, otherwise the cart.
+  const couponItems: CouponLineItem[] =
+    directCheckoutItems && directCheckoutItems.length > 0
+      ? directCheckoutItems
+      : (cartItems || []).map(it => ({
+        id: it.id,
+        price: Number(it.price) || 0,
+        quantity: Number(it.quantity) || 0,
+      }));
+  const couponItemsKey = couponItems.map(i => `${i.id}:${i.quantity}:${i.price}`).join('|');
 
   const { user, loading } = useAuth();
 
@@ -258,7 +285,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const applyCoupon = async (code: string): Promise<{ ok: boolean; reason?: string }> => {
     const trimmed = (code || '').trim();
     if (!trimmed) return { ok: false, reason: 'Enter a coupon code' };
-    if (!cartItems || cartItems.length === 0) {
+    if (couponItems.length === 0) {
       return { ok: false, reason: 'Add items to cart before applying a coupon' };
     }
 
@@ -270,11 +297,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
       } catch { /* ignore */ }
 
-      const items = cartItems.map(it => ({
-        id: it.id,
-        price: Number(it.price) || 0,
-        quantity: Number(it.quantity) || 0,
-      }));
+      const items = couponItems;
 
       const res = await fetch('/api/coupon/validate', {
         method: 'POST',
@@ -312,7 +335,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     if (!appliedCoupon) return;
     const code = appliedCoupon.code;
     // No items left → drop coupon
-    if (!cartItems || cartItems.length === 0) {
+    if (couponItems.length === 0) {
       setAppliedCoupon(null);
       return;
     }
@@ -324,15 +347,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
         } catch { /* ignore */ }
-        const items = cartItems.map(it => ({
-          id: it.id,
-          price: Number(it.price) || 0,
-          quantity: Number(it.quantity) || 0,
-        }));
         const res = await fetch('/api/coupon/validate', {
           method: 'POST',
           headers,
-          body: JSON.stringify({ code, items }),
+          body: JSON.stringify({ code, items: couponItems }),
         });
         const data = await res.json();
         if (data?.ok) {
@@ -346,7 +364,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cartItems.map(i => `${i.id}:${i.quantity}:${i.price}`).join('|')]);
+  }, [couponItemsKey]);
 
   return (
     <CartContext.Provider
@@ -362,6 +380,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         appliedCoupon,
         applyCoupon,
         removeCoupon,
+        directCheckoutItems,
+        setDirectCheckoutItems,
       }}
     >
       {children}

@@ -51,6 +51,10 @@ export type IcarryTokenResult = { token: string | null; reason?: string };
 // cold-start, Supabase reads, and the redirect itself. Don't widen these
 // without also bumping vercel.json maxDuration.
 const ICARRY_TOKEN_FETCH_TIMEOUT_MS = 5000;
+
+// Advance collected online for a COD order (mirrors the ₹100 charged in
+// Checkout). Used to derive the amount the courier still has to collect.
+const COD_ADVANCE_DEFAULT = 100;
 const ICARRY_TOKEN_MAX_RETRIES = 1;
 
 const fetchWithTimeout = async (url: string, init: RequestInit, timeoutMs: number) => {
@@ -368,8 +372,32 @@ export const createShipment = async (orderData: any) => {
         }
 
         // iCarry requires a positive decimal for parcel value; floor at 1 so it never hits zero.
-        const parcelValue = Math.max(1, Number(orderData.total_amount) || 0);
+        const declaredValue = Math.max(1, Number(orderData.total_amount) || 0);
         const isPrepaid = orderData.payment_method === 'online';
+
+        // For COD, `parcel[value]` is what the courier collects from the
+        // consignee (iCarry API v16: "In case of COD type this is the amount to
+        // be collected from consignee") — it is NOT just a declared value. The
+        // customer has already paid a ₹100 advance online at checkout, so the
+        // courier must collect total_amount − 100.
+        //   e.g. items ₹249 + ₹50 COD charge = ₹299 total, ₹100 advance paid
+        //        → collect ₹199 (= items total − ₹50).
+        // `transaction_price` holds the advance actually charged; fall back to
+        // the ₹100 default if the row predates that field or looks wrong.
+        const codAdvance = (() => {
+            const paid = Number(orderData.transaction_price);
+            if (Number.isFinite(paid) && paid > 0 && paid < declaredValue) return paid;
+            return COD_ADVANCE_DEFAULT;
+        })();
+        const parcelValue = isPrepaid
+            ? declaredValue
+            : Math.max(1, declaredValue - codAdvance);
+
+        if (!isPrepaid) {
+            console.log(
+                `[Shipping] COD order ${orderData.id}: total ₹${declaredValue} − advance ₹${codAdvance} → collect ₹${parcelValue}`
+            );
+        }
 
         // Resolve which courier to auto-assign (Xpressbees → Delhivery). We ask
         // iCarry which couriers can actually service THIS parcel, then pick the

@@ -45,7 +45,7 @@ const Checkout = ({
   quantity?: number;
 }) => {
   const { user } = useAuth();
-  const { appliedCoupon } = useCart();
+  const { appliedCoupon, setDirectCheckoutItems } = useCart();
   const defaultFormData: CheckoutFormData = {
     fullName: "",
     phone: "",
@@ -201,6 +201,26 @@ const Checkout = ({
       updateOrderedItemsState([{ ...product, quantity }]);
     }
   }, [cartItems, product, quantity]);
+
+  // "Buy now" skips the cart, so the cart context has nothing to validate a
+  // coupon against. Publish the single line item while this checkout is open
+  // (and clear it on close) so coupons work in the direct-buy flow too.
+  const isDirectBuy = (!cartItems || cartItems.length === 0) && !!product;
+  useEffect(() => {
+    if (showModal && isDirectBuy) {
+      setDirectCheckoutItems([
+        {
+          id: product.id,
+          price: Number(product.price) || 0,
+          quantity: Number(quantity) || 1,
+        },
+      ]);
+    } else {
+      setDirectCheckoutItems(null);
+    }
+    return () => setDirectCheckoutItems(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showModal, isDirectBuy, product?.id, product?.price, quantity]);
 
   useEffect(() => {
     if (user && showModal) {

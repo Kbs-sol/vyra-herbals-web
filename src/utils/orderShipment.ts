@@ -77,6 +77,9 @@ export const syncOrderShipment = async (supabase: any, order: any): Promise<Sync
                 shipping_data: order.shipping_data,
                 payment_method: order.payment_method,
                 total_amount: order.total_amount,
+                // Advance already paid online — createShipment subtracts it to
+                // get the COD amount the courier must collect.
+                transaction_price: order.transaction_price,
             }),
             SYNC_HARD_TIMEOUT_MS,
             `iCarry sync for order ${order.id}`
