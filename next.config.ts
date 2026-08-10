@@ -1,5 +1,36 @@
 import type { NextConfig } from 'next';
 
+/**
+ * Content-Security-Policy for the storefront.
+ *
+ * Scope note: `script-src` still allows 'unsafe-inline' and 'unsafe-eval'
+ * because Next.js's inline bootstrap, Google Tag Manager and the Meta Pixel all
+ * require them, and styled-components injects inline <style> tags. That means
+ * this policy does not stop an inline-injection payload — what it does stop is
+ * the far more common follow-on step of loading or exfiltrating to an
+ * attacker-controlled host, since every source list is an explicit allow-list.
+ * Tightening `script-src` to a nonce is the next step, and needs the GTM and
+ * Pixel snippets moved to next/script with a nonce first.
+ */
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "form-action 'self' https://pay.easebuzz.in https://testpay.easebuzz.in",
+  // Nobody may frame the storefront: blocks clickjacking of the checkout.
+  "frame-ancestors 'self'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://connect.facebook.net https://pay.easebuzz.in https://testpay.easebuzz.in https://ebz-static.s3.ap-south-1.amazonaws.com https://cdn.jsdelivr.net",
+  "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data: https://cdn.jsdelivr.net",
+  "connect-src 'self' https://*.supabase.co https://*.supabase.in https://www.googletagmanager.com https://connect.facebook.net https://www.facebook.com https://cpaas.messagecentral.com https://api.postalpincode.in https://www.icarry.in https://pay.easebuzz.in https://testpay.easebuzz.in",
+  // Payment gateway and embedded marketing video.
+  "frame-src 'self' https://pay.easebuzz.in https://testpay.easebuzz.in https://www.youtube.com https://www.youtube-nocookie.com https://www.facebook.com",
+  "worker-src 'self' blob:",
+  "manifest-src 'self'",
+  "upgrade-insecure-requests",
+].join('; ');
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
 
@@ -27,6 +58,13 @@ const nextConfig: NextConfig = {
   // Styled components configuration
   compiler: {
     styledComponents: true,
+    // Strip console output from production builds. The codebase logs order
+    // payloads, cart contents, phone numbers and user ids at various points;
+    // in a production bundle those land in the visitor's console and in any
+    // error-reporting tool that scrapes it. `error` and `warn` are kept so
+    // genuine failures remain diagnosable.
+    removeConsole:
+      process.env.NODE_ENV === 'production' ? { exclude: ['error', 'warn'] } : false,
   },
 
   // Caching and compression headers
@@ -52,26 +90,37 @@ const nextConfig: NextConfig = {
           },
         ],
       },
-      // Compression for HTML/CSS/JS
+      // Never let an API response be cached by a proxy or the browser: these
+      // carry per-customer data and, for admin routes, privileged data.
+      {
+        source: '/api/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'no-store, max-age=0' },
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
+        ],
+      },
+      // Baseline security headers for every response.
       {
         source: '/:path*',
         headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'X-XSS-Protection', value: '1; mode=block' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          // Deny hardware/permission APIs the storefront never uses, so an
+          // injected script cannot quietly reach for them.
           {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
+            key: 'Permissions-Policy',
+            value:
+              'camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=(), interest-cohort=()',
           },
+          // Force HTTPS for a year. Safe here because the site is HTTPS-only
+          // behind Vercel; do not enable on a host that still serves plain HTTP.
           {
-            key: 'X-Frame-Options',
-            value: 'SAMEORIGIN',
+            key: 'Strict-Transport-Security',
+            value: 'max-age=31536000; includeSubDomains; preload',
           },
-          {
-            key: 'X-XSS-Protection',
-            value: '1; mode=block',
-          },
-          {
-            key: 'Referrer-Policy',
-            value: 'strict-origin-when-cross-origin',
-          },
+          { key: 'Content-Security-Policy', value: contentSecurityPolicy },
         ],
       },
     ];
@@ -109,9 +158,15 @@ const nextConfig: NextConfig = {
 
   // TypeScript configuration
   typescript: {
-    // Ignore type errors from auto-generated validator files
+    // Still true only because the pre-existing UI components carry 61 type
+    // errors that predate this hardening pass; flipping this to false today
+    // would simply stop the site building. The errors are now visible via
+    // `npm run typecheck`, which is the gate to fix before turning this off.
     ignoreBuildErrors: true,
   },
+
+  // Do not advertise the framework to attackers scanning for version-specific bugs.
+  poweredByHeader: false,
 };
 
 export default nextConfig;

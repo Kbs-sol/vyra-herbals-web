@@ -1,33 +1,40 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
+import { getAuthedUser } from '@/utils/apiAuth';
+import { enforceRateLimit } from '@/utils/rateLimit';
+
+export const runtime = 'nodejs';
+
+/**
+ * Fetch a single order for the order-confirmation and order-detail views.
+ *
+ * The previous version returned the order whenever `order.user_id` was null —
+ * so every guest-checkout order, including the customer's name, phone, email
+ * and full shipping address, was readable by anyone who could supply an
+ * order id (which are sequential timestamps). Guest access now requires the
+ * caller to also prove they know the email the order was placed with.
+ */
+
+/** Case-insensitive, whitespace-tolerant email comparison. */
+function sameEmail(a?: string | null, b?: string | null): boolean {
+  if (!a || !b) return false;
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
 
 export async function GET(req: Request) {
   try {
+    // Order ids are guessable, so throttle enumeration attempts.
+    const limited = enforceRateLimit(req, 'orders:info', 30, 60_000);
+    if (limited) return limited;
+
     const url = new URL(req.url);
     const order_id = url.searchParams.get('order_id');
     if (!order_id) return NextResponse.json({ error: 'order_id required' }, { status: 400 });
 
     const supabase = createServerSupabase();
 
-    // 1. Get user from auth token
-    const authHeader = req.headers.get('Authorization');
-    let user: any = null;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(token);
-      if (!authError) {
-        user = authUser;
-      } else {
-        // Surface WHY a presented token was rejected (e.g. "JWT expired",
-        // "invalid signature") — this is what to look for in the server logs
-        // when an owner unexpectedly gets a 403.
-        console.warn(`[orders/info] token rejected for order ${order_id}:`, authError.message, '| status', (authError as any).status);
-      }
-    } else {
-      console.warn(`[orders/info] no Authorization header for order ${order_id}`);
-    }
+    const user = await getAuthedUser(req, supabase);
 
-    // 2. Fetch order
     const { data: orders, error } = await supabase
       .from('orders')
       .select('*')
@@ -35,8 +42,8 @@ export async function GET(req: Request) {
       .limit(1);
 
     if (error) {
-      console.error('Order info error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error('[orders/info] lookup failed:', error.message);
+      return NextResponse.json({ error: 'Could not load order' }, { status: 500 });
     }
 
     const order = orders?.[0];
@@ -44,49 +51,46 @@ export async function GET(req: Request) {
       return NextResponse.json({ status: 'error', message: 'Order not found' }, { status: 404 });
     }
 
-    // 3. Security check: Ensure user owns this order
-    // Allow if:
-    // a. Order belongs to this user ID
-    // b. User's email matches the shipping email (for legacy or guest orders)
-    // c. User is an admin (role 2)
+    const shippingData =
+      typeof order.shipping_data === 'string'
+        ? JSON.parse(order.shipping_data)
+        : order.shipping_data;
+
+    // Authorisation, in order of strength:
+    //   1. the order belongs to the signed-in user
+    //   2. the signed-in user is an admin
+    //   3. the signed-in user's email matches the order's shipping email
+    //      (covers orders placed before the account existed)
+    //   4. an anonymous caller supplies the matching shipping email for a
+    //      guest order — knowledge of the email is the shared secret here
     let isAuthorized = false;
-
-    // Check role if user exists
-    let userRole = 1;
-    if (user) {
-      const { data: userData } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle();
-      userRole = userData?.role || 1;
-    }
-
-    const shippingData = typeof order.shipping_data === 'string'
-      ? JSON.parse(order.shipping_data)
-      : order.shipping_data;
 
     if (user) {
       if (order.user_id === user.id) isAuthorized = true;
-      else if (userRole === 2) isAuthorized = true; // Admin
-      else if (user.email && shippingData && shippingData.email === user.email) isAuthorized = true;
+      else if (user.role === 2) isAuthorized = true;
+      else if (sameEmail(user.email, shippingData?.email)) isAuthorized = true;
     }
 
-    // If still not authorized, check if it's a guest order or legacy view (less secure, but needed for some flows)
-    // For now, if no auth token but ID matches, we return error if we want it "fail-proof"
-    if (!isAuthorized && order.user_id) {
+    if (!isAuthorized && !order.user_id) {
+      // Guest order: require the caller to present the order's email.
+      const claimedEmail = url.searchParams.get('email');
+      if (sameEmail(claimedEmail, shippingData?.email)) isAuthorized = true;
+    }
+
+    if (!isAuthorized) {
+      // Log enough to debug a genuine 403 without writing PII to the log.
       console.warn(
-        `[orders/info] 403 for order ${order_id}: authenticated user=${user?.id || 'none'} (role ${userRole}, email ${user?.email || 'n/a'}), order owner=${order.user_id}, order email=${shippingData?.email || 'n/a'}`
+        `[orders/info] denied order ${order_id}: caller=${user?.id || 'anonymous'} owner=${order.user_id || 'guest'}`
       );
       return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 403 });
     }
 
-    // Normalize data for frontend
     let shippingAddressStr = order.shipping_address;
     if (!shippingAddressStr && order.shipping_data) {
-      shippingAddressStr = typeof order.shipping_data === 'string'
-        ? order.shipping_data
-        : JSON.stringify(order.shipping_data);
+      shippingAddressStr =
+        typeof order.shipping_data === 'string'
+          ? order.shipping_data
+          : JSON.stringify(order.shipping_data);
     }
 
     const mappedOrder = {
@@ -95,12 +99,9 @@ export async function GET(req: Request) {
       products: order.items || order.products || [],
     };
 
-    return NextResponse.json({
-      status: 'success',
-      data: mappedOrder
-    });
+    return NextResponse.json({ status: 'success', data: mappedOrder });
   } catch (err) {
-    console.error('Order info exception:', err);
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    console.error('[orders/info] handler exception:', err);
+    return NextResponse.json({ error: 'Could not load order' }, { status: 500 });
   }
 }

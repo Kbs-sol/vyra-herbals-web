@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
+import { requireAdmin } from '@/utils/adminAuth';
 
 // GET - Fetch all products with pagination and filters
 export async function GET(request: NextRequest) {
+  const denied = await requireAdmin(request);
+  if (denied) return denied;
+
   try {
     const supabase = createServerSupabase();
     const searchParams = request.nextUrl.searchParams;
@@ -62,6 +66,9 @@ export async function GET(request: NextRequest) {
 
 // POST - Create new product
 export async function POST(request: NextRequest) {
+  const denied = await requireAdmin(request);
+  if (denied) return denied;
+
   try {
     const supabase = createServerSupabase();
     const body = await request.json();
@@ -113,6 +120,9 @@ export async function POST(request: NextRequest) {
 
 // PUT - Update product
 export async function PUT(request: NextRequest) {
+  const denied = await requireAdmin(request);
+  if (denied) return denied;
+
   try {
     const supabase = createServerSupabase();
     const body = await request.json();
@@ -173,6 +183,9 @@ export async function PUT(request: NextRequest) {
 
 // DELETE - Delete product
 export async function DELETE(request: NextRequest) {
+  const denied = await requireAdmin(request);
+  if (denied) return denied;
+
   try {
     const supabase = createServerSupabase();
     const searchParams = request.nextUrl.searchParams;

@@ -2,29 +2,103 @@ import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
 import { validateCoupon, recordCouponUsage } from '@/utils/coupons';
 import { syncOrderShipment } from '@/utils/orderShipment';
+import { requireUser } from '@/utils/apiAuth';
+import { enforceRateLimit } from '@/utils/rateLimit';
+import { COD_Charges } from '@/constants';
 
 export const runtime = 'nodejs';
 export const preferredRegion = 'bom1';
 export const maxDuration = 30;
 
+/**
+ * Place a cash-on-delivery order.
+ *
+ * This route creates a real, shippable order with no payment step, so it needs
+ * to be at least as strict as the paid flow:
+ *
+ *   * It requires a signed-in customer, and the order is attached to the token's
+ *     user id — not to a `userId` in the body. Previously it was completely
+ *     unauthenticated, so anyone could POST goods to any address for free.
+ *   * Prices come from the `products` table. The client's `totalAmount` and
+ *     `transactionPrice` are recomputed and overwritten rather than trusted.
+ */
+
+/** Recompute the basket value from database prices. */
+async function computeItemsTotal(
+  supabase: any,
+  items: any[]
+): Promise<{ itemsTotal: number } | { error: string }> {
+  const ids = Array.from(
+    new Set(
+      items
+        .map((item: any) => Number(item?.id))
+        .filter((id: number) => Number.isFinite(id) && id > 0)
+    )
+  );
+
+  if (ids.length === 0) return { error: 'Order items are missing product identifiers.' };
+
+  const { data: products, error } = await supabase
+    .from('products')
+    .select('id, price')
+    .in('id', ids);
+
+  if (error) {
+    console.error('[COD] price lookup failed:', error.message);
+    return { error: 'Could not verify prices. Please try again.' };
+  }
+
+  const priceById = new Map<number, number>();
+  for (const row of products || []) priceById.set(Number(row.id), Number(row.price) || 0);
+
+  let itemsTotal = 0;
+  for (const item of items) {
+    const price = priceById.get(Number(item?.id));
+    if (price === undefined) return { error: 'One of the items in your cart is no longer available.' };
+    const quantity = Math.floor(Number(item?.quantity) || 0);
+    if (quantity <= 0 || quantity > 99) return { error: 'Invalid quantity in your cart.' };
+    itemsTotal += price * quantity;
+  }
+
+  itemsTotal = Math.round(itemsTotal);
+  if (itemsTotal <= 0) return { error: 'Order total must be greater than zero.' };
+
+  return { itemsTotal };
+}
+
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
+    const supabase = createServerSupabase();
+
+    const auth = await requireUser(req, supabase);
+    if ('response' in auth) return auth.response;
+    const userId = auth.user.id;
+
+    // Placing an order is expensive downstream (iCarry booking, SMS), so cap
+    // how fast one account can create them.
+    const limited = enforceRateLimit(req, 'payment:cod', 10, 10 * 60 * 1000, userId);
+    if (limited) return limited;
+
+    const body = await req.json().catch(() => ({}));
     const { orderData } = body || {};
-    console.log('COD Order Request:', {
-      userId: orderData?.userId,
-      totalAmount: orderData?.totalAmount
-    });
 
     if (!orderData) return NextResponse.json({ error: 'orderData required' }, { status: 400 });
 
-    const supabase = createServerSupabase();
+    const orderItems = Array.isArray(orderData.orderItems) ? orderData.orderItems : [];
+    if (orderItems.length === 0) {
+      return NextResponse.json({ error: 'Order must contain at least one item.' }, { status: 400 });
+    }
+
+    const totals = await computeItemsTotal(supabase, orderItems);
+    if ('error' in totals) {
+      return NextResponse.json({ error: totals.error }, { status: 400 });
+    }
 
     // --- Welcome Coupon Server-Side Validation ---
     let welcomeCouponApplied = false;
     let welcomeCouponDiscount = 0;
 
-    if (orderData.welcomeCouponApplied && orderData.userId) {
+    if (orderData.welcomeCouponApplied && userId) {
       // 1. Check if welcome coupon is enabled
       const { data: settingsRow } = await supabase
         .from('site_settings')
@@ -38,15 +112,12 @@ export async function POST(req: Request) {
       const { count: orderCount } = await supabase
         .from('orders')
         .select('id', { count: 'exact', head: true })
-        .eq('user_id', orderData.userId);
+        .eq('user_id', userId);
 
       if (couponConfig?.enabled && (orderCount || 0) === 0) {
         const discountPercent = couponConfig.discount_percent || 10;
         // Recalculate discount server-side from items
-        const itemsTotal = (orderData.orderItems || []).reduce(
-          (sum: number, item: any) => sum + (item.price * item.quantity), 0
-        );
-        welcomeCouponDiscount = Math.round(itemsTotal * discountPercent / 100);
+        welcomeCouponDiscount = Math.round((totals.itemsTotal * discountPercent) / 100);
         welcomeCouponApplied = true;
         console.log(`[COD] Welcome coupon applied: ${discountPercent}% = ₹${welcomeCouponDiscount} off`);
       } else {
@@ -65,7 +136,7 @@ export async function POST(req: Request) {
         supabase,
         orderData.couponCode,
         orderData.orderItems || [],
-        orderData.userId || null
+        userId || null
       );
       if (result.ok) {
         appliedCouponCode = result.coupon.code;
@@ -77,21 +148,35 @@ export async function POST(req: Request) {
       }
     }
 
-    // Generate IDs manually since DB defaults seem missing
+    // Final amount owed, computed entirely from database prices plus the
+    // server-validated discounts. The client's `totalAmount` is discarded.
+    const totalDiscount = Math.min(
+      welcomeCouponDiscount + appliedCouponDiscount,
+      totals.itemsTotal
+    );
+    const payable = Math.max(0, totals.itemsTotal - totalDiscount);
+    const authoritativeTotal = payable + COD_Charges;
+
+    // Generate IDs manually since DB defaults seem missing.
+    // A bare millisecond timestamp collides when two orders land in the same
+    // millisecond, and the insert then fails on the primary key. Mixing in a
+    // few random digits keeps the id sortable by time while making a clash
+    // vanishingly unlikely.
     const now = new Date();
-    const generatedId = now.getTime(); // Simple unique int8
+    const generatedId = now.getTime() * 1000 + Math.floor(Math.random() * 1000);
     const generatedOrderId = `ORD-${generatedId}`;
 
     const orderPayload = {
       id: generatedId,
       order_id: generatedOrderId,
-      items: orderData.orderItems,
-      total_amount: orderData.totalAmount,
-      transaction_price: orderData.transactionPrice,
+      items: orderItems,
+      total_amount: authoritativeTotal,
+      // COD collects nothing online; the courier collects `total_amount`.
+      transaction_price: 0,
       shipping_data: orderData.shippingData,
       payment_method: 'cod',
       status: 'placed',
-      user_id: orderData.userId,
+      user_id: userId,
       created_at: now.toISOString(),
       order_date: now.toISOString(),
       welcome_coupon_applied: welcomeCouponApplied,
@@ -133,15 +218,15 @@ export async function POST(req: Request) {
       await recordCouponUsage(
         supabase,
         appliedCouponId,
-        orderData.userId || null,
+        userId || null,
         order?.id || null,
         appliedCouponDiscount
       );
     }
 
     // 4. Clear cart for the user
-    if (orderData.userId) {
-      await supabase.from('cart').delete().eq('user_id', orderData.userId);
+    if (userId) {
+      await supabase.from('cart').delete().eq('user_id', userId);
     }
 
     return NextResponse.json({

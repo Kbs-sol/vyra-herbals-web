@@ -4,10 +4,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
+import { getAdminJwtSecret } from '@/utils/serverEnv';
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'vyra-herbals-admin-secret-key-2024'
-);
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -23,7 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      await jwtVerify(token, JWT_SECRET);
+      await jwtVerify(token, getAdminJwtSecret());
     } catch (err) {
       return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 401 });
     }

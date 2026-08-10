@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
+import { requireAdmin } from '@/utils/adminAuth';
 
 // GET - Fetch all testimonials with pagination
 export async function GET(request: NextRequest) {
+  const denied = await requireAdmin(request);
+  if (denied) return denied;
+
   try {
     const supabase = createServerSupabase();
     const searchParams = request.nextUrl.searchParams;
@@ -56,6 +60,9 @@ export async function GET(request: NextRequest) {
 
 // POST - Create new testimonial
 export async function POST(request: NextRequest) {
+  const denied = await requireAdmin(request);
+  if (denied) return denied;
+
   try {
     const supabase = createServerSupabase();
     const body = await request.json();
@@ -90,6 +97,9 @@ export async function POST(request: NextRequest) {
 
 // PUT - Update testimonial
 export async function PUT(request: NextRequest) {
+  const denied = await requireAdmin(request);
+  if (denied) return denied;
+
   try {
     const supabase = createServerSupabase();
     const body = await request.json();
@@ -127,6 +137,9 @@ export async function PUT(request: NextRequest) {
 
 // DELETE - Delete testimonial
 export async function DELETE(request: NextRequest) {
+  const denied = await requireAdmin(request);
+  if (denied) return denied;
+
   try {
     const supabase = createServerSupabase();
     const searchParams = request.nextUrl.searchParams;

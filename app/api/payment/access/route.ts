@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
+import { requireUser } from '@/utils/apiAuth';
+import { enforceRateLimit } from '@/utils/rateLimit';
 import crypto from 'crypto';
 
 // Easebuzz rejects payloads as "Parameter validation failed" when fields contain
@@ -90,15 +92,30 @@ export async function POST(req: Request) {
 
     const supabase = createServerSupabase();
 
-    // Create transaction record
-    // Manually generate ID since DB auto-increment is missing
+    // Checkout requires a signed-in customer, so a transaction should never be
+    // opened anonymously. This also attaches the row to a real user, which is
+    // what lets /api/payment/session verify the amount against its owner.
+    const auth = await requireUser(req, supabase);
+    if ('response' in auth) return auth.response;
+    const userId = auth.user.id;
+
+    // Each attempt writes a transaction row and hits the gateway.
+    const limited = enforceRateLimit(req, 'payment:access', 20, 10 * 60 * 1000, userId);
+    if (limited) return limited;
+
+    // Create transaction record.
+    // Manually generate the ID since the DB auto-increment is missing. A bare
+    // millisecond timestamp collides when two checkouts land in the same
+    // millisecond and the insert then fails on the primary key, so mix in a few
+    // random digits while keeping the value time-sortable.
     const now = Date.now();
-    const generatedId = now;
+    const generatedId = now * 1000 + Math.floor(Math.random() * 1000);
 
     // We can use the generated ID as the numeric ID
     const { data: inserted, error } = await supabase.from('transactions').insert([
       {
         id: generatedId,
+        user_id: userId,
         amount,
         firstname,
         email,

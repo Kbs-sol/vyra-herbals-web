@@ -40,6 +40,74 @@ const sumItems = (items: CouponItem[] | undefined | null): number =>
         0
     );
 
+/** Quantities a single line item may legitimately carry. */
+const MAX_LINE_QUANTITY = 99;
+
+/**
+ * Rebuild the cart from authoritative data before any money is computed.
+ *
+ * The caller passes prices straight from the browser, so taking them at face
+ * value let a tampered payload inflate `itemsTotal` — clearing a coupon's
+ * `min_order_amount` and, for percentage coupons, producing a discount far
+ * larger than the real basket, which was then applied against the true order
+ * total at finalize. Every price is therefore re-read from `products` and the
+ * client's number is discarded.
+ *
+ * Items whose `id` cannot be resolved to a live product are dropped rather than
+ * trusted, so an invented line item contributes nothing to the total.
+ */
+async function resolveAuthoritativeItems(
+    supabase: SupabaseClient,
+    items: CouponItem[] | undefined | null
+): Promise<CouponItem[]> {
+    const source = items || [];
+    if (source.length === 0) return [];
+
+    const ids = Array.from(
+        new Set(
+            source
+                .map((item) => Number(item.id))
+                .filter((id) => Number.isFinite(id) && id > 0)
+        )
+    );
+
+    if (ids.length === 0) return [];
+
+    const { data, error } = await supabase
+        .from('products')
+        .select('id, price')
+        .in('id', ids);
+
+    if (error) {
+        // Fail closed: without trustworthy prices we cannot price a discount.
+        console.error('Coupon price resolution failed:', error.message);
+        return [];
+    }
+
+    const priceById = new Map<number, number>();
+    for (const row of data || []) {
+        priceById.set(Number((row as any).id), Number((row as any).price) || 0);
+    }
+
+    const resolved: CouponItem[] = [];
+    for (const item of source) {
+        const id = Number(item.id);
+        const price = priceById.get(id);
+        if (price === undefined) continue;
+
+        const quantity = Math.floor(Number(item.quantity) || 0);
+        if (quantity <= 0) continue;
+
+        resolved.push({
+            id,
+            price,
+            quantity: Math.min(quantity, MAX_LINE_QUANTITY),
+        });
+    }
+
+    return resolved;
+}
+
 const computeDiscount = (coupon: CouponRow, itemsTotal: number): number => {
     let discount = 0;
     if (coupon.discount_type === 'percent') {
@@ -100,7 +168,9 @@ export async function validateCoupon(
         return { ok: false, reason: 'Coupon has expired' };
     }
 
-    const itemsTotal = sumItems(items);
+    // Price the basket from the database, never from the request body.
+    const authoritativeItems = await resolveAuthoritativeItems(supabase, items);
+    const itemsTotal = sumItems(authoritativeItems);
     if (itemsTotal <= 0) return { ok: false, reason: 'Cart is empty' };
 
     if (coupon.min_order_amount && itemsTotal < Number(coupon.min_order_amount)) {

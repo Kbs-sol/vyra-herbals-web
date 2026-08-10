@@ -5,7 +5,7 @@ import { Modal, Button, Form } from "react-bootstrap";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { FaMinus, FaPlus } from "react-icons/fa";
-import { APP_NAME, COD_Charges, API_PATH } from "../constants";
+import { APP_NAME, COD_Charges, COD_ADVANCE_PAYMENT, API_PATH } from "../constants";
 import styled from "styled-components";
 import LoadingIndicator from "../Components/Common/LoadingIndicator";
 import SVGIcon from "../Components/Common/SVGIcon";
@@ -165,6 +165,20 @@ const Checkout = ({
       autoClose: tym,
       closeOnClick: true,
     });
+
+  // Payment endpoints identify the customer from their Supabase access token
+  // rather than from a `userId` in the body, so every call must carry it.
+  const authHeaders = async (): Promise<Record<string, string>> => {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+    } catch {
+      // No session: the server will reject with 401, which handlePayment
+      // surfaces to the customer as a "please sign in again" error.
+    }
+    return headers;
+  };
 
   const updateOrderedItemsState = (items) => {
     setOrderedItems(
@@ -338,7 +352,7 @@ const Checkout = ({
     if (paymentMethod === "online") {
       setTransactionPrice(Math.max(0, itemsTotal - discount));
     } else if (paymentMethod === "cod") {
-      setTransactionPrice(100);
+      setTransactionPrice(COD_ADVANCE_PAYMENT);
     }
   }, [paymentMethod, cartItems, product, quantity, appliedCoupon]);
 
@@ -609,7 +623,7 @@ const Checkout = ({
 
       const sessionRes = await fetch(`${API_PATH}/payment/session`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await authHeaders(),
         body: JSON.stringify({ txnId: paymentTxnId, orderData }),
       });
       const sessionData = await sessionRes.json().catch(() => null);
@@ -681,7 +695,7 @@ const Checkout = ({
     try {
       const response = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await authHeaders(),
         body: JSON.stringify(params),
       });
       const data = await response.json().catch(() => null);

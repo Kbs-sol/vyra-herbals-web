@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
 import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
+import { getAdminJwtSecret } from '@/utils/serverEnv';
 
-const JWT_SECRET = new TextEncoder().encode(
-    process.env.JWT_SECRET || 'vyra-herbals-admin-secret-key-2024'
-);
 
 // Verify admin JWT token from cookies
 async function verifyAdmin(): Promise<boolean> {
@@ -13,7 +11,7 @@ async function verifyAdmin(): Promise<boolean> {
         const cookieStore = await cookies();
         const token = cookieStore.get('admin_token')?.value;
         if (!token) return false;
-        const { payload } = await jwtVerify(token, JWT_SECRET);
+        const { payload } = await jwtVerify(token, getAdminJwtSecret());
         return payload.role === 'admin';
     } catch {
         return false;

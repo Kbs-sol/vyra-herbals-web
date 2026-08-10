@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { createShipment, getIcarryToken } from "@/utils/shipping";
+import { requireAdmin } from '@/utils/adminAuth';
 
 export async function POST(req: Request) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
+
     try {
         // First test just getting a token:
         const token = await getIcarryToken();

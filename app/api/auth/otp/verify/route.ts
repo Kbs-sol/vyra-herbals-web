@@ -8,10 +8,13 @@ import {
     findPhoneUser,
     findAuthUserByEmailPaginated,
 } from '@/utils/authAdmin';
+import { enforceRateLimit } from '@/utils/rateLimit';
+
+export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
     try {
-        const { phone, verificationId, code, name, password } = await req.json();
+        const { phone, verificationId, code, name, password } = await req.json().catch(() => ({}));
 
         if (!phone || !verificationId || !code) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -28,6 +31,15 @@ export async function POST(req: Request) {
         if (!isValidPhone(cleanedPhone)) {
             return NextResponse.json({ error: 'Enter a valid 10-digit mobile number' }, { status: 400 });
         }
+
+        // An OTP is only a handful of digits, so without a cap on attempts it
+        // can simply be guessed. Throttle per phone number and per source IP
+        // before spending a verification call.
+        const phoneLimited = enforceRateLimit(req, 'otp:verify:phone', 8, 15 * 60 * 1000, cleanedPhone);
+        if (phoneLimited) return phoneLimited;
+
+        const ipLimited = enforceRateLimit(req, 'otp:verify:ip', 20, 15 * 60 * 1000);
+        if (ipLimited) return ipLimited;
 
         // Verify the OTP first — proof of phone ownership gates both account
         // creation and password reset.

@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 import CookieUtils from './cookieUtils';
+import { getSupabaseServiceRoleKey, getSupabaseUrl } from './serverEnv';
 
 // Client-side (public) Supabase client
 export const supabase = createClient(
@@ -30,12 +31,14 @@ export function createServerSupabase() {
     }
   }
 
-  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) {
-    console.warn('Warning: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY / NEXT_PUBLIC_SUPABASE_ANON_KEY missing');
-  }
-  return createClient(url || '', key || '', {
+  // No anon-key fallback on purpose. Server routes are written assuming they
+  // bypass RLS; silently downgrading to the anon key turns that assumption into
+  // scattered, hard-to-diagnose empty results and partial writes instead of one
+  // clear configuration error.
+  const url = getSupabaseUrl();
+  const key = getSupabaseServiceRoleKey();
+
+  return createClient(url, key, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,

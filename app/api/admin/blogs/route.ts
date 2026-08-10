@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
+import { requireAdmin } from '@/utils/adminAuth';
 
 // Admin: Manage blogs (GET list, POST create, PUT update, DELETE delete)
 export async function GET(request: NextRequest) {
+  const denied = await requireAdmin(request);
+  if (denied) return denied;
+
   try {
     const supabase = createServerSupabase();
     const searchParams = request.nextUrl.searchParams;
@@ -51,6 +55,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await requireAdmin(request);
+  if (denied) return denied;
+
   try {
     const supabase = createServerSupabase();
     const body = await request.json();
@@ -95,6 +102,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  const denied = await requireAdmin(request);
+  if (denied) return denied;
+
   try {
     const supabase = createServerSupabase();
     const body = await request.json();
@@ -143,6 +153,9 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const denied = await requireAdmin(request);
+  if (denied) return denied;
+
   try {
     const supabase = createServerSupabase();
     const searchParams = request.nextUrl.searchParams;
