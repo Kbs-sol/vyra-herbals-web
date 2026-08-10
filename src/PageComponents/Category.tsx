@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import type { Product } from "@/types";
 import { FaShoppingCart } from "react-icons/fa";
 // import { FaHeart } from "react-icons/fa";
 import { FaStar } from "react-icons/fa";
@@ -22,9 +23,9 @@ import styled from "styled-components";
 
 const Category = () => {
   const params = useParams();
-  const categoryName = params?.categoryName || '';
-  const [categoryData, setCategoryData] = useState([]);
-  const [filteredData, setFilteredData] = useState([]);
+  const categoryName = String(params?.categoryName ?? '');
+  const [categoryData, setCategoryData] = useState<Product[]>([]);
+  const [filteredData, setFilteredData] = useState<Product[]>([]);
   const [sortBy, setSortBy] = useState('price-low-high');
   const [priceRange, setPriceRange] = useState([0, 10000]);
   const [minPrice, setMinPrice] = useState(0);
@@ -70,23 +71,26 @@ const Category = () => {
 
     // Apply price range filter
     filtered = filtered.filter((product) => {
-      const price = parseInt(product.price) || 0;
+      const price = Number(product.price) || 0;
       return price >= priceRange[0] && price <= priceRange[1];
     });
 
     // Apply sorting
     switch (sortBy) {
       case 'price-low-high':
-        filtered.sort((a, b) => (parseInt(a.price) || 0) - (parseInt(b.price) || 0));
+        filtered.sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0));
         break;
       case 'price-high-low':
-        filtered.sort((a, b) => (parseInt(b.price) || 0) - (parseInt(a.price) || 0));
+        filtered.sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
         break;
       case 'rating':
         filtered.sort((a, b) => (b.rating || 0) - (a.rating || 0));
         break;
       case 'newest':
-        filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        filtered.sort(
+          (a, b) =>
+            new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
+        );
         break;
       default:
         break;

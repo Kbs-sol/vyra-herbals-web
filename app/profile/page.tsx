@@ -142,7 +142,7 @@ const ProfilePage = () => {
                 phoneToMatch = user.email.split('@')[0];
             }
 
-            let orQuery = [];
+            const orQuery: string[] = [];
             if (user.email) orQuery.push(`email.eq.${user.email}`);
 
             if (phoneToMatch) {

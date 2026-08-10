@@ -147,7 +147,7 @@ const AddReview = ({ reviewProductId, ratingDetails, onAddSuccess }) => {
               />
             </div>
             {hasValidation &&
-              !rating > 0 &&
+              !(rating > 0) &&
               renderErrorMsg("Please give your Rating")}
           </div>
           <div className="form-field">

@@ -98,7 +98,7 @@ export default function CustomersPage() {
       const data = await res.json();
 
       if (data.success && data.data.length > 0) {
-        const csvRows = [];
+        const csvRows: string[] = [];
         if (filter === 'leads') {
           csvRows.push(['Name', 'Email', 'Phone', 'Registered At'].join(','));
           data.data.forEach((c: Customer) => {

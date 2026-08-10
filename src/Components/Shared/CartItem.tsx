@@ -13,7 +13,7 @@ const CartItem = ({
   onDecrement = () => {},
   onDeleteClick = () => {},
 }) => {
-  const titleStyle = {
+  const titleStyle: React.CSSProperties = {
     display: "-webkit-box",
     WebkitBoxOrient: "vertical",
     WebkitLineClamp: 2,

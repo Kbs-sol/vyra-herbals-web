@@ -1,5 +1,15 @@
 import React from "react";
 
+/** Aggregated review statistics for a product. */
+export type RatingDetails = {
+  /** How many reviews awarded each star value. */
+  stats: Record<1 | 2 | 3 | 4 | 5, number>;
+  /** Mean rating rounded to 2dp, or 0 when there are no reviews. */
+  average: number;
+  /** Total number of reviews counted. */
+  count: number;
+};
+
 class Utility {
   /**
    * Scrolls the page smoothly to a specific section identified by its hash (ID).
@@ -48,7 +58,7 @@ class Utility {
     const date = new Date(dateString);
     if (!date || isNaN(date.getTime())) return '';
 
-    const options = { day: "2-digit", year: "numeric", month: "long" };
+    const options: Intl.DateTimeFormatOptions = { day: "2-digit", year: "numeric", month: "long" };
     return date.toLocaleDateString("en-US", options);
   };
 
@@ -62,25 +72,33 @@ class Utility {
    * // returns {avarage: 4.67, count:20, stats: {5:12, 4:8, 3:0, 2:0, 1:0}}
    * calculateRating(reviewList);
    */
-  static calculateRating = (reviews) => {
-    if (reviews?.length) {
-      let reviewCount = reviews.length;
-      let total = 0;
-      let stats = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+  static calculateRating = (reviews): RatingDetails => {
+    const stats = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
 
-      reviews.forEach((curr) => {
-        if (stats[Number(curr.rating)] !== undefined) {
-          stats[Number(curr.rating)] += 1;
-          total += Number(curr.rating);
-        }
-      });
-
-      return {
-        stats,
-        average: (total / reviewCount || 0).toFixed(2),
-        count: reviewCount,
-      };
+    // Always return the same shape. This used to fall off the end and return
+    // undefined when there were no reviews, so every caller needed its own
+    // `|| {}` fallback and then guessed at the field types.
+    if (!reviews?.length) {
+      return { stats, average: 0, count: 0 };
     }
+
+    const reviewCount = reviews.length;
+    let total = 0;
+
+    reviews.forEach((curr) => {
+      if (stats[Number(curr.rating)] !== undefined) {
+        stats[Number(curr.rating)] += 1;
+        total += Number(curr.rating);
+      }
+    });
+
+    return {
+      stats,
+      // A number, not the string toFixed() produces, so callers can compare
+      // and do arithmetic with it directly.
+      average: Number((total / reviewCount || 0).toFixed(2)),
+      count: reviewCount,
+    };
   };
 
   /**
@@ -95,9 +113,12 @@ class Utility {
    * // returns 74.88
    * calculateDiscount(55,219,2);
    */
-  static calculateDiscount = (price, MRP, decimalUpto = 2) => {
-    if (MRP === 0) return 0;
-    return (((MRP - price) * 100) / MRP).toFixed(decimalUpto);
+  static calculateDiscount = (price, MRP, decimalUpto = 2): number => {
+    if (!MRP) return 0;
+    // Always return a number. This used to return the string from toFixed() on
+    // the success path and the number 0 on the zero-MRP path, so every caller
+    // had to wrap it in Math.floor()/Number() to do arithmetic with it.
+    return Number((((MRP - price) * 100) / MRP).toFixed(decimalUpto));
   };
 }
 

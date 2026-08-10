@@ -14,12 +14,10 @@ const ProductCard2 = ({ product }) => {
   const filteredReviews = useMemo(() => {
     return product?.reviews?.filter((a) => Number(a.status) === 1);
   }, [product?.reviews]);
-  const ratingDetails = useMemo(() => {
-    if (product && filteredReviews?.length) {
-      return Utility.calculateRating(filteredReviews);
-    }
-    return {};
-  }, [filteredReviews]);
+  const ratingDetails = useMemo(
+    () => Utility.calculateRating(product ? filteredReviews : []),
+    [product, filteredReviews]
+  );
   return (
     <StyledProductCard2 className="col">
       <div className="feature-card">

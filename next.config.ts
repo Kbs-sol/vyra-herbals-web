@@ -158,11 +158,11 @@ const nextConfig: NextConfig = {
 
   // TypeScript configuration
   typescript: {
-    // Still true only because the pre-existing UI components carry 61 type
-    // errors that predate this hardening pass; flipping this to false today
-    // would simply stop the site building. The errors are now visible via
-    // `npm run typecheck`, which is the gate to fix before turning this off.
-    ignoreBuildErrors: true,
+    // Type errors fail the build. Keep it this way: silencing the compiler is
+    // how a real bug like `!rating > 0` (boolean compared to a number, in
+    // AddReview) survived in shipped code. Run `npm run typecheck` locally for
+    // the same check without a full build.
+    ignoreBuildErrors: false,
   },
 
   // Do not advertise the framework to attackers scanning for version-specific bugs.

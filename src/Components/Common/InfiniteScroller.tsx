@@ -25,7 +25,7 @@ const ScrollerContainer = styled.div`
 `;
 
 // The track that holds and moves the images continuously
-const ScrollerTrack = styled.div`
+const ScrollerTrack = styled.div<{ $duration: number; $isPaused: boolean }>`
   display: flex;
   width: max-content;
   animation: ${(props) => css`
@@ -59,12 +59,14 @@ const InfiniteScroller = ({ images, duration = 20 }) => {
     const preloadImages = async () => {
       await Promise.all(
         images.map((src) => {
-          return new Promise((resolve) => {
+          return new Promise<void>((resolve) => {
             if (typeof src !== "string") return resolve();
             const img = new Image();
             img.src = src;
-            img.onload = resolve;
-            img.onerror = resolve;
+            // Wrap rather than passing `resolve` directly: the DOM handlers are
+            // called with an Event, which does not match Promise<void>'s resolver.
+            img.onload = () => resolve();
+            img.onerror = () => resolve();
           });
         })
       );

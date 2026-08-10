@@ -12,7 +12,7 @@ const Pagination = (props) => {
   } = props;
 
   const renderPageButtons = () => {
-    const buttons = [];
+    const buttons: React.ReactNode[] = [];
     let start = Math.max(1, currentPage - Math.floor(maxButtonCount / 2));
     let end = Math.min(totalPages, start + maxButtonCount - 1);
 

@@ -3,7 +3,13 @@
 import React from "react";
 import { Helmet } from "react-helmet";
 
-const SEOComponent = ({ title, description }) => {
+type SEOComponentProps = {
+  title?: string;
+  /** Optional: pages that only set a title simply omit the meta description. */
+  description?: string;
+};
+
+const SEOComponent = ({ title, description }: SEOComponentProps) => {
   return (
     <Helmet>
       <meta charSet="utf-8" />

@@ -4,7 +4,7 @@ import React, { useRef, useState, useEffect } from "react";
 import styled from "styled-components";
 import PropTypes from "prop-types";
 
-const EllipsisContainer = styled.div`
+const EllipsisContainer = styled.div<{ $lines: number }>`
   white-space: ${(props) => (props.$lines === 1 ? "nowrap" : "normal")};
   overflow: hidden;
   text-overflow: ellipsis;
@@ -28,7 +28,7 @@ const EllipsisControl = ({
   onReadClick = () => {},
 }) => {
   const [isEllipsed, setIsEllipsed] = useState(false);
-  const containerRef = useRef(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   // Check if text has been ellipsed only if showReadMore is true
   useEffect(() => {

@@ -2,7 +2,14 @@
 
 import React from "react";
 
-const SVGIcon = ({ iconName, className, height = 24, width = 24 }) => {
+type SVGIconProps = {
+  iconName: string;
+  className?: string;
+  height?: number;
+  width?: number;
+};
+
+const SVGIcon = ({ iconName, className, height = 24, width = 24 }: SVGIconProps) => {
   switch (iconName) {
     case "line-graph":
       return (

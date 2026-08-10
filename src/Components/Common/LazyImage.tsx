@@ -2,6 +2,17 @@ import React, { useState, useEffect, useRef } from "react";
 import styled from "styled-components";
 import { shimmer } from "./SkeletonComponents";
 
+type LazyImageProps = {
+  /** Optional: a missing or broken src falls back to `placeholder`. */
+  src?: string | null;
+  alt?: string;
+  placeholder?: string;
+  isLazy?: boolean;
+  minHeight?: string;
+  aspectRatio?: string;
+  [key: string]: any;
+};
+
 const LazyImage = ({
   src,
   alt,
@@ -10,7 +21,7 @@ const LazyImage = ({
   minHeight = "auto",
   aspectRatio = "auto",
   ...props
-}) => {
+}: LazyImageProps) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isError, setIsError] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);

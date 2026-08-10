@@ -5,7 +5,8 @@ import { Card } from "react-bootstrap";
 
 const Faqs = () => {
   const toggleAccordion = (index) => {
-    let queSt = document.getElementById(`que${index}`);
+    const queSt = document.getElementById(`que${index}`);
+    if (!queSt) return;
     if (queSt.innerText == "+") {
       queSt.innerText = "-";
     } else {
@@ -174,7 +175,7 @@ const Faqs = () => {
               </Card.Header>
             </div>
 
-            <div id={`demo${index}`} class="collapse">
+            <div id={`demo${index}`} className="collapse">
               <Card.Body>{faq.answer}</Card.Body>
             </div>
           </Card>

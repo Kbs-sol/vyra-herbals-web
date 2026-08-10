@@ -83,7 +83,9 @@ export default function ReviewsPage() {
         setReviews(reviews.map(r => 
           (Number(r.id) === idToSend) ? { ...r, status: Number(newStatus) } : r
         ));
-        if (Number(selectedReview?.id ?? 0) === idToSend) {
+        // Narrow on `selectedReview` itself: spreading a possibly-null value
+        // would produce an object missing the required Review fields.
+        if (selectedReview && Number(selectedReview.id) === idToSend) {
           setSelectedReview({ ...selectedReview, status: Number(newStatus) });
         }
         // Refresh list to ensure server and client stay in sync

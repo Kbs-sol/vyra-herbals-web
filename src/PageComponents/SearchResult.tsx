@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import type { Product } from "@/types";
 import { useSearchParams } from "next/navigation";
 import { API_PATH } from "../constants";
 import ProductCard, { StyledProduct } from "../Components/Shared/ProductCard";
@@ -9,9 +10,9 @@ import styled from "styled-components";
 import BestSeller from "../Components/Home/BestSeller";
 
 const SearchResult = () => {
-  const [searchResults, setSearchResults] = useState(null);
+  const [searchResults, setSearchResults] = useState<Product[] | null>(null);
   const searchParams = useSearchParams();
-  const word = searchParams.get("searchtext") || "all";
+  const word = searchParams?.get("searchtext") || "all";
   //   let searchHeading = `Search Results for ${word}`;
   const [searchHeading, setSearchHeading] = useState("Searching...");
   const [isLoading, setIsLoading] = useState(true);
