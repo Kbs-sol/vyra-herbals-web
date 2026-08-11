@@ -1,18 +1,10 @@
 'use client';
 
-import React from "react";
+import React, { useState } from "react";
 import { Card } from "react-bootstrap";
 
 const Faqs = () => {
-  const toggleAccordion = (index) => {
-    const queSt = document.getElementById(`que${index}`);
-    if (!queSt) return;
-    if (queSt.innerText == "+") {
-      queSt.innerText = "-";
-    } else {
-      queSt.innerText = "+";
-    }
-  };
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   // const faqs = [
   //   {
@@ -151,33 +143,29 @@ const Faqs = () => {
       </h3>{" "}
       <br />
       {faqs.map((faq, index) => (
-        <div className="mb-3" style={{ cursor: "pointer" }}>
-          <Card key={index}>
-            <div
-              data-bs-toggle="collapse"
-              data-bs-target={`#demo${index}`}
-              onClick={() => toggleAccordion(index)}
+        <div className="mb-3" style={{ cursor: "pointer" }} key={index}>
+          <Card>
+            <button
+              type="button"
+              onClick={() => setOpenIndex(openIndex === index ? null : index)}
+              style={{
+                all: "unset",
+                display: "block",
+                width: "100%",
+                cursor: "pointer",
+              }}
             >
-              {/* <Card.Header>
-                <b>{faq.question}</b>
-                <span id={`que${index}`} style={{fontWeight: "bold"}}>+</span>
-            </Card.Header> */}
               <Card.Header
                 style={{ display: "flex", justifyContent: "space-between" }}
               >
                 <b>{faq.question}</b>
-                <span
-                  id={`que${index}`}
-                  style={{ fontWeight: "bold", alignSelf: "flex-start" }}
-                >
-                  +
+                <span style={{ fontWeight: "bold", alignSelf: "flex-start" }}>
+                  {openIndex === index ? "-" : "+"}
                 </span>
               </Card.Header>
-            </div>
+            </button>
 
-            <div id={`demo${index}`} className="collapse">
-              <Card.Body>{faq.answer}</Card.Body>
-            </div>
+            {openIndex === index ? <Card.Body>{faq.answer}</Card.Body> : null}
           </Card>
         </div>
       ))}
