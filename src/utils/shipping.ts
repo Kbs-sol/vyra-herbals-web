@@ -163,18 +163,32 @@ const buildAddress = (shippingData: any): string => {
 const ICARRY_SHIPMENT_TIMEOUT_MS = 10000;
 const ICARRY_ESTIMATE_TIMEOUT_MS = 6000;
 
+// Whole-of-createShipment time budget. Callers cap us at 24s (orderShipment)
+// / 25s (finalizeOrderFromSession) inside a 30s Vercel function, so we keep our
+// own work under 21s and always hold SAVE_ONLY_RESERVE_MS back for the final
+// save-only attempt. An order that lands on iCarry Unassigned is recoverable by
+// admin in one click; an order that never reaches iCarry at all is invisible.
+const CREATE_SHIPMENT_BUDGET_MS = 21000;
+const SAVE_ONLY_RESERVE_MS = 7000;
+
+// How many auto-assign couriers to try before falling back to save-only. iCarry's
+// estimate API can list a courier that its booking API then rejects (e.g.
+// "Pincode not serviceable."), so one rejection must not sink the whole booking.
+const MAX_COURIER_ATTEMPTS = 2;
+
 // Sender pincode for iCarry's rate/serviceability lookup. This is the registered
 // pickup address (Mandamarri, Telangana - 504231). Override via env if the
 // pickup location ever changes — it must match the pincode of the pickup
 // address referenced by ICARRY_PICKUP_ADDRESS_ID.
 const ICARRY_ORIGIN_PINCODE = (process.env.ICARRY_ORIGIN_PINCODE || "504231").replace(/\D/g, "").slice(0, 6);
 
-// Preferred couriers in priority order. On every booking we pull the live list
-// of serviceable couriers from iCarry's estimate API and assign the first one
-// that matches this list — Xpressbees first, then Delhivery. If none of these
+// Preferred couriers in priority order, used when cheapest-selection can't rank a
+// courier (no readable rate) or is switched off. Amazon Shipping is included
+// because some pincodes — e.g. 572106 Tumkur — are serviced by Amazon and nobody
+// else; without it those orders get no auto-assignment at all. If none of these
 // are serviceable (or the estimate call fails) the order is saved Unassigned for
 // manual assignment from iCarry's dashboard, exactly as before.
-const ICARRY_COURIER_PRIORITY = (process.env.ICARRY_COURIER_PRIORITY || "Xpressbees,Delhivery")
+const ICARRY_COURIER_PRIORITY = (process.env.ICARRY_COURIER_PRIORITY || "Xpressbees,Delhivery,Amazon Shipping")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
@@ -198,24 +212,45 @@ type CourierEstimate = {
     [key: string]: any;
 };
 
-// iCarry's estimate response has no single documented price key, so we probe the
-// common ones (in order) and take the first positive number. Handles both plain
-// numbers and strings like "₹73.50".
+// What iCarry actually returns per courier (observed on api_get_estimate):
+//   { courier_id, courier_name, courier_group_name,
+//     freight_cost: "39.10", cod_cost: "0.00", rto_cost: "39.10", courier_cost: "39.10" }
+// `courier_cost` is the all-in figure when present; otherwise the payable cost is
+// freight + COD handling (rto_cost only applies to a return, so it is NOT added).
+// The remaining names are defensive — iCarry has changed these keys before, and a
+// rate we can't read silently disables cheapest-courier selection.
 const COURIER_RATE_FIELDS = [
-    "rate", "total_charges", "total_charge", "total_amount", "total",
-    "freight_charge", "freight_charges", "chargeable_amount", "net_charges",
-    "net_charge", "final_charge", "final_charges", "grand_total",
-    "price", "amount", "charges", "charge", "cost", "estimated_cost",
+    "courier_cost", "rate", "total_charges", "total_charge", "total_amount", "total",
+    "chargeable_amount", "net_charges", "net_charge", "final_charge", "final_charges",
+    "grand_total", "price", "amount", "charges", "charge", "cost", "estimated_cost",
 ];
 
-const getCourierRate = (c: CourierEstimate): number | null => {
-    for (const key of COURIER_RATE_FIELDS) {
-        const raw = c?.[key];
-        if (raw === undefined || raw === null || raw === "") continue;
-        const num = typeof raw === "number" ? raw : parseFloat(String(raw).replace(/[^\d.]/g, ""));
-        if (Number.isFinite(num) && num > 0) return num;
+// Components summed only when no all-in total is available.
+const COURIER_FREIGHT_FIELDS = ["freight_cost", "freight_charge", "freight_charges"];
+const COURIER_COD_FIELDS = ["cod_cost", "cod_charge", "cod_charges"];
+
+const toAmount = (raw: any): number | null => {
+    if (raw === undefined || raw === null || raw === "") return null;
+    const num = typeof raw === "number" ? raw : parseFloat(String(raw).replace(/[^\d.]/g, ""));
+    return Number.isFinite(num) ? num : null;
+};
+
+const pickAmount = (c: CourierEstimate, keys: string[]): number | null => {
+    for (const key of keys) {
+        const num = toAmount(c?.[key]);
+        if (num !== null && num > 0) return num;
     }
     return null;
+};
+
+const getCourierRate = (c: CourierEstimate): number | null => {
+    const total = pickAmount(c, COURIER_RATE_FIELDS);
+    if (total !== null) return total;
+
+    const freight = pickAmount(c, COURIER_FREIGHT_FIELDS);
+    if (freight === null) return null;
+    // COD handling is a real cost on COD parcels; treat a missing/zero value as 0.
+    return freight + (pickAmount(c, COURIER_COD_FIELDS) ?? 0);
 };
 
 // Same browser-like headers iCarry's WAF expects on the other endpoints.
@@ -242,7 +277,8 @@ const getCourierEstimate = async (
         heightCm: number;
         shipmentType: "P" | "C"; // P = Prepaid, C = COD
         value: number;
-    }
+    },
+    timeoutMs: number = ICARRY_ESTIMATE_TIMEOUT_MS
 ): Promise<CourierEstimate[]> => {
     try {
         const body = new URLSearchParams({
@@ -262,7 +298,7 @@ const getCourierEstimate = async (
         const res = await fetchWithTimeout(
             `https://www.icarry.in/api_get_estimate?api_token=${apiToken}`,
             { method: "POST", headers: ICARRY_REQUEST_HEADERS, body },
-            ICARRY_ESTIMATE_TIMEOUT_MS
+            timeoutMs
         );
         const text = await res.text();
         if (text.includes("<!DOCTYPE") || text.includes("<html")) {
@@ -279,57 +315,158 @@ const getCourierEstimate = async (
     }
 };
 
+type CourierCandidate = { courierId: string; group: string; rate: number | null };
+
 /**
- * Pick the highest-priority serviceable courier (Xpressbees → Delhivery).
- * Matches against both the courier group name and the full courier name, so
- * e.g. "Xpressbees Surface 0.5Kg" is recognised as Xpressbees. Returns null when
- * none of the preferred couriers appear in the estimate.
+ * Rank the serviceable couriers we're willing to auto-assign, best first.
+ *
+ * Cheapest-priced couriers lead (unless ICARRY_SELECT_CHEAPEST=false), then the
+ * fixed priority list (Xpressbees → Delhivery) picks up anything the rate probe
+ * couldn't price. Duplicates are dropped by courier_id, and couriers without a
+ * usable courier_id are excluded — iCarry needs that id to book.
+ *
+ * A *list* rather than a single pick, because iCarry's estimate API happily
+ * returns couriers that its booking API then refuses for the same pincode. The
+ * caller walks this list so a refusal costs one retry, not the whole shipment.
  */
-const resolvePreferredCourier = (
-    estimate: CourierEstimate[]
-): { courierId: string; group: string } | null => {
+const rankCourierCandidates = (estimate: CourierEstimate[]): CourierCandidate[] => {
+    const usable = estimate.filter(
+        (c) => c.courier_id !== undefined && c.courier_id !== null && String(c.courier_id) !== ""
+    );
+
+    const seen = new Set<string>();
+    const ranked: CourierCandidate[] = [];
+    const push = (c: CourierEstimate, rate: number | null) => {
+        const id = String(c.courier_id);
+        if (seen.has(id)) return;
+        seen.add(id);
+        ranked.push({ courierId: id, group: c.courier_group_name || c.courier_name || "", rate });
+    };
+
+    if (isCheapestEnabled()) {
+        usable
+            .map((c) => ({ c, rate: getCourierRate(c) }))
+            .filter((x): x is { c: CourierEstimate; rate: number } => x.rate !== null)
+            .sort((a, b) => a.rate - b.rate)
+            .forEach((x) => push(x.c, x.rate));
+    }
+
+    // Priority order fills the tail: couriers the estimate left unpriced, and —
+    // when ICARRY_SELECT_CHEAPEST=false — the whole list in preference order.
+    // Matches on group name and full name, so "Xpressbees Surface 0.5Kg" counts.
     for (const pref of ICARRY_COURIER_PRIORITY) {
         const needle = pref.toLowerCase();
-        const match = estimate.find((c) =>
-            `${c.courier_group_name || ""} ${c.courier_name || ""}`.toLowerCase().includes(needle)
-        );
-        if (match?.courier_id !== undefined && match.courier_id !== null && String(match.courier_id) !== "") {
-            return { courierId: String(match.courier_id), group: match.courier_group_name || pref };
+        for (const c of usable) {
+            if (`${c.courier_group_name || ""} ${c.courier_name || ""}`.toLowerCase().includes(needle)) {
+                push(c, getCourierRate(c));
+            }
         }
     }
-    return null;
+
+    return ranked;
 };
+
+type ShipmentAttempt =
+    | { ok: true; shipmentId: string; awb: string; courierName: string; labelUrl: string; raw: any }
+    | { ok: false; message: string; timedOut: boolean };
 
 /**
- * Pick the CHEAPEST serviceable courier from the estimate. Only couriers whose
- * rate we can read AND that have a valid courier_id are considered; ties are
- * broken by iCarry's own ordering. Returns null when no priced courier is
- * available (e.g. the estimate omits rates), so the caller can fall back to the
- * priority list.
+ * One POST to iCarry's booking endpoint. `payload` decides the mode: a
+ * `courier_id` books and returns an AWB, `save_only=1` parks the order in
+ * iCarry's dashboard for manual assignment.
  */
-const resolveCheapestCourier = (
-    estimate: CourierEstimate[]
-): { courierId: string; group: string; rate: number } | null => {
-    const priced = estimate
-        .map((c) => ({ c, rate: getCourierRate(c) }))
-        .filter(
-            (x): x is { c: CourierEstimate; rate: number } =>
-                x.rate !== null &&
-                x.c.courier_id !== undefined &&
-                x.c.courier_id !== null &&
-                String(x.c.courier_id) !== ""
+const attemptShipment = async (
+    apiToken: string,
+    payload: URLSearchParams,
+    timeoutMs: number
+): Promise<ShipmentAttempt> => {
+    const apiUrl = `https://www.icarry.in/api_add_shipment_surface?api_token=${apiToken}`;
+
+    console.log("iCarry.in Request:", { url: apiUrl, payload: Object.fromEntries(payload.entries()) });
+
+    let response: Response;
+    try {
+        response = await fetchWithTimeout(
+            apiUrl,
+            { method: "POST", headers: ICARRY_REQUEST_HEADERS, body: payload },
+            timeoutMs
         );
-    if (!priced.length) return null;
-    priced.sort((a, b) => a.rate - b.rate);
-    const best = priced[0];
-    return {
-        courierId: String(best.c.courier_id),
-        group: best.c.courier_group_name || best.c.courier_name || "",
-        rate: best.rate,
-    };
+    } catch (e) {
+        const isAbort = (e as any)?.name === "AbortError";
+        return {
+            ok: false,
+            timedOut: isAbort,
+            message: isAbort
+                ? "iCarry shipment call timed out"
+                : `iCarry shipment call failed: ${(e as Error).message}`,
+        };
+    }
+
+    const textResponse = await response.text();
+    let result: any;
+    try {
+        result = JSON.parse(textResponse);
+    } catch {
+        console.error("iCarry.in Result Error (Not JSON):", textResponse.substring(0, 150));
+        return { ok: false, timedOut: false, message: "Invalid API response from shipping provider" };
+    }
+
+    console.log("iCarry.in Result:", result);
+
+    const resultData = result?.data || result;
+    const shipmentId = resultData?.shipment_id || result?.shipment_id;
+    const awb = resultData?.awb || result?.awb;
+    const courierName = resultData?.courier_name || result?.courier_name || null;
+    const labelUrl = resultData?.label_url || result?.label_url || "";
+
+    // iCarry returns `success` as a human-readable string (e.g. "Success: You have added a new
+    // shipment with id 352. | ...") on the shipment endpoints, and `error` as an empty string.
+    // Treat the call as successful when an error message is absent and a shipment_id is returned.
+    const errorMessage = typeof result?.error === "string" ? result.error.trim() : (result?.error || "");
+    const successField = result?.success;
+    const successString =
+        typeof successField === "string" && successField.trim().toLowerCase().startsWith("success");
+    const isSuccess =
+        !errorMessage &&
+        (successField === true ||
+            successField === 1 ||
+            successField === "1" ||
+            successString ||
+            Boolean(shipmentId));
+
+    if (isSuccess && shipmentId) {
+        // iCarry sometimes nests the courier full name under `courier_name_full`.
+        const courierFull = resultData?.courier_name_full || result?.courier_name_full || null;
+        return {
+            ok: true,
+            shipmentId: String(shipmentId),
+            awb: awb ? String(awb) : "",
+            courierName: String(courierFull || courierName || ""),
+            labelUrl: String(labelUrl),
+            raw: result,
+        };
+    }
+
+    return { ok: false, timedOut: false, message: String(errorMessage || "Shipment creation failed") };
 };
 
-export const createShipment = async (orderData: any) => {
+export type CreateShipmentResult =
+    | {
+        success: true;
+        trackingId: string;
+        shipment_id: string;
+        awb_code: string;
+        courier_name: string;
+        label_url: string;
+        delivery_status: string;
+        data: any;
+    }
+    | { success: false; message: string };
+
+export const createShipment = async (orderData: any): Promise<CreateShipmentResult> => {
+    const deadline = Date.now() + CREATE_SHIPMENT_BUDGET_MS;
+    const remaining = () => deadline - Date.now();
+
     try {
         const tokenResult = await getIcarryTokenDetailed();
         const apiToken = tokenResult.token;
@@ -399,39 +536,38 @@ export const createShipment = async (orderData: any) => {
             );
         }
 
-        // Resolve which courier to auto-assign (Xpressbees → Delhivery). We ask
-        // iCarry which couriers can actually service THIS parcel, then pick the
-        // first preferred one. The weight/dimensions here mirror the booking
-        // payload below so the returned courier_id stays valid at booking time.
-        let chosenCourierId: string | null = null;
-        let chosenCourierGroup: string | null = null;
+        // Rank the couriers we're willing to auto-assign. We ask iCarry which
+        // couriers can actually service THIS parcel, then walk the list at
+        // booking time. The weight/dimensions here mirror the booking payload
+        // below so the returned courier_id stays valid at booking time.
+        let candidates: CourierCandidate[] = [];
         if (isAutoAssignEnabled()) {
-            const estimate = await getCourierEstimate(apiToken, {
-                destinationPincode: pincode,
-                weightGm: 499,
-                lengthCm: 18,
-                breadthCm: 13,
-                heightCm: 8,
-                shipmentType: isPrepaid ? "P" : "C",
-                value: parcelValue,
-            });
-            // Prefer the cheapest serviceable courier. If iCarry's estimate has
-            // no readable rate, fall back to the priority order (Xpressbees →
-            // Delhivery) so behaviour degrades gracefully instead of failing.
-            let picked: { courierId: string; group: string; rate: number | null } | null = null;
-            if (isCheapestEnabled()) {
-                picked = resolveCheapestCourier(estimate);
-            }
-            if (!picked) {
-                const pref = resolvePreferredCourier(estimate);
-                if (pref) picked = { courierId: pref.courierId, group: pref.group, rate: null };
+            // Leave room for at least one booking attempt plus the save-only
+            // fallback; if the estimate can't fit, skip it and save Unassigned.
+            const estimateBudget = Math.min(
+                ICARRY_ESTIMATE_TIMEOUT_MS,
+                remaining() - SAVE_ONLY_RESERVE_MS - 4000
+            );
+            if (estimateBudget >= 1500) {
+                const estimate = await getCourierEstimate(apiToken, {
+                    destinationPincode: pincode,
+                    weightGm: 499,
+                    lengthCm: 18,
+                    breadthCm: 13,
+                    heightCm: 8,
+                    shipmentType: isPrepaid ? "P" : "C",
+                    value: parcelValue,
+                }, estimateBudget);
+                candidates = rankCourierCandidates(estimate);
+            } else {
+                console.warn(`[Shipping] No time left for courier estimate on order ${orderData.id}; saving Unassigned`);
             }
 
-            if (picked) {
-                chosenCourierId = picked.courierId;
-                chosenCourierGroup = picked.group;
-                const note = picked.rate !== null ? `@ ₹${picked.rate} (cheapest)` : "(priority order)";
-                console.log(`[Shipping] Auto-assigning ${picked.group} ${note} (courier_id ${picked.courierId}) for order ${orderData.id}`);
+            if (candidates.length) {
+                console.log(
+                    `[Shipping] Courier candidates for order ${orderData.id}: ` +
+                    candidates.map((c) => `${c.group}${c.rate !== null ? ` @ ₹${c.rate}` : ""} (#${c.courierId})`).join(" → ")
+                );
             } else {
                 console.warn(`[Shipping] No serviceable courier for order ${orderData.id} (pincode ${pincode}); saving Unassigned`);
             }
@@ -468,97 +604,86 @@ export const createShipment = async (orderData: any) => {
         //     that courier and returns an AWB immediately.
         //   - With `save_only` (any value), the order is saved but no courier is
         //     assigned — it waits in iCarry's dashboard for manual assignment.
-        // We auto-assign Xpressbees (falling back to Delhivery) when one of them is
-        // serviceable; otherwise we save Unassigned so nothing in the flow breaks.
-        if (chosenCourierId) {
-            payload.append("courier_id", chosenCourierId);
-        } else {
-            payload.append("save_only", "1");
-        }
+        //
+        // We try each ranked candidate in turn, then ALWAYS fall back to
+        // save-only. iCarry's estimate can list a courier its booking API then
+        // rejects for the same pincode ("Pincode not serviceable."), and before
+        // this fallback existed such an order never reached iCarry at all — it
+        // sat in our admin as "Sync Failed" with nothing on the courier side.
+        const withParam = (key: string, value: string) => {
+            const p = new URLSearchParams(payload);
+            p.append(key, value);
+            return p;
+        };
 
-        const apiUrl = `https://www.icarry.in/api_add_shipment_surface?api_token=${apiToken}`;
-
-        console.log("iCarry.in Request:", {
-            url: apiUrl,
-            payload: Object.fromEntries(payload.entries())
+        const succeed = (
+            attempt: Extract<ShipmentAttempt, { ok: true }>,
+            fallbackCourier: string
+        ): CreateShipmentResult => ({
+            success: true,
+            trackingId: String(attempt.awb || attempt.shipmentId),
+            shipment_id: attempt.shipmentId,
+            awb_code: attempt.awb,
+            courier_name: attempt.courierName || fallbackCourier,
+            label_url: attempt.labelUrl,
+            // "Booked" once a courier is auto-assigned (AWB issued, awaiting pickup);
+            // "Unassigned" when we saved the order for manual assignment. Live courier
+            // status then flows in via the tracking API; admin can still advance it
+            // manually from the orders dashboard.
+            delivery_status: fallbackCourier ? 'Booked' : 'Unassigned',
+            data: attempt.raw,
         });
 
-        let response: Response;
-        try {
-            response = await fetchWithTimeout(apiUrl, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded",
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                    "Accept": "application/json, text/plain, */*"
-                },
-                body: payload,
-            }, ICARRY_SHIPMENT_TIMEOUT_MS);
-        } catch (e) {
-            const isAbort = (e as any)?.name === 'AbortError';
-            return {
-                success: false,
-                message: isAbort
-                    ? "iCarry shipment call timed out"
-                    : `iCarry shipment call failed: ${(e as Error).message}`
-            };
+        let lastError = '';
+        let lastTimedOut = false;
+
+        for (const candidate of candidates.slice(0, MAX_COURIER_ATTEMPTS)) {
+            // Never spend the save-only reserve on a courier attempt.
+            const budget = Math.min(ICARRY_SHIPMENT_TIMEOUT_MS, remaining() - SAVE_ONLY_RESERVE_MS);
+            if (budget < 2000) {
+                console.warn(`[Shipping] Out of time for further courier attempts on order ${orderData.id}; saving Unassigned`);
+                break;
+            }
+
+            const rate = candidate.rate !== null ? ` @ ₹${candidate.rate}` : '';
+            console.log(`[Shipping] Booking ${candidate.group}${rate} (courier_id ${candidate.courierId}) for order ${orderData.id}`);
+
+            const attempt = await attemptShipment(apiToken, withParam("courier_id", candidate.courierId), budget);
+            if (attempt.ok) {
+                return succeed(attempt, candidate.group);
+            }
+
+            lastError = attempt.message;
+            lastTimedOut = attempt.timedOut;
+            console.warn(`[Shipping] ${candidate.group} (courier_id ${candidate.courierId}) refused order ${orderData.id}: ${attempt.message}`);
+
+            // A timeout means we don't know whether iCarry created the shipment.
+            // Stop here rather than risk booking the same parcel twice — the
+            // admin "retry sync" path picks it up once the truth is visible.
+            if (attempt.timedOut) break;
         }
 
-        const textResponse = await response.text();
-        let result;
-        try {
-            result = JSON.parse(textResponse);
-        } catch (e) {
-            console.error("iCarry.in Result Error (Not JSON):", textResponse.substring(0, 150));
-            return { success: false, message: "Invalid API response from shipping provider" };
+        if (lastTimedOut) {
+            return { success: false, message: lastError };
         }
 
-        console.log("iCarry.in Result:", result);
-
-        const resultData = result?.data || result;
-        const shipmentId = resultData?.shipment_id || result?.shipment_id;
-        const awb = resultData?.awb || result?.awb;
-        const courierName = resultData?.courier_name || result?.courier_name || null;
-        const labelUrl = resultData?.label_url || result?.label_url || '';
-
-        // iCarry returns `success` as a human-readable string (e.g. "Success: You have added a new
-        // shipment with id 352. | ...") on the shipment endpoints, and `error` as an empty string.
-        // Treat the call as successful when an error message is absent and a shipment_id is returned.
-        const errorMessage = typeof result?.error === 'string' ? result.error.trim() : (result?.error || '');
-        const successField = result?.success;
-        const successString = typeof successField === 'string' && successField.trim().toLowerCase().startsWith('success');
-        const isSuccess = !errorMessage && (
-            successField === true ||
-            successField === 1 ||
-            successField === '1' ||
-            successString ||
-            Boolean(shipmentId)
-        );
-
-        // iCarry sometimes nests the courier full name under `courier_name_full`.
-        const courierFull =
-            resultData?.courier_name_full ||
-            result?.courier_name_full ||
-            null;
-
-        if (isSuccess && shipmentId) {
-            return {
-                success: true,
-                trackingId: String(awb || shipmentId),
-                shipment_id: String(shipmentId),
-                awb_code: awb ? String(awb) : '',
-                courier_name: String(courierFull || courierName || chosenCourierGroup || ''),
-                label_url: String(labelUrl),
-                // "Booked" once a courier is auto-assigned (AWB issued, awaiting pickup);
-                // "Unassigned" when we saved the order for manual assignment. Live courier
-                // status then flows in via the tracking API; admin can still advance it
-                // manually from the orders dashboard.
-                delivery_status: chosenCourierId ? 'Booked' : 'Unassigned',
-                data: result,
-            };
+        // Save-only fallback: get the order onto iCarry no matter what, so admin
+        // can assign a courier by hand instead of the order silently vanishing.
+        const saveOnlyBudget = Math.min(ICARRY_SHIPMENT_TIMEOUT_MS, Math.max(3000, remaining()));
+        const saved = await attemptShipment(apiToken, withParam("save_only", "1"), saveOnlyBudget);
+        if (saved.ok) {
+            if (lastError) {
+                console.warn(`[Shipping] Order ${orderData.id} saved Unassigned on iCarry after booking failures (${lastError})`);
+            }
+            return succeed(saved, '');
         }
 
-        return { success: false, message: errorMessage || "Shipment creation failed" };
+        return {
+            success: false,
+            message: lastError
+                ? `${lastError} (save-only fallback also failed: ${saved.message})`
+                : saved.message,
+        };
     } catch (error) {
         console.error("Error creating shipment:", error);
         return { success: false, message: (error as Error).message };
