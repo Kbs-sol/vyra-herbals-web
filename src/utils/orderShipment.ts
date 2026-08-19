@@ -88,6 +88,13 @@ export const syncOrderShipment = async (supabase: any, order: any): Promise<Sync
         console.log(`[OrderShipment] iCarry result for order ${order.id}:`, shipmentResult);
 
         if (shipmentResult.success) {
+            if (shipmentResult.assign_error) {
+                // iCarry has the order, but no courier is on it. Only a human can
+                // clear this (iCarry dashboard), so make it findable in the logs.
+                console.error(
+                    `[OrderShipment] Order ${order.id} is UNASSIGNED on iCarry — auto-assign failed: ${shipmentResult.assign_error}`
+                );
+            }
             const trackingId = shipmentResult.trackingId || '';
             const { error: updateError } = await supabase.from('orders').update({
                 tracking_id: trackingId,

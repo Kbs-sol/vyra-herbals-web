@@ -174,7 +174,21 @@ const SAVE_ONLY_RESERVE_MS = 7000;
 // How many auto-assign couriers to try before falling back to save-only. iCarry's
 // estimate API can list a courier that its booking API then rejects (e.g.
 // "Pincode not serviceable."), so one rejection must not sink the whole booking.
-const MAX_COURIER_ATTEMPTS = 2;
+// We walk the ranked list cheapest-first and keep going to the next available
+// courier; the real limiter is the time budget below, not this cap. Two was too
+// low — on pincodes where the two cheapest both refuse, the order fell through to
+// Unassigned even though a third serviceable courier was sitting in the estimate.
+const MAX_COURIER_ATTEMPTS = Math.max(
+    1,
+    parseInt(process.env.ICARRY_MAX_COURIER_ATTEMPTS || "5", 10) || 5
+);
+
+// Booking errors that are about the ACCOUNT, not the courier — wallet balance,
+// unbilled shipments, weight-discrepancy holds. Retrying the next courier just
+// burns the time budget, so we stop and save-only immediately (and shout in the
+// logs, because this is the one failure mode only a human can clear).
+const isAccountLevelError = (message: string): boolean =>
+    /balance|unbilled|top ?up|topup|recharge|wallet|insufficient|discrepancy|kyc|suspend/i.test(message);
 
 // Sender pincode for iCarry's rate/serviceability lookup. This is the registered
 // pickup address (Mandamarri, Telangana - 504231). Override via env if the
@@ -460,6 +474,10 @@ export type CreateShipmentResult =
         label_url: string;
         delivery_status: string;
         data: any;
+        // Set only when the order had to be saved Unassigned: why auto-assign
+        // could not book a courier. Success from iCarry's point of view, but
+        // something a human still needs to see.
+        assign_error?: string;
     }
     | { success: false; message: string };
 
@@ -546,9 +564,9 @@ export const createShipment = async (orderData: any): Promise<CreateShipmentResu
             // fallback; if the estimate can't fit, skip it and save Unassigned.
             const estimateBudget = Math.min(
                 ICARRY_ESTIMATE_TIMEOUT_MS,
-                remaining() - SAVE_ONLY_RESERVE_MS - 4000
+                remaining() - SAVE_ONLY_RESERVE_MS - 2500
             );
-            if (estimateBudget >= 1500) {
+            if (estimateBudget >= 1200) {
                 const estimate = await getCourierEstimate(apiToken, {
                     destinationPincode: pincode,
                     weightGm: 499,
@@ -636,8 +654,16 @@ export const createShipment = async (orderData: any): Promise<CreateShipmentResu
 
         let lastError = '';
         let lastTimedOut = false;
+        const refusals: string[] = [];
 
-        for (const candidate of candidates.slice(0, MAX_COURIER_ATTEMPTS)) {
+        const attemptable = candidates.slice(0, MAX_COURIER_ATTEMPTS);
+        if (candidates.length > attemptable.length) {
+            console.warn(
+                `[Shipping] Order ${orderData.id}: ${candidates.length} serviceable couriers, only trying the cheapest ${attemptable.length} (ICARRY_MAX_COURIER_ATTEMPTS)`
+            );
+        }
+
+        for (const candidate of attemptable) {
             // Never spend the save-only reserve on a courier attempt.
             const budget = Math.min(ICARRY_SHIPMENT_TIMEOUT_MS, remaining() - SAVE_ONLY_RESERVE_MS);
             if (budget < 2000) {
@@ -655,12 +681,22 @@ export const createShipment = async (orderData: any): Promise<CreateShipmentResu
 
             lastError = attempt.message;
             lastTimedOut = attempt.timedOut;
+            refusals.push(`${candidate.group || candidate.courierId}: ${attempt.message}`);
             console.warn(`[Shipping] ${candidate.group} (courier_id ${candidate.courierId}) refused order ${orderData.id}: ${attempt.message}`);
 
             // A timeout means we don't know whether iCarry created the shipment.
             // Stop here rather than risk booking the same parcel twice — the
             // admin "retry sync" path picks it up once the truth is visible.
             if (attempt.timedOut) break;
+
+            // Nothing courier-specific about a wallet/billing hold — every
+            // remaining courier will refuse for the same reason.
+            if (isAccountLevelError(attempt.message)) {
+                console.error(
+                    `[Shipping] ACCOUNT-LEVEL iCarry failure on order ${orderData.id} — auto-assign is blocked until this is cleared: ${attempt.message}`
+                );
+                break;
+            }
         }
 
         if (lastTimedOut) {
@@ -672,10 +708,25 @@ export const createShipment = async (orderData: any): Promise<CreateShipmentResu
         const saveOnlyBudget = Math.min(ICARRY_SHIPMENT_TIMEOUT_MS, Math.max(3000, remaining()));
         const saved = await attemptShipment(apiToken, withParam("save_only", "1"), saveOnlyBudget);
         if (saved.ok) {
-            if (lastError) {
-                console.warn(`[Shipping] Order ${orderData.id} saved Unassigned on iCarry after booking failures (${lastError})`);
+            // Unassigned is the safety net, never the intended outcome — say why
+            // loudly enough that it can be diagnosed from the function logs.
+            console.error(
+                `[Shipping] AUTO-ASSIGN FAILED for order ${orderData.id} (pincode ${pincode}); saved Unassigned. ` +
+                (refusals.length
+                    ? `Courier refusals: ${refusals.join(" | ")}`
+                    : candidates.length
+                        ? "No courier attempt fit the time budget."
+                        : "iCarry returned no serviceable courier for this parcel.")
+            );
+            const result = succeed(saved, '');
+            if (result.success) {
+                result.assign_error = refusals.length
+                    ? refusals.join(" | ")
+                    : candidates.length
+                        ? "no time for courier booking attempt"
+                        : "no serviceable courier in iCarry estimate";
             }
-            return succeed(saved, '');
+            return result;
         }
 
         return {
