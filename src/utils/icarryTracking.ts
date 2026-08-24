@@ -91,3 +91,55 @@ export const mapIcarryStatus = (
 
   return { delivery_status };
 };
+
+// The five delivery milestones the WhatsApp automation sends a template for.
+// (src/services/communications/config/templates.ts keys its per-status
+// templates on exactly these strings.)
+export type DeliveryNotifyStatus =
+  | "Picked up"
+  | "In Transit"
+  | "Out for Delivery"
+  | "Delivered"
+  | "Delivery Failed";
+
+/**
+ * Collapse iCarry's free-text status into one of the five canonical
+ * milestones the customer gets a WhatsApp update for — or null for
+ * intermediate/unknown states (booked, pending, label-created…) that
+ * shouldn't trigger a message.
+ *
+ * Ordering matters: failure states ("undelivered", "rto", "returned") are
+ * checked before "delivered" so "undelivered" isn't misread as a delivery,
+ * and "out for delivery" before the generic in-transit bucket.
+ */
+export const canonicalDeliveryStatus = (
+  raw: string
+): DeliveryNotifyStatus | null => {
+  const s = (raw || "").toLowerCase().trim();
+  if (!s) return null;
+
+  if (
+    // "undeliver" (not "undelivered") also catches "undeliverable".
+    s.includes("undeliver") ||
+    s.includes("not delivered") ||
+    s.includes("failed") ||
+    s.includes("rto") ||
+    s.includes("return") ||
+    s.includes("refused") ||
+    s.includes("cancel")
+  ) {
+    return "Delivery Failed";
+  }
+  if (s.includes("delivered")) return "Delivered";
+  if (s.includes("out for delivery")) return "Out for Delivery";
+  // "pickup done", not bare "pickup" — "pickup scheduled" hasn't happened yet.
+  if (s.includes("picked") || s.includes("pickup done")) return "Picked up";
+  if (
+    s.includes("transit") ||
+    s.includes("shipped") ||
+    s.includes("dispatch")
+  ) {
+    return "In Transit";
+  }
+  return null;
+};

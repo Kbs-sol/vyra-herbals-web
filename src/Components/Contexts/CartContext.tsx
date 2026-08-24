@@ -1,11 +1,10 @@
 'use client';
 
-import React, { createContext, useState, useContext, useEffect, ReactNode } from "react";
+import React, { createContext, useState, useContext, useEffect, useRef, ReactNode } from "react";
 import { APP_NAME } from "../../constants";
 import { useAuth } from "./AuthContext";
 import type { CartItem } from "@/types";
 import { supabase } from "@/utils/supabaseClient";
-import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 
 interface AppliedCoupon {
@@ -44,6 +43,63 @@ interface CouponLineItem {
   quantity: number;
 }
 
+/** Per-line quantity ceiling, shared by the guest and signed-in paths. */
+const MAX_CART_QTY = 10;
+
+/**
+ * ---- Guest cart ----
+ * A signed-in cart lives in the `cart` table keyed on `user_id`. Guests have no
+ * user_id, so their selections are parked in localStorage as {product_id, quantity}
+ * only — never product details, so prices and stock are always re-read from the
+ * server and can't go stale in a shopper's browser. On sign-in,
+ * mergeGuestCartIntoAccount() folds these rows into the database cart and clears
+ * this key.
+ */
+const GUEST_CART_KEY = 'vyra_guest_cart_v1';
+
+interface GuestCartEntry {
+  product_id: number | string;
+  quantity: number;
+}
+
+const readGuestCart = (): GuestCartEntry[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(GUEST_CART_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    // Defensive: this data is user-editable, so re-validate rather than trust it.
+    return parsed
+      .filter((entry: any) => entry && entry.product_id !== null && entry.product_id !== undefined)
+      .map((entry: any) => ({
+        product_id: entry.product_id,
+        quantity: Math.min(MAX_CART_QTY, Math.max(1, Number(entry.quantity) || 1)),
+      }));
+  } catch {
+    return [];
+  }
+};
+
+const writeGuestCart = (entries: GuestCartEntry[]): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(GUEST_CART_KEY, JSON.stringify(entries));
+  } catch {
+    // Quota exceeded or private-browsing storage denial: the in-memory cart still
+    // works for this page view, it just won't survive a reload.
+  }
+};
+
+const clearGuestCart = (): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.removeItem(GUEST_CART_KEY);
+  } catch {
+    // ignore
+  }
+};
+
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
@@ -51,7 +107,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
   const [directCheckoutItems, setDirectCheckoutItems] = useState<CouponLineItem[] | null>(null);
-  const router = useRouter();
+  // Guards the guest-cart merge so it runs exactly once per sign-in, even though
+  // supabase can re-emit auth events for the same user.
+  const mergedForUserId = useRef<string | null>(null);
+  // Holds the current merge so concurrent effect runs await the same work.
+  const mergeInFlight = useRef<Promise<void> | null>(null);
 
   // Items a coupon is validated against: the buy-now line items when the
   // direct-checkout flow is active, otherwise the cart.
@@ -68,14 +128,139 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const { user, loading } = useAuth();
 
   useEffect(() => {
-    if (!loading) {
-      fetchCart();
-    }
+    if (loading) return;
+
+    let cancelled = false;
+    (async () => {
+      // On a fresh sign-in, fold any guest selections into the account *before*
+      // the first read. Doing it in this order means the cart never flashes empty
+      // and never loses what the shopper picked out before logging in.
+      if (user?.id) {
+        if (mergedForUserId.current !== String(user.id)) {
+          // Share a single in-flight merge across effect runs. React StrictMode
+          // invokes effects twice in development, and without this the second run
+          // would skip the merge and read the cart while the first run's upsert
+          // was still in flight — showing the pre-merge cart.
+          if (!mergeInFlight.current) {
+            const uid = String(user.id);
+            mergeInFlight.current = mergeGuestCartIntoAccount(user.id)
+              // Only mark this user as merged once it actually succeeded, so a
+              // failed merge is retried instead of leaving the guest's items
+              // stranded in localStorage while the cart renders empty.
+              .then((merged) => { if (merged) mergedForUserId.current = uid; })
+              .finally(() => { mergeInFlight.current = null; });
+          }
+          await mergeInFlight.current;
+        }
+      } else {
+        mergedForUserId.current = null;
+      }
+
+      if (!cancelled) await fetchCart();
+    })();
+
+    return () => { cancelled = true; };
     // Depend on user.id (stable) rather than the user object — supabase's
     // onAuthStateChange replaces the user reference on every token refresh,
     // which would otherwise cause needless cart refetches mid-checkout.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, loading]);
+
+  /**
+   * Turn stored {product_id, quantity} rows into renderable cart items by
+   * re-reading the products from the server. Mirrors the `products(*)` join the
+   * signed-in path gets from supabase.
+   *
+   * Returns null if the lookup failed, which the caller must distinguish from an
+   * empty array — blanking the cart on a transient network error would show
+   * "your cart is empty" to a shopper whose items are still safely stored.
+   */
+  const hydrateGuestCart = async (entries: GuestCartEntry[]): Promise<CartItem[] | null> => {
+    if (entries.length === 0) return [];
+
+    try {
+      const res = await fetch('/api/products/cart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productIds: entries.map(e => e.product_id) }),
+      });
+
+      if (!res.ok) throw new Error(`Failed to load cart products (${res.status})`);
+
+      const products = await res.json();
+      if (!Array.isArray(products)) return null;
+
+      // Walk `entries` (not `products`) so the shopper's own ordering is kept.
+      // Ids that no longer resolve to a product are dropped — deleted or
+      // unpublished items shouldn't wedge the cart.
+      return entries.reduce<CartItem[]>((acc, entry) => {
+        const product = products.find((p: any) => String(p.id) === String(entry.product_id));
+        if (product) {
+          acc.push({ ...product, id: product.id, quantity: entry.quantity } as CartItem);
+        }
+        return acc;
+      }, []);
+    } catch (error) {
+      console.error("Error hydrating guest cart:", error);
+      return null;
+    }
+  };
+
+  /**
+   * Move the guest cart into the signed-in user's `cart` rows. Quantities combine
+   * the same way addItemToCart does (existing + incoming), and the upsert's
+   * onConflict target means a product already in the account cart is updated in
+   * place rather than duplicated.
+   *
+   * Returns true when the guest cart has been handed over (or there was nothing to
+   * hand over). Returns false if the database rejected it, so the caller can retry
+   * rather than treat the transfer as done.
+   */
+  const mergeGuestCartIntoAccount = async (userId: string | number): Promise<boolean> => {
+    const entries = readGuestCart();
+    if (entries.length === 0) return true;
+
+    try {
+      const { data: existingRows, error: readError } = await supabase
+        .from('cart')
+        .select('product_id, quantity')
+        .eq('user_id', userId);
+
+      if (readError) throw readError;
+
+      const existingQty = new Map<string, number>();
+      (existingRows || []).forEach((row: any) => {
+        existingQty.set(String(row.product_id), Number(row.quantity) || 0);
+      });
+
+      const rows = entries.map(entry => {
+        const existing = existingQty.get(String(entry.product_id)) || 0;
+        return {
+          user_id: userId,
+          product_id: entry.product_id,
+          // Cap the combined quantity, but never below what the account already
+          // held: the signed-in add path doesn't clamp, so an existing line can
+          // legitimately sit above MAX_CART_QTY and a merge must not silently
+          // shrink it.
+          quantity: Math.max(existing, Math.min(MAX_CART_QTY, existing + entry.quantity)),
+        };
+      });
+
+      const { error: upsertError } = await supabase
+        .from('cart')
+        .upsert(rows, { onConflict: 'user_id, product_id' });
+
+      if (upsertError) throw upsertError;
+
+      // Only drop the local copy once the database has accepted it, so a failed
+      // merge leaves the guest cart intact for the next attempt.
+      clearGuestCart();
+      return true;
+    } catch (error) {
+      console.error("Error merging guest cart into account:", error);
+      return false;
+    }
+  };
 
   const fetchCart = async (): Promise<void> => {
     try {
@@ -103,11 +288,14 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           setCartCount(items.length);
         }
       } else {
-        // If not logged in, cart is empty (per requirement: login required to use cart)
-        // We could optionally show local storage but requirement says "store ... in database instead of localstorage"
-        // and "when he tries to add product to cart then it will login"
-        setCartItems([]);
-        setCartCount(0);
+        // Guests shop without an account: their cart is held in localStorage and
+        // rehydrated from the server here, then merged on sign-in. A null result
+        // means the lookup failed, so leave the current items on screen rather
+        // than wrongly telling the shopper their cart is empty.
+        const items = await hydrateGuestCart(readGuestCart());
+        if (items === null) return;
+        setCartItems(items);
+        setCartCount(items.length);
       }
     } catch (error) {
       console.error("Error fetching cart count:", error);
@@ -128,8 +316,24 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const addItemToCart = async (id: number | string, quantity: number = 1, product?: any): Promise<void> => {
     if (!id) return;
 
+    // Guests are not redirected to /login here — that gate now lives at checkout.
+    // Their picks go to localStorage and are merged into the account on sign-in.
     if (!user) {
-      router.push('/login');
+      const entries = readGuestCart();
+      const existingIndex = entries.findIndex(e => String(e.product_id) === String(id));
+
+      if (existingIndex > -1) {
+        entries[existingIndex] = {
+          ...entries[existingIndex],
+          quantity: Math.min(MAX_CART_QTY, entries[existingIndex].quantity + quantity),
+        };
+      } else {
+        entries.push({ product_id: id, quantity: Math.min(MAX_CART_QTY, Math.max(1, quantity)) });
+      }
+
+      writeGuestCart(entries);
+      await fetchCart();
+      toast.success("Added to cart");
       return;
     }
 
@@ -214,7 +418,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const removeItemFromCart = async (productId: number | string): Promise<void> => {
-    if (!productId || !user) return;
+    if (!productId) return;
+
+    if (!user) {
+      writeGuestCart(readGuestCart().filter(e => String(e.product_id) !== String(productId)));
+      await fetchCart();
+      return;
+    }
 
     try {
       const { error } = await supabase
@@ -232,9 +442,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateItemInCart = async (action: 'increment' | 'decrement', productId: number | string): Promise<void> => {
-    if (!user) return;
-
-    const maxQty = 10;
     const currentItem = cartItems.find(item => item.id === productId);
     if (!currentItem) return;
 
@@ -243,7 +450,17 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     if (action === 'increment') newQty += 1;
 
     if (newQty < 1) return; // Or remove? Usually stay at 1.
-    if (newQty > maxQty) return;
+    if (newQty > MAX_CART_QTY) return;
+
+    if (!user) {
+      writeGuestCart(
+        readGuestCart().map(e =>
+          String(e.product_id) === String(productId) ? { ...e, quantity: newQty } : e
+        )
+      );
+      setCartItems(prev => prev.map(item => item.id === productId ? { ...item, quantity: newQty } : item));
+      return;
+    }
 
     try {
       const { error } = await supabase
@@ -264,7 +481,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const clearCart = async (): Promise<void> => {
-    if (!user) return;
+    if (!user) {
+      clearGuestCart();
+      setCartItems([]);
+      setCartCount(0);
+      setAppliedCoupon(null);
+      return;
+    }
 
     try {
       const { error } = await supabase

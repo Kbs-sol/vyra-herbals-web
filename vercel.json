@@ -14,10 +14,10 @@
       "maxDuration": 30
     },
     "app/api/payment/cod/route.ts": {
-      "maxDuration": 30
+      "maxDuration": 60
     },
     "app/api/payment/success/route.ts": {
-      "maxDuration": 30
+      "maxDuration": 60
     },
     "app/api/payment/reconcile/route.ts": {
       "maxDuration": 60

@@ -1,5 +1,9 @@
 import { validateCoupon, recordCouponUsage } from '@/utils/coupons';
 import { syncOrderShipment } from '@/utils/orderShipment';
+import {
+  notifyOrderPlaced,
+  notifyPaymentConfirmed,
+} from '@/services/communications/integration/orderNotifications';
 import { SUCCESSFUL_ORDER_STATUSES } from '@/utils/orderStatus';
 
 export type FinalizeResult =
@@ -193,6 +197,19 @@ export const finalizeOrderFromSession = async (
     }).eq('id', Number(txnIdStr));
   } catch (e) {
     console.warn(`[finalizeOrderFromSession] transactions update failed for ${txnIdStr}:`, e);
+  }
+
+  // WhatsApp notifications for the prepaid flow. Wired here rather than in
+  // /api/payment/success so the reconcile paths (/api/payment/reconcile and the
+  // reconcile cron) notify too — all three finalize through this function.
+  //
+  // Guarded on `!alreadyExisted` so replaying finalize for an order that was
+  // already created doesn't message the customer twice. The queue's
+  // `dedupe_key` would swallow the duplicate regardless; this just avoids
+  // doing the work. Neither call can throw.
+  if (inserted && !alreadyExisted) {
+    await notifyOrderPlaced(inserted);
+    await notifyPaymentConfirmed(inserted);
   }
 
   return { ok: true, order: inserted, alreadyExisted, trackingId };

@@ -1,4 +1,6 @@
 import { createShipment } from "./shipping";
+import { notifyShipmentCreated } from "@/services/communications/integration/orderNotifications";
+import { automationEngine } from "@/services/communications";
 
 type SyncResult =
     | { success: true; trackingId: string; shipmentId: string; alreadySynced?: boolean }
@@ -109,6 +111,38 @@ export const syncOrderShipment = async (supabase: any, order: any): Promise<Sync
                 console.error(`[OrderShipment] DB update failed for order ${order.id}:`, updateError);
                 return { success: false, message: `DB update failed: ${updateError.message}` };
             }
+
+            // Notify the customer their order has shipped. This is the single
+            // choke point for both COD and online orders, and the early return
+            // above for an already-synced shipment means it fires once per new
+            // shipment (the handler's dedupe_key also guards a double-send).
+            try {
+                await automationEngine.emit(
+                    {
+                        type: 'SHIPMENT_CREATED',
+                        order_id: order.id,
+                        customer_phone: order.shipping_data?.phone,
+                        tracking_id: trackingId,
+                        courier_name: shipmentResult.courier_name || '',
+                        awb_code: shipmentResult.awb_code || '',
+                        label_url: shipmentResult.label_url || undefined,
+                    },
+                    'api'
+                );
+            } catch (err) {
+                console.warn(`[OrderShipment] SHIPMENT_CREATED emit failed for order ${order.id}:`, err);
+            }
+
+            // Tell the customer their parcel is on its way. Only actually
+            // sends when iCarry issued a real AWB — the usual save_only case
+            // has no courier yet, so this is a no-op there and adds no latency
+            // to the checkout request. Never throws.
+            await notifyShipmentCreated(order, {
+                trackingId,
+                awb_code: shipmentResult.awb_code,
+                courier_name: shipmentResult.courier_name,
+            });
+
             return {
                 success: true,
                 trackingId,

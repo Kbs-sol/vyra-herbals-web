@@ -5,16 +5,13 @@ import styled from "styled-components";
 import PropTypes from "prop-types";
 import { FaEye, FaShoppingCart } from "react-icons/fa";
 import { useCart } from "../Contexts/CartContext";
-import { useAuth } from "../Contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import { toast } from "react-toastify";
 
 import { trackEvent } from "@/utils/analytics";
 
 const AddToCartButton = (props) => {
   const { productId, quantity = 1, className, product } = props;
   const { cartItems, addItemToCart } = useCart();
-  const { user } = useAuth();
   const router = useRouter();
 
   const [loading, setLoading] = React.useState(false);
@@ -24,14 +21,9 @@ const AddToCartButton = (props) => {
   }, [cartItems, productId]);
 
   const handleAddToCart = async () => {
-    if (!user) {
-      toast.error("You have to login first", {
-        position: "bottom-center",
-        autoClose: 1000,
-      });
-      router.push(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
-      return;
-    }
+    // No auth check here by design: guests can fill a cart freely. The login
+    // requirement lives at the checkout step (Checkout.handleCheckout), so the
+    // shopper is only asked to sign in when they are ready to order.
     setLoading(true);
     await addItemToCart(productId, quantity, product);
     
