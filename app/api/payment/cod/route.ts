@@ -6,11 +6,14 @@ import { notifyOrderPlaced } from '@/services/communications/integration/orderNo
 import { requireUser } from '@/utils/apiAuth';
 import { enforceRateLimit } from '@/utils/rateLimit';
 import { COD_Charges } from '@/constants';
-import { automationEngine } from '@/services/communications';
 
 export const runtime = 'nodejs';
 export const preferredRegion = 'bom1';
-export const maxDuration = 30;
+// Must stay >= the 25s iCarry race below plus DB + notification overhead.
+// NOTE: this export OVERRIDES the value in vercel.json — vercel.json said 60
+// while this said 30, and 30 was winning, so a slow iCarry booking killed the
+// function before it could save the tracking id.
+export const maxDuration = 60;
 
 /**
  * Place a cash-on-delivery order.
@@ -236,29 +239,13 @@ export async function POST(req: Request) {
       await supabase.from('cart').delete().eq('user_id', userId);
     }
 
-    // 5. Fire the "order placed" WhatsApp notification. COD has no payment
-    //    step, so order-placed is the customer's first touch. emit() enqueues
-    //    then best-effort sends (the queue cron retries on failure), but it can
-    //    reject before its own internal try/catch, so guard it here too.
-    if (order?.id) {
-      try {
-        await automationEngine.emit(
-          {
-            type: 'ORDER_PLACED',
-            order_id: order.id,
-            user_id: userId,
-            customer_phone: orderData.shippingData?.phone,
-            customer_name: orderData.shippingData?.fullName || orderData.shippingData?.name || '',
-            total_amount: authoritativeTotal,
-            payment_method: 'cod',
-            items: orderItems,
-          },
-          'api'
-        );
-      } catch (err) {
-        console.warn(`[WhatsApp] ORDER_PLACED emit failed for order ${order.id}:`, err);
-      }
-    }
+    // 5. Cart cleared above; the "order placed" WhatsApp notification already
+    //    went out at step 1 via notifyOrderPlaced(). There used to be a second
+    //    automationEngine.emit({type:'ORDER_PLACED'}) here, which meant every
+    //    COD order raised the same event twice — two Supabase round trips inside
+    //    the function budget, for a message the queue's dedupe_key then threw
+    //    away. It also read `shippingData.phone` directly, which breaks on rows
+    //    whose shipping_data is stored as a JSON string.
 
     return NextResponse.json({
       order_id: order?.id,

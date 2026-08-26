@@ -15,15 +15,21 @@ export async function emit(event: CommunicationEvent, source: EventSource = 'api
   const dedupeKey = event.dedupe_key ?? `${event.type}:${event.order_id}`;
   const enrichedEvent = { ...event, dedupe_key: dedupeKey, source };
 
-  const eventLogId = await logEvent({
-    order_id: event.order_id,
-    event_type: event.type,
-    event_source: source,
-    payload: enrichedEvent as Record<string, unknown>,
-    status: 'received',
-  });
+  // Declared outside the try so the catch can still close out the log row.
+  // The logEvent() call itself is INSIDE the try: it used to sit above it,
+  // which made this whole function able to reject on its first line (a missing
+  // service-role key or a missing message_events table) — on the checkout path.
+  let eventLogId: number | null = null;
 
   try {
+    eventLogId = await logEvent({
+      order_id: event.order_id,
+      event_type: event.type,
+      event_source: source,
+      payload: enrichedEvent as Record<string, unknown>,
+      status: 'received',
+    });
+
     // Master kill-switch, checked BEFORE enqueueing rather than only inside
     // the provider. While WhatsApp is off — e.g. before Meta has approved the
     // templates — this keeps message_queue empty. Otherwise every order would

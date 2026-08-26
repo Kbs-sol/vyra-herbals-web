@@ -2,11 +2,14 @@ import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
 import { finalizeOrderFromSession } from '@/utils/orderFinalize';
 import { verifyEasebuzzCallbackHash, verifyEasebuzzTransaction } from '@/utils/easebuzz';
-import { automationEngine } from '@/services/communications';
 
 export const runtime = 'nodejs';
 export const preferredRegion = 'bom1';
-export const maxDuration = 30;
+// Must stay >= the 25s iCarry race inside finalizeOrderFromSession plus DB and
+// notification overhead. This export OVERRIDES vercel.json (which already said
+// 60); at 30 the function was being killed mid-checkout before the tracking id
+// was saved, and the customer never reached the order-placed page.
+export const maxDuration = 60;
 
 const resolveAppUrl = (req: Request): string => {
     const origin = new URL(req.url).origin;
@@ -101,26 +104,14 @@ export async function POST(req: Request) {
             );
         }
 
-        // Payment is verified and the order row is durable — send the
-        // "payment confirmed" WhatsApp notification. Online orders notify on
-        // payment (not order-placed) to avoid double-messaging the same order.
-        if (result.order?.id) {
-            try {
-                await automationEngine.emit(
-                    {
-                        type: 'PAYMENT_CONFIRMED',
-                        order_id: result.order.id,
-                        user_id: result.order.user_id ?? null,
-                        customer_phone: result.order.shipping_data?.phone,
-                        amount_paid: Number(data.amount) || Number(result.order.total_amount) || 0,
-                        payment_gateway: 'Easebuzz',
-                    },
-                    'api'
-                );
-            } catch (err) {
-                console.warn(`[WhatsApp] PAYMENT_CONFIRMED emit failed for order ${result.order.id}:`, err);
-            }
-        }
+        // The "payment confirmed" and "order placed" WhatsApp notifications are
+        // sent inside finalizeOrderFromSession(), so every path that finalizes an
+        // order notifies — including /api/payment/reconcile and the reconcile
+        // cron, which do not come through this route. A duplicate
+        // automationEngine.emit({type:'PAYMENT_CONFIRMED'}) used to sit here; it
+        // raised the same event a second time (extra Supabase round trips inside
+        // the function budget) and read `shipping_data?.phone` directly, which
+        // returns undefined on rows where shipping_data is a JSON string.
 
         const successUrl = result.order?.id
             ? `${appUrl}/order-placed/${result.order.id}`

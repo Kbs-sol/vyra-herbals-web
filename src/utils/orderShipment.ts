@@ -1,6 +1,5 @@
 import { createShipment } from "./shipping";
 import { notifyShipmentCreated } from "@/services/communications/integration/orderNotifications";
-import { automationEngine } from "@/services/communications";
 
 type SyncResult =
     | { success: true; trackingId: string; shipmentId: string; alreadySynced?: boolean }
@@ -112,31 +111,16 @@ export const syncOrderShipment = async (supabase: any, order: any): Promise<Sync
                 return { success: false, message: `DB update failed: ${updateError.message}` };
             }
 
-            // Notify the customer their order has shipped. This is the single
-            // choke point for both COD and online orders, and the early return
-            // above for an already-synced shipment means it fires once per new
-            // shipment (the handler's dedupe_key also guards a double-send).
-            try {
-                await automationEngine.emit(
-                    {
-                        type: 'SHIPMENT_CREATED',
-                        order_id: order.id,
-                        customer_phone: order.shipping_data?.phone,
-                        tracking_id: trackingId,
-                        courier_name: shipmentResult.courier_name || '',
-                        awb_code: shipmentResult.awb_code || '',
-                        label_url: shipmentResult.label_url || undefined,
-                    },
-                    'api'
-                );
-            } catch (err) {
-                console.warn(`[OrderShipment] SHIPMENT_CREATED emit failed for order ${order.id}:`, err);
-            }
-
             // Tell the customer their parcel is on its way. Only actually
             // sends when iCarry issued a real AWB — the usual save_only case
             // has no courier yet, so this is a no-op there and adds no latency
             // to the checkout request. Never throws.
+            //
+            // A raw automationEngine.emit({type:'SHIPMENT_CREATED'}) used to run
+            // here as well. It fired on EVERY successful save, including the
+            // save_only case with no courier assigned — so the customer got a
+            // "shipped via  , tracking <internal shipment id>" message with
+            // blank fields, and the event was raised twice per shipment.
             await notifyShipmentCreated(order, {
                 trackingId,
                 awb_code: shipmentResult.awb_code,
