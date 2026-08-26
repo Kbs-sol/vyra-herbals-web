@@ -501,12 +501,22 @@ const Checkout = ({
   };
 
   const handleCheckout = () => {
+    // This is the app's authentication boundary. Browsing and adding to the cart
+    // are open to guests; signing in is only required to place an order.
     if (!user) {
       toast.error("You have to login first", {
         position: "bottom-center",
         autoClose: 1000,
       });
-      router.push(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+      // A cart checkout resumes at /checkout, so signing in continues the order
+      // rather than dropping the shopper back on the cart to click again. A direct
+      // "Buy Now" must return to the product page instead: its line item lives in
+      // this component's props and /checkout renders with product={null}, so
+      // sending a direct buy there would silently lose the selected item.
+      const returnTo = isDirectBuy
+        ? window.location.pathname + window.location.search
+        : '/checkout';
+      router.push(`/login?next=${encodeURIComponent(returnTo)}`);
       return;
     }
     const currentPath = window.location.pathname + window.location.search;
@@ -723,6 +733,14 @@ const Checkout = ({
       if (prevPath) {
         sessionStorage.removeItem("checkout_prev_path");
         window.history.replaceState({}, "", prevPath);
+        return;
+      }
+      // Reached /checkout directly rather than through the "Proceed to Checkout"
+      // button — resuming after login, or a bookmark — so no prior page was
+      // recorded and there is nothing rendered underneath the modal. Fall back to
+      // the cart instead of leaving an empty checkout shell on screen.
+      if (window.location.pathname === '/checkout') {
+        router.replace('/cart');
       }
     } catch (e) {
       router.replace("/");

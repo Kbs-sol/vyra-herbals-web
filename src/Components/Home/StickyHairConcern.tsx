@@ -7,10 +7,8 @@ import { API_PATH } from '../../constants';
 import { Product } from '@/types';
 import { FaShoppingCart, FaWhatsapp } from 'react-icons/fa';
 import Link from 'next/link';
-import { useAuth } from '../Contexts/AuthContext';
 import { useCart } from '../Contexts/CartContext';
 import { useRouter } from 'next/navigation';
-import { toast } from 'react-toastify';
 import { trackEvent } from '@/utils/analytics';
 
 const CONCERNS = [
@@ -93,22 +91,14 @@ const StickyHairConcern = () => {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const { user } = useAuth();
   const { cartItems, addItemToCart } = useCart();
   const router = useRouter();
 
   const toggleSheet = () => setIsOpen(!isOpen);
 
   const handleAddToCart = async (product: Product) => {
-    if (!user) {
-      toast.error("You have to login first", {
-        position: "bottom-center",
-        autoClose: 1000,
-      });
-      router.push(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
-      return;
-    }
-    
+    // No auth check here by design: guests can fill a cart freely. The login
+    // requirement lives at the checkout step (Checkout.handleCheckout).
     await addItemToCart(product.id, 1, product);
     
     // Track AddToCart event

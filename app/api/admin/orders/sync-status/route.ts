@@ -3,6 +3,7 @@ import { createServerSupabase } from '@/utils/supabaseClient';
 import { verifyAdminAuth } from '@/utils/adminAuth';
 import { getIcarryToken } from '@/utils/shipping';
 import { fetchIcarryStatus, mapIcarryStatus, ORDER_STATUS_RANK } from '@/utils/icarryTracking';
+import { notifyDeliveryStatusChanged } from '@/services/communications/integration/orderNotifications';
 
 export const runtime = 'nodejs';
 export const preferredRegion = 'bom1';
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
 
     let query = supabase
       .from('orders')
-      .select('id, status, delivery_status, shipment_id, awb_code')
+      .select('id, status, delivery_status, shipment_id, awb_code, tracking_id, shipping_data')
       .not('shipment_id', 'is', null);
     if (singleId) query = query.eq('id', singleId);
 
@@ -47,6 +48,14 @@ export async function POST(request: NextRequest) {
     }
 
     const results: any[] = [];
+
+    // Each customer notification costs a Meta round-trip, and a bulk sync can
+    // touch 100 orders inside a 60s budget. We stop after this many messages
+    // and leave the remaining orders completely untouched, so their status
+    // change is still pending and the next run notifies them properly.
+    const NOTIFY_BUDGET = 20;
+    let notified = 0;
+
     for (const o of orders || []) {
       // Skip orders already in a terminal state on bulk runs.
       if (!singleId && (o.status === 'delivered' || o.status === 'cancelled')) continue;
@@ -76,6 +85,24 @@ export async function POST(request: NextRequest) {
         delivery_status: mapped.delivery_status,
         error: upErr?.message,
       });
+
+      // Notify the customer when the milestone actually moved. The helper
+      // ignores statuses we have no template for (booked, pending, label
+      // created), parses `shipping_data` whether it's JSONB or a legacy JSON
+      // string, and never throws. Repeat syncs at the same status are
+      // swallowed by the queue's dedupe_key.
+      if (!upErr && mapped.delivery_status !== o.delivery_status) {
+        await notifyDeliveryStatusChanged(o, raw, 'api');
+        notified += 1;
+
+        if (notified >= NOTIFY_BUDGET) {
+          console.warn(
+            `[sync-status] notification budget (${NOTIFY_BUDGET}) reached after ${results.length} orders; ` +
+              'remaining orders left unchanged for the next run.'
+          );
+          break;
+        }
+      }
     }
 
     const updated = results.filter((r) => r.updated).length;

@@ -68,5 +68,15 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/api/admin/:path*', '/test-:path*'],
+  matcher: [
+    '/api/admin/:path*',
+    // WhatsApp admin/support + manual-send routes, and the internal HTTP
+    // event-trigger endpoints (/api/events/*), all read customer data or can
+    // send messages — so they sit behind the same deny-by-default admin gate.
+    // (The Meta webhook lives at /api/webhooks/whatsapp and verifies its own
+    // HMAC signature, so it is deliberately NOT matched here.)
+    '/api/whatsapp/:path*',
+    '/api/events/:path*',
+    '/test-:path*',
+  ],
 };

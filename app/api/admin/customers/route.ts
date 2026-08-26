@@ -58,6 +58,10 @@ export async function GET(request: NextRequest) {
           orderCount: 0,
           totalSpent: 0,
           lastOrderDate: null,
+          // Filled in from the `users` table below when this shopper has an
+          // account. Order rows carry no registration date of their own, so a
+          // guest checkout legitimately stays null.
+          registeredAt: null,
           status: 'active'
         });
       }
@@ -80,11 +84,17 @@ export async function GET(request: NextRequest) {
       const d = String(p || '').replace(/\D/g, '');
       return d.length > 10 ? d.slice(-10) : d;
     };
-    const purchaserKeys = new Set<string>();
+    // Email/phone of everyone who already appears via their orders, mapped to the
+    // record itself so a matched `users` row can hand over its signup date.
+    const purchaserByKey = new Map<string, any>();
     customerMap.forEach((c) => {
-      if (c.email) purchaserKeys.add(String(c.email).toLowerCase());
+      if (c.email) {
+        purchaserByKey.set(String(c.email).toLowerCase(), c);
+      }
       const ph = norm10(c.phone);
-      if (ph) purchaserKeys.add(ph);
+      if (ph) {
+        purchaserByKey.set(ph, c);
+      }
     });
 
     const { data: users } = await supabase
@@ -99,8 +109,13 @@ export async function GET(request: NextRequest) {
       if (!phone && isInternal) phone = norm10(rawEmail.split('@')[0]);
       const email = isInternal ? '' : rawEmail;
 
-      // Already counted via their orders (matched by email or phone)? skip.
-      if ((email && purchaserKeys.has(email)) || (phone && purchaserKeys.has(phone))) {
+      // Already counted via their orders (matched by email or phone)? Hand over
+      // the registration date before skipping, so "Customer Since" is accurate
+      // for purchasers too instead of reading N/A for everyone who has ordered.
+      const matched = (email ? purchaserByKey.get(email) : undefined)
+        || (phone ? purchaserByKey.get(phone) : undefined);
+      if (matched) {
+        if (!matched.registeredAt) matched.registeredAt = u.created_at || null;
         return;
       }
 
@@ -141,6 +156,15 @@ export async function GET(request: NextRequest) {
 
     // Sort
     const dir = sortOrder === 'asc' ? 1 : -1;
+    // Null/unparseable timestamps must not fall through to 0 — that would make a
+    // customer with no registration date look like the *oldest* record on an
+    // ascending sort. Returning null lets the comparator sink them to the bottom
+    // in both directions instead.
+    const toTime = (value: any): number | null => {
+      if (!value) return null;
+      const time = new Date(value).getTime();
+      return Number.isFinite(time) ? time : null;
+    };
     customers.sort((a, b) => {
       switch (sortBy) {
         case 'orderCount':
@@ -153,8 +177,11 @@ export async function GET(request: NextRequest) {
         case 'name':
           return a.name.localeCompare(b.name) * dir;
         case 'registeredAt': {
-          const aTime = a.registeredAt ? new Date(a.registeredAt).getTime() : 0;
-          const bTime = b.registeredAt ? new Date(b.registeredAt).getTime() : 0;
+          const aTime = toTime(a.registeredAt);
+          const bTime = toTime(b.registeredAt);
+          if (aTime === null && bTime === null) return 0;
+          if (aTime === null) return 1;
+          if (bTime === null) return -1;
           return (aTime - bTime) * dir;
         }
         case 'totalSpent':

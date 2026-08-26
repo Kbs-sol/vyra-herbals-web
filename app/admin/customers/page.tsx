@@ -315,6 +315,7 @@ export default function CustomersPage() {
                 <tr>
                   <th>Customer</th>
                   <th>Contact</th>
+                  {filter === 'leads' && <th>Registration Date</th>}
                   {filter !== 'leads' && (
                     <>
                       <th>Orders</th>
@@ -346,6 +347,11 @@ export default function CustomersPage() {
                           <span className="phone">{customer.phone || '-'}</span>
                         </div>
                       </td>
+                      {filter === 'leads' && (
+                        <td className="date">
+                          {customer.registeredAt ? formatDate(customer.registeredAt) : '-'}
+                        </td>
+                      )}
                       {filter !== 'leads' && (
                         <>
                           <td className="orders-count">{customer.orderCount}</td>
@@ -490,8 +496,8 @@ export default function CustomersPage() {
                     <div className="detail-item">
                       <span className="label">Customer Since</span>
                       <span className="value">
-                        {selectedCustomer.lastOrderDate 
-                          ? formatDate(selectedCustomer.lastOrderDate) 
+                        {selectedCustomer.registeredAt
+                          ? formatDate(selectedCustomer.registeredAt)
                           : 'N/A'}
                       </span>
                     </div>

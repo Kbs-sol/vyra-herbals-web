@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
 import { finalizeOrderFromSession } from '@/utils/orderFinalize';
 import { verifyEasebuzzCallbackHash, verifyEasebuzzTransaction } from '@/utils/easebuzz';
+import { automationEngine } from '@/services/communications';
 
 export const runtime = 'nodejs';
 export const preferredRegion = 'bom1';
@@ -98,6 +99,27 @@ export async function POST(req: Request) {
                 `${appUrl}/cart?error=order_creation_failed&details=${encodeURIComponent(result.reason)}`,
                 303
             );
+        }
+
+        // Payment is verified and the order row is durable — send the
+        // "payment confirmed" WhatsApp notification. Online orders notify on
+        // payment (not order-placed) to avoid double-messaging the same order.
+        if (result.order?.id) {
+            try {
+                await automationEngine.emit(
+                    {
+                        type: 'PAYMENT_CONFIRMED',
+                        order_id: result.order.id,
+                        user_id: result.order.user_id ?? null,
+                        customer_phone: result.order.shipping_data?.phone,
+                        amount_paid: Number(data.amount) || Number(result.order.total_amount) || 0,
+                        payment_gateway: 'Easebuzz',
+                    },
+                    'api'
+                );
+            } catch (err) {
+                console.warn(`[WhatsApp] PAYMENT_CONFIRMED emit failed for order ${result.order.id}:`, err);
+            }
         }
 
         const successUrl = result.order?.id

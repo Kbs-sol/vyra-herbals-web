@@ -1,0 +1,28 @@
+{
+  "success": {
+    "messaging_product": "whatsapp",
+    "contacts": [{ "input": "919876543210", "wa_id": "919876543210" }],
+    "messages": [{ "id": "wamid.HBgLOTE5ODc2NTQzMjEwFQIAERgS" }]
+  },
+  "rateLimited": {
+    "error": {
+      "message": "(#80007) Rate limit hit",
+      "type": "OAuthException",
+      "code": 80007
+    }
+  },
+  "invalidTemplate": {
+    "error": {
+      "message": "Template name does not exist in the translation",
+      "type": "OAuthException",
+      "code": 132001
+    }
+  },
+  "unauthorized": {
+    "error": {
+      "message": "Error validating access token",
+      "type": "OAuthException",
+      "code": 190
+    }
+  }
+}

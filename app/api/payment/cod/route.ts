@@ -2,9 +2,11 @@ import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
 import { validateCoupon, recordCouponUsage } from '@/utils/coupons';
 import { syncOrderShipment } from '@/utils/orderShipment';
+import { notifyOrderPlaced } from '@/services/communications/integration/orderNotifications';
 import { requireUser } from '@/utils/apiAuth';
 import { enforceRateLimit } from '@/utils/rateLimit';
 import { COD_Charges } from '@/constants';
+import { automationEngine } from '@/services/communications';
 
 export const runtime = 'nodejs';
 export const preferredRegion = 'bom1';
@@ -193,6 +195,11 @@ export async function POST(req: Request) {
 
     const order = inserted?.[0];
 
+    // Confirm the order over WhatsApp before we spend up to 25s talking to
+    // iCarry, so a slow courier API can't delay the customer's confirmation.
+    // Never throws — a notification problem must not fail a placed order.
+    await notifyOrderPlaced(order);
+
     // 2. Create Shipment in iCarry. The order is already stamped 'Pending Sync', so
     //    if this call times out the row is still recoverable via /api/orders/sync-shipment.
     //    Wrapped in a 25s race so we never blow the 30s function budget.
@@ -227,6 +234,30 @@ export async function POST(req: Request) {
     // 4. Clear cart for the user
     if (userId) {
       await supabase.from('cart').delete().eq('user_id', userId);
+    }
+
+    // 5. Fire the "order placed" WhatsApp notification. COD has no payment
+    //    step, so order-placed is the customer's first touch. emit() enqueues
+    //    then best-effort sends (the queue cron retries on failure), but it can
+    //    reject before its own internal try/catch, so guard it here too.
+    if (order?.id) {
+      try {
+        await automationEngine.emit(
+          {
+            type: 'ORDER_PLACED',
+            order_id: order.id,
+            user_id: userId,
+            customer_phone: orderData.shippingData?.phone,
+            customer_name: orderData.shippingData?.fullName || orderData.shippingData?.name || '',
+            total_amount: authoritativeTotal,
+            payment_method: 'cod',
+            items: orderItems,
+          },
+          'api'
+        );
+      } catch (err) {
+        console.warn(`[WhatsApp] ORDER_PLACED emit failed for order ${order.id}:`, err);
+      }
     }
 
     return NextResponse.json({

@@ -26,6 +26,9 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+# Backup copies of .env.local live here — real secrets, must never be committed.
+# The .env*.local rule above does NOT cover them (the suffix comes after .local).
+/env_backup/
 
 # vercel
 .vercel
