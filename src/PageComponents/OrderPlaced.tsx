@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import styled from 'styled-components';
-import { FaCheckCircle, FaTimesCircle, FaWhatsapp, FaInstagram } from 'react-icons/fa';
+import { FaCheckCircle, FaTimesCircle, FaWhatsapp, FaInstagram, FaRegCopy, FaCheck } from 'react-icons/fa';
 import { API_PATH } from '../constants';
 import LoadingIndicator from '../Components/Common/LoadingIndicator';
 import { supabase } from '@/utils/supabaseClient';
@@ -78,7 +78,16 @@ const OrderPlaced = () => {
   const [order, setOrder] = useState<OrderInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string>('');
+  const [copied, setCopied] = useState(false);
   const { cartItems, clearCart } = useCart();
+
+  // Reset the "Copied!" flag shortly after each copy so the button goes back to
+  // its normal state without needing another render trigger.
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(timer);
+  }, [copied]);
 
   useEffect(() => {
     if (!orderId) return;
@@ -243,7 +252,40 @@ const OrderPlaced = () => {
   const items = order.items || order.products || [];
   const amount = Number(order.total_amount ?? order.order_amount ?? 0);
   const orderDate = formatDate(order.created_at || order.order_date);
+  // The AWB is what the customer actually tracks with. It can legitimately be
+  // missing for a few minutes after checkout (the courier is assigned by the
+  // iCarry sync, which the effect above retries once), so the row degrades to a
+  // "being generated" note rather than showing a blank value.
+  const awb = String(order.awb_code || '').trim();
+
+  // Until the AWB exists, the Order ID is the customer's only reference for
+  // support, so it stands in rather than leaving them with nothing to quote.
   const orderIdDisplay = order.order_id || `ORD-${order.id}`;
+  const reference = awb || orderIdDisplay;
+
+  const copyReference = async () => {
+    if (!reference) return;
+    try {
+      await navigator.clipboard.writeText(reference);
+      setCopied(true);
+    } catch {
+      // clipboard API needs HTTPS + permission; fall back to the legacy path so
+      // the button still works on older/in-app browsers.
+      try {
+        const el = document.createElement('textarea');
+        el.value = reference;
+        el.style.position = 'fixed';
+        el.style.opacity = '0';
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+        setCopied(true);
+      } catch {
+        // Nothing more we can do — the number is still on screen to read.
+      }
+    }
+  };
 
   return (
     <Wrapper>
@@ -253,12 +295,36 @@ const OrderPlaced = () => {
             <FaCheckCircle className="success-icon" />
             <h1 className="success-title">Order Placed Successfully!</h1>
             <p className="success-subtitle">Thank you for shopping with us. Here are your order details:</p>
-            <p className="success-note">Kindly note the Order ID for further tracking.</p>
+            <p className="success-note">
+              {awb
+                ? 'Kindly note the AWB (tracking) number for further tracking.'
+                : 'Kindly note the Order ID for further tracking.'}
+            </p>
           </div>
 
           <Section>
             <h3 className="section-title">Order Information</h3>
-            <Row label="Order ID" value={orderIdDisplay} />
+            <Row
+              label={awb ? 'AWB Number' : 'Order ID'}
+              value={
+                <span className="awb-wrap">
+                  <span className="awb-value">{reference}</span>
+                  <button
+                    type="button"
+                    className="copy-btn"
+                    onClick={copyReference}
+                    aria-label={awb ? 'Copy AWB number' : 'Copy Order ID'}
+                  >
+                    {copied ? <><FaCheck /> Copied</> : <><FaRegCopy /> Copy</>}
+                  </button>
+                </span>
+              }
+            />
+            {!awb && (
+              <p className="awb-pending">
+                Your AWB (tracking) number is being generated — it will appear in My Orders shortly.
+              </p>
+            )}
             <Row label="Order Amount" value={`₹${amount}`} />
             <Row label="Order Date" value={orderDate} />
             <Row label="Payment Method" value={(order.payment_method || 'online').toUpperCase()} />
@@ -404,6 +470,46 @@ const Wrapper = styled.div`
   .addr-line {
     margin-bottom: 0.5rem;
     color: #1f2937;
+  }
+
+  .awb-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .awb-value {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    word-break: break-all;
+  }
+
+  .copy-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: #f4ead4;
+    color: #704a0d;
+    border: 1px solid #704a0d;
+    border-radius: 6px;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .copy-btn:hover {
+    background: #704a0d;
+    color: #fff;
+  }
+
+  .awb-pending {
+    color: #6b7280;
+    font-style: italic;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
   }
 
   .product-row {

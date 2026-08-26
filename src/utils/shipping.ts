@@ -55,6 +55,11 @@ const ICARRY_TOKEN_FETCH_TIMEOUT_MS = 5000;
 // Advance collected online for a COD order (mirrors the ₹100 charged in
 // Checkout). Used to derive the amount the courier still has to collect.
 const COD_ADVANCE_DEFAULT = 100;
+
+// COD handling fee added to the order total at checkout (mirrors COD_Charges in
+// src/constants.ts). It is our fee, not part of the declared goods value, so it
+// is excluded from the iCarry invoice value.
+const COD_HANDLING_FEE = 50;
 const ICARRY_TOKEN_MAX_RETRIES = 1;
 
 const fetchWithTimeout = async (url: string, init: RequestInit, timeoutMs: number) => {
@@ -548,9 +553,20 @@ export const createShipment = async (orderData: any): Promise<CreateShipmentResu
             ? declaredValue
             : Math.max(1, declaredValue - codAdvance);
 
+        // Invoice value is the DECLARED GOODS value, not the collectable amount.
+        // The ₹50 COD handling fee is our charge, not part of the parcel's worth,
+        // so it comes off the invoice — while `parcel[value]` (collectable) still
+        // includes it because the courier does collect it.
+        //   e.g. goods ₹729 + ₹50 COD = ₹779 total, ₹100 advance paid
+        //        → invoice ₹729, collect ₹679.
+        // Prepaid parcels have no COD fee, so invoice == total.
+        const invoiceValue = isPrepaid
+            ? declaredValue
+            : Math.max(1, declaredValue - COD_HANDLING_FEE);
+
         if (!isPrepaid) {
             console.log(
-                `[Shipping] COD order ${orderData.id}: total ₹${declaredValue} − advance ₹${codAdvance} → collect ₹${parcelValue}`
+                `[Shipping] COD order ${orderData.id}: total ₹${declaredValue} − advance ₹${codAdvance} → collect ₹${parcelValue}, invoice ₹${invoiceValue}`
             );
         }
 
@@ -605,6 +621,9 @@ export const createShipment = async (orderData: any): Promise<CreateShipmentResu
 
         payload.append("parcel[type]", isPrepaid ? 'Prepaid' : 'COD');
         payload.append("parcel[value]", String(parcelValue));
+        // Without this, iCarry mirrors the collectable amount into the invoice
+        // field and the label under-declares the goods (₹679 instead of ₹729).
+        payload.append("parcel[invoice_value]", String(invoiceValue));
         payload.append("parcel[contents]", shippingData.productTitle || "Vyra Herbals Product");
 
         // Default parcel dimensions for a single 100ml hair-oil bottle (the
