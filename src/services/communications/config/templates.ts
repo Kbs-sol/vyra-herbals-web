@@ -28,7 +28,7 @@ function buildRegistry(): Partial<Record<EventType, TemplateDefinition>> {
     },
     SHIPMENT_CREATED: {
       name: process.env.WHATSAPP_TEMPLATE_SHIPMENT_CREATED ?? 'shipment_created',
-      parameterOrder: ['order_id', 'tracking_id', 'courier_name', 'awb_code'],
+      parameterOrder: ['order_id', 'courier_name', 'tracking_id', 'awb_code'],
     },
     DELIVERY_STATUS_UPDATED: {
       // Resolved dynamically per-status by resolveDeliveryTemplate() below;
