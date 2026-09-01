@@ -4,13 +4,13 @@ This document explains the automated scheduled WhatsApp messaging triggers imple
 
 ---
 
-## 1. 24-Hour Registration Welcome Promo (`welcome_promo_24hr`)
-- **Trigger**: 23 to 25 hours after a user signs up/registers on the store.
-- **Query Target**: `users` table (`created_at` between 23h and 25h ago).
-- **Template Default Name**: `welcome_promo_24hr` (configurable via `WHATSAPP_TEMPLATE_WELCOME_PROMO` in Vercel env).
+## 1. 2-Hour Registration Welcome Promo (`welcome_promo_2hr`)
+- **Trigger**: 1 to 3 hours after a user signs up/registers on the store.
+- **Query Target**: `users` table (`created_at` between 1h and 3h ago).
+- **Template Default Name**: `welcome_promo_2hr` (configurable via `WHATSAPP_TEMPLATE_WELCOME_PROMO` in Vercel env).
 - **Parameters Passed**:
   - `{{1}}` = `customer_name` (User's full name or "Customer")
-- **Dedupe Protection**: `PROMO_24HR:<user_id>` (Ensures each user receives this offer exactly once).
+- **Dedupe Protection**: `PROMO_2HR:<user_id>` (Ensures each user receives this offer exactly once).
 
 ---
 
