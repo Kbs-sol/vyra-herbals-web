@@ -63,14 +63,15 @@ export async function notifyOrderPlaced(order: any): Promise<void> {
   try {
     if (!order?.id) return;
     const shipping = readShippingData(order);
+    const customerName = String(shipping.fullName || shipping.name || shipping.first_name || '').trim() || 'Customer';
 
     await automationEngine.emit(
       {
         type: 'ORDER_PLACED',
         order_id: Number(order.id),
         user_id: order.user_id ?? null,
-        customer_phone: String(shipping.phone ?? ''),
-        customer_name: String(shipping.fullName ?? '').trim() || 'Customer',
+        customer_phone: String(shipping.phone ?? shipping.mobile ?? ''),
+        customer_name: customerName,
         total_amount: money(order.total_amount),
         payment_method: order.payment_method === 'cod' ? 'cod' : 'online',
         items: toOrderItems(order.items),

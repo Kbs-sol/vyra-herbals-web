@@ -21,9 +21,9 @@ export class OrderPlacedHandler extends BaseEventHandler<OrderPlacedEvent> {
     const template = getTemplate('ORDER_PLACED');
 
     const values: Record<string, string | number> = {
-      customer_name: event.customer_name || 'Customer',
+      customer_name: (event.customer_name && event.customer_name !== 'Customer') ? event.customer_name : (event.customer_phone || 'Customer'),
       order_id: event.order_id,
-      total_amount: event.total_amount.toFixed(2),
+      total_amount: event.total_amount ? Number(event.total_amount).toFixed(2) : '0.00',
       tracking_link: event.tracking_link ?? '',
     };
 

@@ -3,6 +3,7 @@
   "crons": [
     { "path": "/api/cron/process-message-queue", "schedule": "* * * * *" },
     { "path": "/api/cron/retry-failed-messages", "schedule": "*/5 * * * *" },
-    { "path": "/api/cron/clean-old-logs", "schedule": "0 2 * * *" }
+    { "path": "/api/cron/clean-old-logs", "schedule": "0 2 * * *" },
+    { "path": "/api/cron/scheduled-communications", "schedule": "0 10 * * *" }
   ]
 }
