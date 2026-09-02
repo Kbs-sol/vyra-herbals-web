@@ -3,16 +3,38 @@ export interface WhatsAppTemplateComponent {
   parameters: Array<{ type: 'text'; text: string }>;
 }
 
-export interface WhatsAppSendPayload {
-  messaging_product: 'whatsapp';
-  to: string;
-  type: 'template';
-  template: {
-    name: string;
-    language: { code: string };
-    components: WhatsAppTemplateComponent[];
-  };
-}
+export type WhatsAppSendPayload =
+  | {
+      messaging_product: 'whatsapp';
+      recipient_type?: 'individual';
+      to: string;
+      type: 'template';
+      template: {
+        name: string;
+        language: { code: string };
+        components: WhatsAppTemplateComponent[];
+      };
+    }
+  | {
+      messaging_product: 'whatsapp';
+      recipient_type?: 'individual';
+      to: string;
+      type: 'text';
+      text: { body: string; preview_url?: boolean };
+    }
+  | {
+      messaging_product: 'whatsapp';
+      recipient_type?: 'individual';
+      to: string;
+      type: 'interactive';
+      interactive: {
+        type: 'button' | 'list' | 'product_list' | 'catalog_message';
+        header?: { type: 'text' | 'image'; text?: string; image?: { link: string } };
+        body: { text: string };
+        footer?: { text: string };
+        action: any;
+      };
+    };
 
 export interface WhatsAppApiSuccessResponse {
   messaging_product: 'whatsapp';
@@ -48,8 +70,27 @@ export interface WhatsAppWebhookEntry {
         from: string;
         id: string;
         timestamp: string;
-        type: string;
+        type: 'text' | 'interactive' | 'order' | 'button' | string;
         text?: { body: string };
+        interactive?: {
+          type: 'button_reply' | 'list_reply';
+          button_reply?: { id: string; title: string };
+          list_reply?: { id: string; title: string; description?: string };
+        };
+        order?: {
+          catalog_id: string;
+          product_items: Array<{
+            product_retailer_id: string;
+            quantity: string;
+            item_price: string;
+            currency: string;
+          }>;
+          text?: string;
+        };
+        context?: {
+          from: string;
+          id: string;
+        };
       }>;
     };
   }>;

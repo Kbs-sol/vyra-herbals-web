@@ -9,7 +9,7 @@ import type {
 } from './types';
 import { ProviderError } from '../../utils/errors';
 import { buildTemplatePayload } from './messageBuilder';
-import { verifyMetaSignature, parseStatusUpdates } from './webhookHandler';
+import { verifyMetaSignature, parseStatusUpdates, parseIncomingMessages } from './webhookHandler';
 import { logger } from '../../logging/logger';
 
 const GRAPH_API_VERSION = 'v19.0';
@@ -99,12 +99,71 @@ export class WhatsAppClient extends CommunicationProvider {
     return { success: true, message_id: messageId, raw: success };
   }
 
+  /**
+   * Sends a raw payload directly to Meta (useful for conversational bot replies
+   * that bypass the standard outbound Template Message engine).
+   */
+  async sendRaw(payload: WhatsAppSendPayload): Promise<ProviderSendResult> {
+    if (!this.isEnabled()) {
+      return { success: false, error: { message: 'WhatsApp provider is disabled' } };
+    }
+    const url = `${GRAPH_API_BASE}/${GRAPH_API_VERSION}/${this.phoneNumberId}/messages`;
+    
+    const start = Date.now();
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const responseBody = await response.text();
+      const isJson = response.headers.get('content-type')?.includes('application/json');
+      const data = isJson && responseBody ? JSON.parse(responseBody) : null;
+
+      if (!response.ok) {
+        const errorData = data as WhatsAppApiErrorResponse;
+        logger.error('whatsapp_send_raw_failed', {
+          status: response.status,
+          error: errorData?.error,
+        });
+        return {
+          success: false,
+          error: {
+            message: errorData?.error?.message ?? `HTTP ${response.status}: ${responseBody}`,
+            code: errorData?.error?.code?.toString(),
+          },
+        };
+      }
+
+      const successData = data as WhatsAppApiSuccessResponse;
+      return {
+        success: true,
+        message_id: successData.messages?.[0]?.id,
+        raw: successData,
+      };
+    } catch (error: any) {
+      logger.error('whatsapp_send_raw_exception', { error: error.message });
+      return {
+        success: false,
+        error: { message: error.message || 'Unknown network error' },
+      };
+    }
+  }
+
   verifyWebhook(params: VerifyWebhookParams): boolean {
     return verifyMetaSignature(params.payload, params.signatureHeader);
   }
 
   parseWebhookEvent(body: unknown): WebhookStatusUpdate[] {
     return parseStatusUpdates(body as WhatsAppWebhookBody);
+  }
+
+  parseIncomingMessages(body: unknown): any[] {
+    return parseIncomingMessages(body as WhatsAppWebhookBody);
   }
 }
 

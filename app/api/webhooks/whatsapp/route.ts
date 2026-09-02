@@ -50,12 +50,14 @@ export async function POST(req: Request) {
   }
 
   const updates = whatsappClient.parseWebhookEvent(body);
+  const incomingMessages = whatsappClient.parseIncomingMessages(body);
 
+  // 1. Process Status Updates
   for (const update of updates) {
     const targetStatus =
       update.status === 'sent' ? null : (update.status as 'delivered' | 'read' | 'failed');
 
-    if (!targetStatus) continue; // "sent" status update is redundant with our own send-time logging
+    if (!targetStatus) continue;
 
     const matched = await updateDeliveryStatusByMessageId(
       update.message_id,
@@ -65,10 +67,6 @@ export async function POST(req: Request) {
     );
 
     if (!matched) {
-      // Orphaned webhook per spec section 12.2 #1 — arrived for a message_id
-      // we don't have a row for (race condition, or a message sent before
-      // this system existed). Log loudly so it's visible without blocking
-      // the webhook response.
       logger.warn('whatsapp_webhook_orphaned_status_update', {
         message_id: update.message_id,
         status: update.status,
@@ -76,7 +74,25 @@ export async function POST(req: Request) {
     }
   }
 
+  // 2. Process Incoming Messages (Conversational Bot)
+  // Dynamic import to avoid circular dependencies and keep the webhook hot path fast
+  if (incomingMessages.length > 0) {
+    // Process asynchronously so we don't block the 200 OK response to Meta
+    import('@/services/communications/bot/botEngine')
+      .then(({ processIncomingMessages }) => {
+        processIncomingMessages(incomingMessages).catch((err) => {
+          logger.error('whatsapp_bot_processing_error', { error: err.message });
+        });
+      })
+      .catch((err) => {
+        logger.error('whatsapp_bot_import_error', { error: err.message });
+      });
+  }
+
   // Meta requires a fast 200 regardless of downstream processing outcome,
   // or it will back off and eventually disable the webhook.
-  return NextResponse.json({ received: updates.length });
+  return NextResponse.json({ 
+    received_updates: updates.length,
+    received_messages: incomingMessages.length 
+  });
 }

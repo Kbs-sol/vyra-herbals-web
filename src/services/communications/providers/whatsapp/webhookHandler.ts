@@ -87,3 +87,26 @@ export function parseStatusUpdates(body: WhatsAppWebhookBody): WebhookStatusUpda
 
   return updates;
 }
+
+/**
+ * Flattens Meta's nested entry/changes/messages structure into a flat list
+ * of incoming messages to be handled by the Bot Engine.
+ */
+export function parseIncomingMessages(body: WhatsAppWebhookBody): any[] {
+  const messages: any[] = [];
+
+  if (body.object !== 'whatsapp_business_account' || !Array.isArray(body.entry)) {
+    return messages;
+  }
+
+  for (const entry of body.entry) {
+    for (const change of entry.changes ?? []) {
+      if (change.field !== 'messages') continue;
+      for (const message of change.value.messages ?? []) {
+        messages.push(message);
+      }
+    }
+  }
+
+  return messages;
+}
