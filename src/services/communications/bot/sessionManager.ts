@@ -1,4 +1,4 @@
-import { supabaseAdmin } from '@/utils/supabaseAdmin';
+import { createServerSupabase } from '@/utils/supabaseClient';
 
 export interface WhatsAppSession {
   phone_number: string;
@@ -7,7 +7,8 @@ export interface WhatsAppSession {
 }
 
 export async function getSession(phoneNumber: string): Promise<WhatsAppSession> {
-  const { data, error } = await supabaseAdmin
+  const db = createServerSupabase();
+  const { data, error } = await db
     .from('whatsapp_sessions')
     .select('*')
     .eq('phone_number', phoneNumber)
@@ -20,7 +21,7 @@ export async function getSession(phoneNumber: string): Promise<WhatsAppSession> 
       state: 'IDLE',
       context: {}
     };
-    await supabaseAdmin.from('whatsapp_sessions').insert([newSession]);
+    await db.from('whatsapp_sessions').insert([newSession]);
     return newSession;
   }
 
@@ -28,7 +29,8 @@ export async function getSession(phoneNumber: string): Promise<WhatsAppSession> 
 }
 
 export async function updateSession(phoneNumber: string, updates: Partial<Omit<WhatsAppSession, 'phone_number'>>) {
-  await supabaseAdmin
+  const db = createServerSupabase();
+  await db
     .from('whatsapp_sessions')
     .update(updates)
     .eq('phone_number', phoneNumber);

@@ -1,8 +1,6 @@
 import { whatsappClient } from '../../providers/whatsapp/client';
 import { updateSession, type WhatsAppSession } from '../sessionManager';
-import { supabaseAdmin } from '@/utils/supabaseAdmin';
-// Assuming we have a utility to generate payment links
-import { generatePaymentHash } from '@/utils/easebuzz'; 
+import { createServerSupabase } from '@/utils/supabaseClient';
 
 export async function handleAddressInput(from: string, addressText: string, session: WhatsAppSession) {
   const orderId = session.context?.draft_order_id;
@@ -14,8 +12,10 @@ export async function handleAddressInput(from: string, addressText: string, sess
     return;
   }
 
+  const db = createServerSupabase();
+
   // Update order with the text address
-  await supabaseAdmin
+  await db
     .from('orders')
     .update({ 
       shipping_address: { raw: addressText }, // Store raw text for now

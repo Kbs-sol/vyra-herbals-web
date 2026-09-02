@@ -1,6 +1,6 @@
 import { whatsappClient } from '../../providers/whatsapp/client';
 import { updateSession, type WhatsAppSession } from '../sessionManager';
-import { supabaseAdmin } from '@/utils/supabaseAdmin';
+import { createServerSupabase } from '@/utils/supabaseClient';
 
 export async function handleTracking(from: string, session: WhatsAppSession) {
   // Reset state to avoid getting stuck
@@ -8,8 +8,10 @@ export async function handleTracking(from: string, session: WhatsAppSession) {
     await updateSession(from, { state: 'IDLE', context: {} });
   }
 
+  const db = createServerSupabase();
+
   // Find most recent order for this phone
-  const { data: orders, error } = await supabaseAdmin
+  const { data: orders, error } = await db
     .from('orders')
     .select('id, status, created_at')
     .eq('phone', from)

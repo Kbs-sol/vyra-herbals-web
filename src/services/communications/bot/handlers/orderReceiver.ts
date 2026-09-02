@@ -1,6 +1,6 @@
 import { whatsappClient } from '../../providers/whatsapp/client';
 import { updateSession, type WhatsAppSession } from '../sessionManager';
-import { supabaseAdmin } from '@/utils/supabaseAdmin';
+import { createServerSupabase } from '@/utils/supabaseClient';
 
 export async function handleOrderReceived(from: string, orderData: any, session: WhatsAppSession) {
   const items = orderData.product_items || [];
@@ -12,7 +12,7 @@ export async function handleOrderReceived(from: string, orderData: any, session:
 
   // Calculate total (assuming item_price is string like "12.99")
   let totalAmount = 0;
-  const dbItems = [];
+  const dbItems: any[] = [];
 
   for (const item of items) {
     const price = parseFloat(item.item_price || '0');
@@ -25,8 +25,10 @@ export async function handleOrderReceived(from: string, orderData: any, session:
     });
   }
 
+  const db = createServerSupabase();
+
   // Create Draft Order in Database
-  const { data: orderRow, error } = await supabaseAdmin
+  const { data: orderRow, error } = await db
     .from('orders')
     .insert([{
       total: totalAmount,
@@ -51,7 +53,7 @@ export async function handleOrderReceived(from: string, orderData: any, session:
     price: item.price
   }));
 
-  await supabaseAdmin.from('order_items').insert(orderItems);
+  await db.from('order_items').insert(orderItems);
 
   // Update session to ask for address
   await updateSession(from, {
