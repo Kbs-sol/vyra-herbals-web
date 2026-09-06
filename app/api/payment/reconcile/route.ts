@@ -86,36 +86,6 @@ const reconcileOne = async (supabase: any, txn: any): Promise<ReconcileOutcome> 
     return { txnid, status: 'pending', reason: `Easebuzz status=${verify.status}` };
   }
 
-  // Check if it's a WhatsApp Draft Order
-  const { data: pendingOrder } = await supabase
-    .from('orders')
-    .select('*')
-    .eq('txn_id', txnid)
-    .eq('source', 'whatsapp')
-    .in('status', ['pending', 'placed'])
-    .maybeSingle();
-
-  if (pendingOrder) {
-    if (pendingOrder.status === 'pending') {
-      await supabase.from('orders').update({
-        status: 'placed'
-      }).eq('id', pendingOrder.id);
-      
-      await supabase.from('transactions').update({
-        status: 'success',
-        order_id: pendingOrder.order_id,
-        payment_method: 'online'
-      }).eq('id', Number(txnid));
-
-      const { notifyOrderPlaced, notifyPaymentConfirmed } = await import('@/services/communications/integration/orderNotifications');
-      const finalizedOrder = { ...pendingOrder, status: 'placed' };
-      await notifyOrderPlaced(finalizedOrder);
-      await notifyPaymentConfirmed(finalizedOrder);
-      return { txnid, status: 'created', order_id: pendingOrder.order_id || pendingOrder.id };
-    }
-    return { txnid, status: 'already_exists', order_id: pendingOrder.order_id || pendingOrder.id };
-  }
-
   const result = await finalizeOrderFromSession(supabase, txnid, {
     paymentAmount: verify.amount ?? txn.amount,
     paymentMethod: 'online',
@@ -161,8 +131,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'txnid required' }, { status: 400 });
   }
   const supabase = createServerSupabase();
-  const auth = await getCallerAuth(req, supabase);
-
   const { data: txn, error } = await supabase
     .from('transactions')
     .select('*')
@@ -174,11 +142,6 @@ export async function GET(req: Request) {
   if (!txn) {
     return NextResponse.json({ error: 'transaction not found' }, { status: 404 });
   }
-  
-  if (!auth.isAdmin && !auth.isCron && txn.user_id !== auth.userId) {
-     return NextResponse.json({ error: 'unauthorized' }, { status: 403 });
-  }
-
   const outcome = await reconcileOne(supabase, txn);
   return NextResponse.json({ outcome });
 }
@@ -193,6 +156,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'unauthorized' }, { status: 403 });
     }
 
+    // Sweep transactions stuck in 'created' that have a matching order_sessions
+    // row but no orders row yet. We bound the sweep to the most recent 50 so a
+    // single cron tick can't OOM or blow the 60s budget — anything older will
+    // be picked up by the next tick.
     const { data: pending, error } = await supabase
       .from('transactions')
       .select('*')
@@ -219,7 +186,6 @@ export async function POST(req: Request) {
   if (!txnid) {
     return NextResponse.json({ error: 'txnid required (or set { all: true } with admin/cron auth)' }, { status: 400 });
   }
-  
   const { data: txn, error } = await supabase
     .from('transactions')
     .select('*')
@@ -231,11 +197,6 @@ export async function POST(req: Request) {
   if (!txn) {
     return NextResponse.json({ error: 'transaction not found' }, { status: 404 });
   }
-  
-  if (!auth.isAdmin && !auth.isCron && txn.user_id !== auth.userId) {
-     return NextResponse.json({ error: 'unauthorized' }, { status: 403 });
-  }
-
   const outcome = await reconcileOne(supabase, txn);
   return NextResponse.json({ outcome });
 }

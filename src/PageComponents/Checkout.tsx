@@ -13,7 +13,6 @@ import Cart from "./Cart";
 import CartItem from "../Components/Shared/CartItem";
 import BillSummary from "../Components/Shared/BillSummary";
 import CouponInput from "../Components/Shared/CouponInput";
-import OTPModal from "../Components/Shared/OTPModal";
 import { useAuth } from "../Components/Contexts/AuthContext";
 import { useCart } from "../Components/Contexts/CartContext";
 import { supabase } from "@/utils/supabaseClient";
@@ -98,7 +97,6 @@ const Checkout = ({
   }, [formData]);
 
   const [showModal, setShowModal] = useState(false);
-  const [showOTPModal, setShowOTPModal] = useState(false);
   const [disableBtn, setDisableBtn] = useState(false);
   const [totalPriceOfCartProducts, setTotalPriceOfCartProducts] = useState(0);
   const [transactionPrice, setTransactionPrice] = useState(0);
@@ -254,34 +252,21 @@ const Checkout = ({
         .from('user_addresses')
         .select('*')
         .eq('user_id', user.id)
-        .order('is_default', { ascending: false });
+        .order('is_default', { ascending: false })
+        .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error("Failed to fetch saved addresses:", error);
+      if (error && error.code !== '42P01') {
+        console.error("Error fetching addresses:", error);
       } else if (data && data.length > 0) {
         setSavedAddresses(data);
+        // Pre-select default address if needed
         const defaultAddr = data.find(a => a.is_default) || data[0];
-        // Only overwrite if the user hasn't explicitly selected one
-        if (!selectedAddressId) {
-          setSelectedAddressId(String(defaultAddr.id));
-          setFormData({
-            fullName: defaultAddr.full_name || '',
-            phone: defaultAddr.phone || '',
-            email: formData.email || '',
-            houseNumber: defaultAddr.house_number || '',
-            area: defaultAddr.area || '',
-            landmark: defaultAddr.landmark || '',
-            pincode: defaultAddr.pincode || '',
-            city: defaultAddr.city || '',
-            state: defaultAddr.state || '',
-            country: defaultAddr.country || 'India',
-          });
-          // GoKwik style: Auto skip straight to summary for returning users
-          setShowOrderSummary(true);
+        if (!formData.fullName && !formData.phone) {
+          handleAddressSelection(defaultAddr.id, data);
         }
       }
     } catch (e) {
-      console.error("Failed to fetch saved addresses:", e);
+      console.error(e);
     } finally {
       setLoadingAddresses(false);
     }
@@ -379,15 +364,10 @@ const Checkout = ({
 
   useEffect(() => {
     if (typeof show === 'boolean') {
-      if (show && !user) {
-        setShowOTPModal(true);
-      } else {
-        setShowModal(show);
-        if (show) setIsModalOpenedPreviously(true);
-      }
+      setShowModal(show);
+      if (show) setIsModalOpenedPreviously(true);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [show, user?.id]);
+  }, [show]);
 
   useEffect(() => {
     const handlePop = () => {
@@ -521,49 +501,56 @@ const Checkout = ({
   };
 
   const handleCheckout = () => {
+    // This is the app's authentication boundary. Browsing and adding to the cart
+    // are open to guests; signing in is only required to place an order.
     if (!user) {
-      setShowOTPModal(true);
+      toast.error("You have to login first", {
+        position: "bottom-center",
+        autoClose: 1000,
+      });
+      // A cart checkout resumes at /checkout, so signing in continues the order
+      // rather than dropping the shopper back on the cart to click again. A direct
+      // "Buy Now" must return to the product page instead: its line item lives in
+      // this component's props and /checkout renders with product={null}, so
+      // sending a direct buy there would silently lose the selected item.
+      const returnTo = isDirectBuy
+        ? window.location.pathname + window.location.search
+        : '/checkout';
+      router.push(`/login?next=${encodeURIComponent(returnTo)}`);
       return;
     }
     const currentPath = window.location.pathname + window.location.search;
     sessionStorage.setItem("checkout_prev_path", currentPath);
-
     if (!isModalOpenedPreviously && window.location.pathname !== '/checkout') window.history.pushState({}, "", "/checkout");
     else if (window.location.pathname !== '/checkout') window.history.replaceState({}, "", "/checkout");
     
-    // Track InitiateCheckout event
+    // Track InitiateCheckout event — GA4 `begin_checkout` needs `items`.
     const items = cartItems || (product ? [{ ...product, quantity }] : []);
-    const totalPrice = items.reduce((total, item) => total + (item.quantity * item.price), 0);
-    
+    const totalPrice = items.reduce((total, item) => total + (Number(item.quantity) * Number(item.price)), 0);
+    const gaItems = items.map((i: any) => ({
+      item_id: String(i.id),
+      item_name: i.title || i.name || 'Vyra product',
+      item_category: i.category || i.category_name || undefined,
+      item_brand: 'Vyra Herbals',
+      quantity: Number(i.quantity || 1),
+      price: Number(i.price || 0),
+    }));
+
     trackEvent('InitiateCheckout', {
-      content_ids: items.map(item => item.id),
+      content_ids: gaItems.map((i) => i.item_id),
       content_type: 'product',
       value: totalPrice,
       currency: 'INR',
-      num_items: items.length
+      num_items: gaItems.reduce((n, i) => n + i.quantity, 0),
+      items: gaItems,
     });
 
     setDisableBtn(true);
     setTimeout(() => {
       setShowModal(true);
       setIsModalOpenedPreviously(true);
-      if (savedAddresses && savedAddresses.length > 0) {
-        setShowOrderSummary(true);
-      }
       setDisableBtn(false);
     }, 100);
-  };
-
-  const handleOTPSuccess = () => {
-    setShowOTPModal(false);
-    setShowModal(true);
-    setIsModalOpenedPreviously(true);
-  };
-
-  const handleOTPGuest = () => {
-    setShowOTPModal(false);
-    setShowModal(true);
-    setIsModalOpenedPreviously(true);
   };
 
   const loadScript = (src) => {
@@ -848,15 +835,6 @@ const Checkout = ({
   const renderOrderSummary = () => {
     return (
       <StyledOrderSummary>
-        <div className="p-3 mb-3 bg-light rounded border">
-          <h6 className="fw-bold mb-2">Delivery Address</h6>
-          <div className="small">
-            {formData.fullName} ({formData.phone})<br/>
-            {formData.houseNumber ? `${formData.houseNumber}, ` : ''}{formData.area}<br/>
-            {formData.landmark ? `Landmark: ${formData.landmark}, ` : ''}{formData.city}<br/>
-            {formData.state}, {formData.pincode}
-          </div>
-        </div>
         <ul className="item-list">
           {orderedItems.map((item, index) => (
             <CartItem
@@ -991,7 +969,7 @@ const Checkout = ({
                       Cash on Delivery
                     </label>
                     <p className="method-info">
-                      (For COD orders, you pay a ₹{COD_ADVANCE_PAYMENT} advance payment online. The remaining balance + ₹50 COD charge can be paid when your
+                      (For COD orders, you have to pay a ₹100 advance payment before booking. The remaining amount + ₹50 COD charge can be paid when your
                       order is delivered)
                     </p>
                   </>
@@ -1047,11 +1025,6 @@ const Checkout = ({
           </div>
         )}
         <Modal.Footer style={{ backgroundColor: "white" }}>
-          {showOrderSummary && (
-            <Button variant="outline-secondary" onClick={onClose}>
-              Edit Cart
-            </Button>
-          )}
           <Button
             variant="secondary"
             onClick={() =>
@@ -1073,7 +1046,7 @@ const Checkout = ({
             {disableBtn
               ? "Processing..."
               : showOrderSummary
-                ? "Confirm & Pay"
+                ? "Confirm Order"
                 : "Continue"}
           </Button>
         </Modal.Footer>
@@ -1085,13 +1058,6 @@ const Checkout = ({
       >
         {cartItems && cartItems.length > 0 ? "Proceed to Checkout" : "Buy Now"}
       </Button>
-
-      <OTPModal 
-        show={showOTPModal} 
-        onHide={() => setShowOTPModal(false)} 
-        onSuccess={handleOTPSuccess}
-        onGuest={handleOTPGuest}
-      />
     </StyledCheckout>
   );
 };

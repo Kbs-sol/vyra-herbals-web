@@ -50,8 +50,7 @@ export interface OrderPlacedEvent extends BaseEvent {
   total_amount: number;
   payment_method: 'cod' | 'online';
   items: OrderItem[];
-  tracking_id?: string;
-  awb_code?: string;
+  tracking_link?: string;
 }
 
 export interface PaymentConfirmedEvent extends BaseEvent {
@@ -101,17 +100,12 @@ export type CommunicationEvent =
 
 /** A fully-built, provider-agnostic outbound message, ready to be queued/sent. */
 export interface OutboundMessage {
-  order_id: number | null;
+  order_id: number;
   customer_phone: string;
   message_type: EventType;
   provider: ProviderName;
   template_name: string;
-  /** Parameters to inject into the template body, in positional order. */
-  parameters: (string | number)[];
-  /** Optional parameters for a dynamic URL button, in positional order. */
-  button_parameters?: string[];
-  /** Optional URL for a media image header. */
-  header_image_url?: string;
+  parameters: Record<string, string | number>;
   /** Idempotency key — composite of order_id + message_type by default. */
   dedupe_key: string;
   scheduled_for?: Date;
@@ -125,7 +119,7 @@ export interface QueuedMessageRow {
   status: MessageStatus;
   provider: ProviderName;
   template_name: string;
-  parameters: unknown[] | Record<string, unknown>;
+  parameters: Record<string, unknown>;
   attempts: number;
   max_attempts: number;
   next_retry_at: string | null;

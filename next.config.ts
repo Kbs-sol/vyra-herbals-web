@@ -19,20 +19,11 @@ const contentSecurityPolicy = [
   "form-action 'self' https://pay.easebuzz.in https://testpay.easebuzz.in",
   // Nobody may frame the storefront: blocks clickjacking of the checkout.
   "frame-ancestors 'self'",
-  // Analytics vendors whitelisted here (all loaded via GTM):
-  //   googletagmanager.com          → GTM itself + GA4 (gtag.js)
-  //   google-analytics.com          → GA4 collect endpoints
-  //   connect.facebook.net + facebook.com → Meta Pixel (fbevents.js + tr/)
-  //   clarity.ms                    → Microsoft Clarity (loader + collect)
-  //   googleadservices.com          → Google Ads conversion + remarketing tags
-  //   doubleclick.net               → Google Ads remarketing
-  //   analytics.tiktok.com          → TikTok Pixel (optional, ready if GTM adds it)
-  //   snap.licdn.com + px.ads.linkedin.com → LinkedIn Insight (optional)
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://ssl.google-analytics.com https://connect.facebook.net https://*.clarity.ms https://www.googleadservices.com https://www.google.com https://googleads.g.doubleclick.net https://analytics.tiktok.com https://snap.licdn.com https://pay.easebuzz.in https://testpay.easebuzz.in https://ebz-static.s3.ap-south-1.amazonaws.com https://cdn.jsdelivr.net",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://connect.facebook.net https://pay.easebuzz.in https://testpay.easebuzz.in https://ebz-static.s3.ap-south-1.amazonaws.com https://cdn.jsdelivr.net",
   "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data: https://cdn.jsdelivr.net",
-  "connect-src 'self' https://*.supabase.co https://*.supabase.in https://www.googletagmanager.com https://www.google-analytics.com https://*.analytics.google.com https://*.google-analytics.com https://stats.g.doubleclick.net https://connect.facebook.net https://www.facebook.com https://*.clarity.ms https://c.bing.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://analytics.tiktok.com https://px.ads.linkedin.com https://cpaas.messagecentral.com https://api.postalpincode.in https://www.icarry.in https://pay.easebuzz.in https://testpay.easebuzz.in",
+  "connect-src 'self' https://*.supabase.co https://*.supabase.in https://www.googletagmanager.com https://connect.facebook.net https://www.facebook.com https://cpaas.messagecentral.com https://api.postalpincode.in https://www.icarry.in https://pay.easebuzz.in https://testpay.easebuzz.in",
   // Payment gateway and embedded marketing video.
   "frame-src 'self' https://pay.easebuzz.in https://testpay.easebuzz.in https://www.youtube.com https://www.youtube-nocookie.com https://www.facebook.com",
   "worker-src 'self' blob:",

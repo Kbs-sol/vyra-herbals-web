@@ -15,10 +15,8 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const search = searchParams.get('search') || '';
     const category = searchParams.get('category') || '';
-    const ALLOWED_SORT_COLS = new Set(['id', 'name', 'price', 'created_at', 'stock', 'rating']);
-    const requestedSortBy = searchParams.get('sortBy') || '';
-    const sortBy = ALLOWED_SORT_COLS.has(requestedSortBy) ? requestedSortBy : 'created_at';
-    const sortOrder = searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc';
+    const sortBy = searchParams.get('sortBy') || 'created_at';
+    const sortOrder = searchParams.get('sortOrder') || 'desc';
 
     const offset = (page - 1) * limit;
 
@@ -97,10 +95,6 @@ export async function POST(request: NextRequest) {
     }
 
     body.images = images;
-    body.created_at = new Date().toISOString();
-    body.updated_at = new Date().toISOString();
-    if (body.view_count === undefined) body.view_count = 0;
-    if (body.quantity === undefined) body.quantity = body.stock_quantity || null;
 
     const { data, error } = await supabase
       .from('products')
@@ -163,10 +157,6 @@ export async function PUT(request: NextRequest) {
     }
 
     updateData.images = images;
-    updateData.updated_at = new Date().toISOString();
-    if (updateData.stock_quantity !== undefined && updateData.quantity === undefined) {
-      updateData.quantity = updateData.stock_quantity;
-    }
 
     const { data, error } = await supabase
       .from('products')

@@ -19,19 +19,13 @@ export class OrderPlacedHandler extends BaseEventHandler<OrderPlacedEvent> {
     }
 
     const template = getTemplate('ORDER_PLACED');
-    const rawAwb = String(event.awb_code || event.tracking_id || '').trim();
-    // Never treat internal order ID or ORD- strings as an AWB
-    const awbId = (!rawAwb.startsWith('ORD-') && rawAwb !== String(event.order_id)) ? rawAwb : '';
 
     const values: Record<string, string | number> = {
       customer_name: (event.customer_name && event.customer_name !== 'Customer') ? event.customer_name : (event.customer_phone || 'Customer'),
+      order_id: event.order_id,
       total_amount: event.total_amount ? Number(event.total_amount).toFixed(2) : '0.00',
-      tracking_id: awbId || 'Assigned on dispatch',
+      tracking_link: event.tracking_link ?? '',
     };
-
-    // The owner uploaded a photo to the Meta template manager for ORDER_PLACED, making it a
-    // MEDIA template. Meta requires us to send the image link in the API request if it contains a variable.
-    // const headerImageUrl = process.env.WHATSAPP_ORDER_PLACED_IMAGE_URL;
 
     return {
       order_id: event.order_id,
@@ -40,8 +34,6 @@ export class OrderPlacedHandler extends BaseEventHandler<OrderPlacedEvent> {
       provider: 'whatsapp',
       template_name: template.name,
       parameters: pickOrdered(values, template.parameterOrder),
-      button_parameters: [awbId || '143449611043051'],
-      // ...(headerImageUrl ? { header_image_url: headerImageUrl } : {}),
       dedupe_key: event.dedupe_key ?? `ORDER_PLACED:${event.order_id}`,
     };
   }

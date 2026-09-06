@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import { SUCCESSFUL_ORDER_STATUSES } from '@/utils/orderStatus';
 import { verifyAdminAuth } from '@/utils/adminAuth';
-import { createServerSupabase } from '@/utils/supabaseClient';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  // Service role only — the anon key cannot read across customers, so falling
+  // back to it would silently return partial data instead of failing loudly.
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 // GET - Fetch all customers with order statistics
 export async function GET(request: NextRequest) {
@@ -21,7 +28,6 @@ export async function GET(request: NextRequest) {
     // Only count successfully placed orders (exclude pending/failed/cancelled).
     // Uses the shared definition so this can never drift from the dashboard.
     const SUCCESSFUL_STATUSES = SUCCESSFUL_ORDER_STATUSES as unknown as string[];
-    const supabase = createServerSupabase();
 
     // Get unique customers from orders
     let query = supabase

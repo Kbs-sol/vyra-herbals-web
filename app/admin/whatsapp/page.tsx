@@ -1,437 +1,356 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import AdminLayoutWrapper from '../components/AdminLayoutWrapper';
 
-export default function WhatsAppMarketingPage() {
-  const [activeTab, setActiveTab] = useState<'send' | 'manual' | 'history' | 'bot'>('send');
+/**
+ * WhatsApp Inbox — the admin's view of every real-time conversation.
+ *
+ * Data model:
+ *   /api/admin/whatsapp/conversations   → left-hand thread list + unread badges
+ *   /api/admin/whatsapp/thread?phone=…  → right-hand chat pane
+ *   /api/admin/whatsapp/reply           → send a free-text reply (24h window)
+ *
+ * IMPORTANT UX contract:
+ *   - Meta only retains inbound history via YOUR webhook. Anything sent
+ *     before the migration+webhook were live is gone forever — no "import"
+ *     button will ever recover it. The empty-state message says this.
+ *   - Free-text replies are only allowed inside Meta's 24-hour customer
+ *     service window. Outside it the compose bar auto-disables and the
+ *     admin is redirected to the Broadcast page (template messages).
+ *
+ * A background poll (10s) keeps the list + open thread fresh.
+ */
 
-  // --- Tab 1: Send Campaign ---
-  const [templateName, setTemplateName] = useState('welcome_promo_3hr');
-  const [audienceSegment, setAudienceSegment] = useState('all_customers');
-  const [param1, setParam1] = useState('Customer Name');
-  const [param2, setParam2] = useState('');
-  
-  const [previewData, setPreviewData] = useState<any>(null);
-  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
-  const [isSending, setIsSending] = useState(false);
-  const [sendResult, setSendResult] = useState<any>(null);
+interface Conversation {
+  phone: string;
+  profile_name: string | null;
+  last_message_at: string;
+  last_message_preview: string | null;
+  last_direction: 'inbound' | 'outbound';
+  unread_count: number;
+  total_messages: number;
+}
 
-  const handlePreview = async () => {
-    setIsPreviewLoading(true);
+interface ThreadMessage {
+  id: number;
+  direction: 'inbound' | 'outbound';
+  customer_phone: string;
+  message_id: string | null;
+  message_type: string;
+  status: string;
+  template_name: string | null;
+  body_text: string | null;
+  interactive_reply: string | null;
+  is_read: boolean;
+  read_at: string | null;
+  profile_name: string | null;
+  sent_at: string | null;
+  created_at: string;
+}
+
+const POLL_MS = 10_000;
+
+export default function WhatsAppInboxPage() {
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [totalUnread, setTotalUnread] = useState(0);
+  const [q, setQ] = useState('');
+  const [unreadOnly, setUnreadOnly] = useState(false);
+  const [selectedPhone, setSelectedPhone] = useState<string | null>(null);
+  const [thread, setThread] = useState<ThreadMessage[]>([]);
+  const [reply, setReply] = useState('');
+  const [sending, setSending] = useState(false);
+  const [threadLoading, setThreadLoading] = useState(false);
+  const [flash, setFlash] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  // ---- Load conversation list ------------------------------------------
+  const loadConversations = useCallback(async () => {
+    const url = new URL('/api/admin/whatsapp/conversations', window.location.origin);
+    if (q) url.searchParams.set('q', q);
+    if (unreadOnly) url.searchParams.set('unread', '1');
     try {
-      const params = templateName === 'abandoned_cart' ? [param1, param2] : [param1];
-      const res = await fetch('/api/admin/broadcast/dry-run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          template_name: templateName,
-          audience_segment: audienceSegment,
-          parameters: params,
-          idempotency_key: `preview_${Date.now()}`
-        }),
-      });
-      const data = await res.json();
-      setPreviewData(data);
-    } catch (e) {
-      alert('Error fetching preview');
-    } finally {
-      setIsPreviewLoading(false);
+      const res = await fetch(url.toString(), { cache: 'no-store' });
+      if (!res.ok) return;
+      const json = await res.json();
+      setConversations(json.conversations || []);
+      setTotalUnread(json.total_unread || 0);
+    } catch {
+      /* silent — poll again */
     }
-  };
-
-  const handleSendCampaign = async () => {
-    if (!previewData) return;
-    const confirmed = window.confirm(`Send to ${previewData.eligible_count} eligible recipients?`);
-    if (!confirmed) return;
-
-    setIsSending(true);
-    try {
-      const params = templateName === 'abandoned_cart' ? [param1, param2] : [param1];
-      const res = await fetch('/api/admin/broadcast', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          campaign_name: `${templateName} - ${new Date().toISOString().split('T')[0]}`,
-          template_name: templateName,
-          audience_segment: audienceSegment,
-          parameters: params,
-          idempotency_key: `camp_${Date.now()}`
-        }),
-      });
-      const data = await res.json();
-      setSendResult(data);
-    } catch (e) {
-      alert('Error sending campaign');
-    } finally {
-      setIsSending(false);
-      setPreviewData(null);
-      fetchData(); // refresh history
-    }
-  };
-
-  // --- Tab 2: Manual Send (Legacy) ---
-  const [manualTemplateName, setManualTemplateName] = useState('welcome_promo_3hr');
-  const [manualParamKey, setManualParamKey] = useState('customer_name');
-  const [manualParamValue, setManualParamValue] = useState('Valued Customer');
-  const [parsedNumbers, setParsedNumbers] = useState<string[]>([]);
-  const [manualResults, setManualResults] = useState<{ total: number; success: number; failed: number; log: string[] } | null>(null);
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result as string;
-      const lines = text.split(/\r?\n/);
-      const extracted: string[] = [];
-
-      for (const line of lines) {
-        const cleaned = line.replace(/[^0-9+]/g, '');
-        if (cleaned.length >= 10) extracted.push(cleaned);
-      }
-      setParsedNumbers(Array.from(new Set(extracted)));
-    };
-    reader.readAsText(file);
-  };
-
-  const handleManualBroadcast = async () => {
-    if (parsedNumbers.length === 0) return;
-    setIsSending(true);
-    const logs: string[] = [];
-    let successCount = 0;
-    let failedCount = 0;
-
-    for (const phone of parsedNumbers) {
-      try {
-        const res = await fetch('/api/whatsapp/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            order_id: Math.floor(Math.random() * 899999) + 100000,
-            customer_phone: phone,
-            template_name: manualTemplateName,
-            parameters: manualParamKey ? { [manualParamKey]: manualParamValue } : {},
-          }),
-        });
-
-        const data = await res.json();
-        if (res.ok && data.outcome === 'sent') {
-          successCount++;
-          logs.push(`✓ Sent to ${phone}`);
-        } else {
-          failedCount++;
-          logs.push(`✗ Failed for ${phone}: ${data.error || data.outcome}`);
-        }
-      } catch (err: any) {
-        failedCount++;
-        logs.push(`✗ Error for ${phone}: ${err.message}`);
-      }
-    }
-    setIsSending(false);
-    setManualResults({ total: parsedNumbers.length, success: successCount, failed: failedCount, log: logs });
-  };
-
-  // --- Data Fetching ---
-  const [campaigns, setCampaigns] = useState<any[]>([]);
-  const [sessions, setSessions] = useState<any[]>([]);
-  const [expandedCampaign, setExpandedCampaign] = useState<string | null>(null);
-  const [campaignRecipients, setCampaignRecipients] = useState<any[]>([]);
-
-  const fetchData = async () => {
-    try {
-      const res = await fetch('/api/admin/whatsapp/data');
-      const data = await res.json();
-      setCampaigns(data.campaigns || []);
-      setSessions(data.sessions || []);
-    } catch (e) {
-      console.error(e);
-    }
-  };
+  }, [q, unreadOnly]);
 
   useEffect(() => {
-    fetchData();
+    loadConversations();
+    const t = setInterval(loadConversations, POLL_MS);
+    return () => clearInterval(t);
+  }, [loadConversations]);
+
+  // ---- Load a single thread --------------------------------------------
+  const loadThread = useCallback(async (phone: string) => {
+    setThreadLoading(true);
+    try {
+      const res = await fetch(`/api/admin/whatsapp/thread?phone=${encodeURIComponent(phone)}`, { cache: 'no-store' });
+      if (!res.ok) return;
+      const json = await res.json();
+      setThread(json.messages || []);
+      // Optimistically zero-out the unread badge on this thread
+      setConversations((cs) => cs.map((c) => (c.phone === phone ? { ...c, unread_count: 0 } : c)));
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+    } finally {
+      setThreadLoading(false);
+    }
   }, []);
 
-  const handleExpandCampaign = async (id: string) => {
-    if (expandedCampaign === id) {
-      setExpandedCampaign(null);
-      return;
-    }
-    setExpandedCampaign(id);
-    const res = await fetch(`/api/admin/broadcast/${id}/recipients`);
-    const data = await res.json();
-    setCampaignRecipients(data.recipients || []);
-  };
+  useEffect(() => {
+    if (!selectedPhone) return;
+    loadThread(selectedPhone);
+    const t = setInterval(() => loadThread(selectedPhone), POLL_MS);
+    return () => clearInterval(t);
+  }, [selectedPhone, loadThread]);
 
-  const handleResetSession = async (phone: string) => {
+  const activeConversation = useMemo(
+    () => conversations.find((c) => c.phone === selectedPhone) || null,
+    [conversations, selectedPhone],
+  );
+
+  // ---- 24h window check (client-side hint; server enforces) ------------
+  const lastInboundAt = useMemo(() => {
+    for (let i = thread.length - 1; i >= 0; i--) {
+      if (thread[i].direction === 'inbound') return new Date(thread[i].created_at).getTime();
+    }
+    return 0;
+  }, [thread]);
+  const withinWindow = lastInboundAt > 0 && Date.now() - lastInboundAt < 24 * 60 * 60 * 1000;
+
+  // ---- Send reply ------------------------------------------------------
+  const handleSend = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!selectedPhone || !reply.trim() || sending) return;
+    setSending(true);
     try {
-      await fetch(`/api/admin/bot-sessions/${phone}/reset`, { method: 'PATCH' });
-      fetchData();
-    } catch (e) {
-      alert('Failed to reset session');
+      const res = await fetch('/api/admin/whatsapp/reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: selectedPhone, text: reply }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setFlash({ kind: 'err', msg: json.message || json.error || 'Failed to send' });
+      } else {
+        setReply('');
+        await loadThread(selectedPhone);
+        setFlash({ kind: 'ok', msg: 'Message sent' });
+      }
+    } catch (err) {
+      setFlash({ kind: 'err', msg: (err as Error).message || 'Network error' });
+    } finally {
+      setSending(false);
+      setTimeout(() => setFlash(null), 2500);
     }
   };
 
   return (
-    <AdminLayoutWrapper pageTitle="WhatsApp Dual Broadcast Center">
-      <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-        
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-          {['send', 'manual', 'history', 'bot'].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab as any)}
-              style={{
-                padding: '10px 20px',
-                background: activeTab === tab ? '#1e293b' : '#f1f5f9',
-                color: activeTab === tab ? '#fff' : '#334155',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: 600,
-                textTransform: 'capitalize'
-              }}
-            >
-              {tab === 'send' ? 'Send Campaign' : tab === 'manual' ? 'Manual Message' : tab === 'history' ? 'Campaign History' : 'Bot Conversations'}
-            </button>
-          ))}
+    <AdminLayoutWrapper>
+      <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 90px)', padding: '16px', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>
+            WhatsApp Inbox {totalUnread > 0 ? <span style={{ background: '#25D366', color: '#fff', borderRadius: 999, padding: '2px 10px', fontSize: 12, marginLeft: 8 }}>{totalUnread}</span> : null}
+          </h2>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+            <Link href="/admin/whatsapp/broadcast" style={btnGhost}>Broadcast (templates)</Link>
+            <a href="https://business.facebook.com/wa/manage/message-templates/" target="_blank" rel="noreferrer" style={btnGhost}>Meta template manager ↗</a>
+          </div>
         </div>
 
-        <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-          
-          {activeTab === 'send' && (
-            <div>
-              <h2 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '16px' }}>Template Broadcast</h2>
-              
-              <div style={{ display: 'grid', gap: '20px', marginBottom: '24px' }}>
-                <div>
-                  <label style={{ display: 'block', fontWeight: 500, marginBottom: '6px' }}>Select Template:</label>
-                  <select 
-                    value={templateName} 
-                    onChange={e => setTemplateName(e.target.value)}
-                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}
-                  >
-                    <option value="welcome_promo_3hr">Welcome Promo (3hr)</option>
-                    <option value="abandoned_cart">Abandoned Cart</option>
-                    <option value="feedback_request">Feedback Request</option>
-                    <option value="reorder_reminder">Reorder Reminder</option>
-                  </select>
-                </div>
+        {flash && (
+          <div style={{ padding: 10, borderRadius: 8, background: flash.kind === 'ok' ? '#e7f9ee' : '#fdecea', color: flash.kind === 'ok' ? '#1b7f3d' : '#a11d1d', fontSize: 13 }}>{flash.msg}</div>
+        )}
 
-                <div>
-                  <label style={{ display: 'block', fontWeight: 500, marginBottom: '6px' }}>Audience Segment:</label>
-                  <select 
-                    value={audienceSegment} 
-                    onChange={e => setAudienceSegment(e.target.value)}
-                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}
-                  >
-                    <option value="all_customers">All Customers (Opt-in only)</option>
-                    <option value="vip_repeat">VIP & Repeat Customers (&gt;= 2 orders)</option>
-                    <option value="win_back">Win-back Leads</option>
-                    <option value="delivered_last_30">Delivered Last 30 Days</option>
-                    <option value="historical_leads">All Historical Leads</option>
-                  </select>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontWeight: 500, marginBottom: '6px' }}>Param 1 (Customer Name):</label>
-                    <input type="text" value={param1} onChange={e => setParam1(e.target.value)} disabled style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', background: '#f5f5f5' }} />
-                  </div>
-                  {templateName === 'abandoned_cart' && (
-                    <div>
-                      <label style={{ display: 'block', fontWeight: 500, marginBottom: '6px' }}>Param 2 (Cart Total):</label>
-                      <input type="text" value={param2} onChange={e => setParam2(e.target.value)} placeholder="e.g. 1999" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <button
-                onClick={handlePreview}
-                disabled={isPreviewLoading}
-                style={{ background: '#3b82f6', color: '#fff', padding: '12px 24px', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', marginBottom: '20px' }}
-              >
-                {isPreviewLoading ? 'Loading Preview...' : 'Preview Campaign'}
-              </button>
-
-              {previewData && (
-                <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
-                  <h3 style={{ marginTop: 0 }}>Campaign Preview</h3>
-                  <p><strong>Total Audience:</strong> {previewData.total_audience}</p>
-                  <p><strong>Excluded (Opt-out):</strong> <span style={{ color: '#ef4444' }}>{previewData.opt_out_excluded}</span></p>
-                  <p><strong>Excluded (14d Freq Cap):</strong> <span style={{ color: '#f59e0b' }}>{previewData.freq_cap_excluded}</span></p>
-                  <p><strong>Eligible to Send:</strong> <span style={{ color: '#10b981', fontWeight: 'bold' }}>{previewData.eligible_count}</span></p>
-                  <p><strong>Estimated Cost:</strong> ₹{previewData.estimated_cost?.toFixed(2)}</p>
-                  
-                  <div style={{ marginTop: '16px' }}>
-                    <strong>Sample Phones:</strong>
-                    <div style={{ fontSize: '13px', color: '#64748b' }}>{previewData.sample_phones?.join(', ') || 'None'}</div>
-                  </div>
-                  <div style={{ marginTop: '16px' }}>
-                    <strong>Sample Message text:</strong>
-                    <div style={{ fontSize: '13px', background: '#e2e8f0', padding: '10px', borderRadius: '6px' }}>{previewData.sample_message}</div>
-                  </div>
-
-                  {previewData.eligible_count > 0 && (
-                    <button
-                      onClick={handleSendCampaign}
-                      disabled={isSending}
-                      style={{ marginTop: '20px', background: isSending ? '#9ca3af' : '#22c55e', color: '#fff', padding: '12px 24px', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: isSending ? 'not-allowed' : 'pointer' }}
-                    >
-                      {isSending ? 'Sending Broadcast...' : `Send to ${previewData.eligible_count} Recipients`}
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {sendResult && (
-                <div style={{ padding: '16px', background: '#dcfce7', color: '#166534', borderRadius: '8px' }}>
-                  ✓ Campaign sent! (Sent: {sendResult.sent_count}, Failed: {sendResult.failed_count})
-                </div>
-              )}
+        <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: 12, minHeight: 0, flex: 1 }}>
+          <aside style={{ background: '#fff', borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,.06)', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            <div style={{ padding: 12, borderBottom: '1px solid #eee', display: 'flex', gap: 8, flexDirection: 'column' }}>
+              <input
+                type="search"
+                placeholder="Search by phone or name…"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13 }}
+              />
+              <label style={{ fontSize: 12, color: '#555', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <input type="checkbox" checked={unreadOnly} onChange={(e) => setUnreadOnly(e.target.checked)} />
+                Unread only
+              </label>
             </div>
-          )}
-
-          {activeTab === 'manual' && (
-            <div>
-              {/* Legacy manual send UI exactly as it was */}
-              <h2 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '16px' }}>Bulk WhatsApp Manual Upload</h2>
-              
-              <div style={{ display: 'grid', gap: '20px', marginBottom: '24px' }}>
-                <div>
-                  <label style={{ display: 'block', fontWeight: 500, marginBottom: '6px' }}>Template Name:</label>
-                  <input type="text" value={manualTemplateName} onChange={e => setManualTemplateName(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontWeight: 500, marginBottom: '6px' }}>Parameter Name:</label>
-                    <input type="text" value={manualParamKey} onChange={e => setManualParamKey(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+            <div style={{ overflow: 'auto', flex: 1 }}>
+              {conversations.length === 0 && (
+                <EmptyState
+                  title="No conversations yet"
+                  body={
+                    'The inbox fills up as customers message your WhatsApp Business number. Meta does not retain history; anything sent before your webhook went live is not recoverable. Once your webhook URL is registered in the Meta App Dashboard, every new inbound message lands here.'
+                  }
+                />
+              )}
+              {conversations.map((c) => (
+                <button
+                  key={c.phone}
+                  onClick={() => setSelectedPhone(c.phone)}
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    textAlign: 'left',
+                    padding: '10px 14px',
+                    background: c.phone === selectedPhone ? '#f0faf3' : 'transparent',
+                    border: 'none',
+                    borderBottom: '1px solid #f4f4f4',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ fontWeight: 600, fontSize: 14 }}>{c.profile_name || `+${c.phone}`}</span>
+                    <span style={{ fontSize: 11, color: '#888' }}>{formatTimeShort(c.last_message_at)}</span>
                   </div>
-                  <div>
-                    <label style={{ display: 'block', fontWeight: 500, marginBottom: '6px' }}>Parameter Fallback:</label>
-                    <input type="text" value={manualParamValue} onChange={e => setManualParamValue(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
-                  </div>
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontWeight: 500, marginBottom: '6px' }}>Upload Excel/CSV:</label>
-                  <input type="file" accept=".csv,.txt" onChange={handleFileUpload} />
-                </div>
-              </div>
-
-              {parsedNumbers.length > 0 && (
-                <button onClick={handleManualBroadcast} disabled={isSending} style={{ background: isSending ? '#9ca3af' : '#22c55e', color: '#fff', padding: '12px 24px', border: 'none', borderRadius: '6px', fontWeight: 600 }}>
-                  {isSending ? 'Sending...' : `Send Manual Broadcast (${parsedNumbers.length})`}
-                </button>
-              )}
-
-              {manualResults && (
-                <div style={{ marginTop: '20px' }}>
-                  Success: {manualResults.success}, Failed: {manualResults.failed}
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'history' && (
-            <div>
-              <h2 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '16px' }}>Campaign History</h2>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                <thead>
-                  <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                    <th style={{ padding: '12px' }}>Name</th>
-                    <th style={{ padding: '12px' }}>Template</th>
-                    <th style={{ padding: '12px' }}>Audience</th>
-                    <th style={{ padding: '12px' }}>Sent/Failed</th>
-                    <th style={{ padding: '12px' }}>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {campaigns.map(camp => (
-                    <React.Fragment key={camp.id}>
-                      <tr style={{ borderBottom: '1px solid #e2e8f0', cursor: 'pointer' }} onClick={() => handleExpandCampaign(camp.id)}>
-                        <td style={{ padding: '12px' }}>{camp.name}</td>
-                        <td style={{ padding: '12px' }}>{camp.template_name}</td>
-                        <td style={{ padding: '12px' }}>{camp.audience_segment}</td>
-                        <td style={{ padding: '12px' }}>
-                          <span style={{ color: '#16a34a' }}>{camp.sent_count}</span> / <span style={{ color: '#dc2626' }}>{camp.failed_count}</span>
-                        </td>
-                        <td style={{ padding: '12px' }}>
-                          <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '12px', background: camp.status === 'sent' ? '#dcfce7' : '#fef08a' }}>
-                            {camp.status}
-                          </span>
-                        </td>
-                      </tr>
-                      {expandedCampaign === camp.id && (
-                        <tr>
-                          <td colSpan={5} style={{ padding: '16px', background: '#f8fafc' }}>
-                            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                              <table style={{ width: '100%', fontSize: '13px' }}>
-                                <tbody>
-                                  {campaignRecipients.map(r => (
-                                    <tr key={r.id}>
-                                      <td style={{ padding: '4px' }}>{r.customer_phone}</td>
-                                      <td style={{ padding: '4px' }}>{r.send_status}</td>
-                                      <td style={{ padding: '4px' }}>{new Date(r.created_at).toLocaleString()}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {activeTab === 'bot' && (
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <h2 style={{ fontSize: '20px', fontWeight: 600, margin: 0 }}>Active Bot Conversations</h2>
-                <a href="/admin/chats" style={{ padding: '8px 16px', background: '#075e54', color: '#fff', textDecoration: 'none', borderRadius: '6px', fontWeight: 600, fontSize: '14px' }}>
-                  💬 Open WhatsApp Live Chat Window &rarr;
-                </a>
-              </div>
-              {sessions.filter(s => s.state === 'HUMAN_HANDOFF').length > 0 && (
-                <div style={{ padding: '12px', background: '#fee2e2', color: '#991b1b', borderRadius: '8px', marginBottom: '16px' }}>
-                  <strong>Needs Attention:</strong> Some customers are waiting for a human agent.
-                </div>
-              )}
-              
-              <div style={{ display: 'grid', gap: '12px' }}>
-                {sessions.map(session => (
-                  <div key={session.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: '#f8fafc', borderRadius: '8px', borderLeft: session.state === 'HUMAN_HANDOFF' ? '4px solid #ef4444' : '4px solid #3b82f6' }}>
-                    <div>
-                      <strong>{session.phone_number}</strong>
-                      <span style={{ margin: '0 12px', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', background: session.state === 'HUMAN_HANDOFF' ? '#fecaca' : '#bfdbfe' }}>
-                        {session.state}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 4 }}>
+                    <span style={{ fontSize: 12, color: '#555', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 }}>
+                      {c.last_direction === 'outbound' ? '↗ ' : ''}
+                      {c.last_message_preview || <em style={{ opacity: 0.6 }}>(no preview)</em>}
+                    </span>
+                    {c.unread_count > 0 && (
+                      <span style={{ background: '#25D366', color: '#fff', borderRadius: 999, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>
+                        {c.unread_count}
                       </span>
-                      <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
-                        Last updated: {new Date(session.updated_at).toLocaleString()}
-                      </div>
-                    </div>
-                    {session.state === 'HUMAN_HANDOFF' && (
-                      <button 
-                        onClick={() => handleResetSession(session.phone_number)}
-                        style={{ padding: '8px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                      >
-                        Reset to Menu
-                      </button>
                     )}
                   </div>
-                ))}
-              </div>
+                  {c.profile_name && <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>+{c.phone}</div>}
+                </button>
+              ))}
             </div>
-          )}
+          </aside>
 
+          <section style={{ background: '#efeae2', borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,.06)', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            {!selectedPhone ? (
+              <EmptyState title="Select a conversation" body="Pick a chat on the left to see the message history and reply." />
+            ) : (
+              <>
+                <header style={{ padding: '10px 16px', background: '#fff', borderTopLeftRadius: 12, borderTopRightRadius: 12, borderBottom: '1px solid #eee' }}>
+                  <div style={{ fontWeight: 600, fontSize: 15 }}>{activeConversation?.profile_name || `+${selectedPhone}`}</div>
+                  <div style={{ fontSize: 12, color: '#666' }}>
+                    +{selectedPhone}
+                    {withinWindow ? (
+                      <span style={{ marginLeft: 8, background: '#d4edda', color: '#155724', padding: '1px 6px', borderRadius: 6, fontSize: 11 }}>Inside 24h reply window</span>
+                    ) : (
+                      <span style={{ marginLeft: 8, background: '#fff3cd', color: '#856404', padding: '1px 6px', borderRadius: 6, fontSize: 11 }}>Outside 24h window — use a template</span>
+                    )}
+                  </div>
+                </header>
+
+                <div style={{ flex: 1, overflow: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {threadLoading && thread.length === 0 && <div style={{ opacity: 0.5, textAlign: 'center', padding: 20 }}>Loading…</div>}
+                  {thread.map((m) => (
+                    <MessageBubble key={m.id} m={m} />
+                  ))}
+                  <div ref={messagesEndRef} />
+                </div>
+
+                <form onSubmit={handleSend} style={{ padding: 12, borderTop: '1px solid #ddd', background: '#f7f7f7', display: 'flex', gap: 8 }}>
+                  <input
+                    type="text"
+                    value={reply}
+                    onChange={(e) => setReply(e.target.value)}
+                    placeholder={withinWindow ? 'Type a reply…' : 'Outside 24h — go to Broadcast to send a template'}
+                    disabled={!withinWindow || sending}
+                    maxLength={4000}
+                    style={{ flex: 1, padding: '10px 12px', borderRadius: 22, border: '1px solid #ccc', fontSize: 14 }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={!withinWindow || !reply.trim() || sending}
+                    style={{ ...btnPrimary, opacity: !withinWindow || !reply.trim() || sending ? 0.5 : 1 }}
+                  >
+                    {sending ? 'Sending…' : 'Send'}
+                  </button>
+                </form>
+              </>
+            )}
+          </section>
         </div>
       </div>
     </AdminLayoutWrapper>
   );
 }
+
+function MessageBubble({ m }: { m: ThreadMessage }) {
+  const isOutbound = m.direction === 'outbound';
+  const content = m.body_text || m.interactive_reply || m.template_name || '(no content)';
+  const time = new Date(m.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+
+  return (
+    <div style={{ display: 'flex', justifyContent: isOutbound ? 'flex-end' : 'flex-start' }}>
+      <div
+        style={{
+          maxWidth: '70%',
+          background: isOutbound ? '#dcf8c6' : '#fff',
+          padding: '8px 12px',
+          borderRadius: 10,
+          fontSize: 14,
+          boxShadow: '0 1px 1px rgba(0,0,0,.05)',
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+        }}
+      >
+        <div>{content}</div>
+        {m.template_name && !m.body_text && (
+          <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>Template: {m.template_name}</div>
+        )}
+        <div style={{ fontSize: 10, color: '#888', textAlign: 'right', marginTop: 4 }}>
+          {time}
+          {isOutbound && (
+            <> · {m.status === 'read' ? '✓✓ read' : m.status === 'delivered' ? '✓✓' : m.status === 'sent' ? '✓' : m.status}</>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({ title, body }: { title: string; body: string }) {
+  return (
+    <div style={{ padding: 40, textAlign: 'center', color: '#555' }}>
+      <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>{title}</div>
+      <div style={{ fontSize: 13, maxWidth: 380, margin: '0 auto', lineHeight: 1.5 }}>{body}</div>
+    </div>
+  );
+}
+
+function formatTimeShort(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  if (sameDay) return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+  const yesterday = new Date();
+  yesterday.setDate(now.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+}
+
+const btnPrimary: React.CSSProperties = {
+  padding: '10px 20px',
+  borderRadius: 22,
+  background: '#25D366',
+  color: '#fff',
+  border: 'none',
+  fontWeight: 600,
+  cursor: 'pointer',
+};
+
+const btnGhost: React.CSSProperties = {
+  padding: '8px 14px',
+  borderRadius: 8,
+  background: '#fff',
+  color: '#128C7E',
+  border: '1px solid #128C7E',
+  fontSize: 13,
+  fontWeight: 500,
+  textDecoration: 'none',
+};

@@ -1,244 +1,256 @@
 /**
- * Analytics helper — GTM-first architecture.
+ * Central analytics helper.
  *
- * SINGLE SOURCE OF TRUTH: All analytics vendors (GA4, Meta Pixel, Microsoft
- * Clarity, Google Ads, TikTok Pixel, LinkedIn Insight, etc.) are configured
- * INSIDE Google Tag Manager (container GTM-MHSG926J). Do NOT hardcode any
- * vendor snippet in the app. The app's only responsibility is to push
- * well-structured events into `window.dataLayer`; GTM tags then fan those
- * events out to every configured vendor.
+ * The SEO audit's #1 CRITICAL finding was "0 tracked conversions" — GA4
+ * loaded, `trackEvent` existed, but nothing in the app ever called it.
+ * This file now exports narrow, well-named e-commerce helpers so call-sites
+ * (Add-to-cart button, cart page, checkout page, order-placed page) drop in
+ * with a single import.
  *
- * Why this matters:
- *  - Double-loading GA4 or Meta Pixel outside GTM (as the app did before)
- *    causes duplicate PageView / Purchase events and inflated conversion
- *    numbers in GA4 and Meta Ads Manager.
- *  - Managing tags in GTM alone means marketing can add / pause / debug
- *    vendors without any code change.
- *
- * Event payload conventions (GA4 Enhanced Ecommerce compatible):
- *  - Ecommerce events push `{ event, ecommerce: { currency, value, items } }`.
- *  - A `null`-ing push (`ecommerce: null`) is emitted BEFORE each ecommerce
- *    event, per Google's guidance, so the previous event's items don't leak
- *    into the next one.
- *  - Meta Pixel-style params (`content_ids`, `content_type`, `content_name`)
- *    are also included so a Meta Pixel tag in GTM can consume the same
- *    dataLayer push without a separate code path.
+ * Rules for callers:
+ *   - Use the named helpers (`viewItem`, `addToCart`, `beginCheckout`,
+ *     `purchase`) — NOT `trackEvent` with a magic string.
+ *   - `purchase()` must be fired exactly once per order. Idempotency lives
+ *     on the /order-placed page (see how it's wired there).
+ *   - `value` fields are numeric rupee amounts.
+ *   - Server-side Conversions API is emitted from src/utils/metaCapi.ts —
+ *     browser side alone loses 20–40% of events. See SYSTEM_LITERACY.md.
  */
 
-export const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID || 'GTM-MHSG926J';
+export const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID || '';
+export const GA4_ID = process.env.NEXT_PUBLIC_GA4_ID || process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID || 'G-K0F7N513MS';
+export const META_PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID || process.env.NEXT_PUBLIC_FB_PIXEL_ID || '';
+export const META_ADS_PIXEL_ID = process.env.NEXT_PUBLIC_META_ADS_PIXEL_ID || '';
+
+// Kept for backward compatibility — a few old imports reference `FB_PIXEL_ID`.
+export const FB_PIXEL_ID = META_PIXEL_ID;
 
 declare global {
   interface Window {
-    dataLayer: any[];
+    dataLayer?: any[];
+    gtag?: (...args: any[]) => void;
+    fbq?: any;
+    clarity?: (...args: any[]) => void;
   }
 }
 
-type Primitive = string | number | boolean | null | undefined;
+// -----------------------------------------------------------------------------
+// Types — kept loose because product rows come from an untyped Supabase table.
+// -----------------------------------------------------------------------------
 
-export interface EcommerceItem {
+export interface AnalyticsItem {
   item_id: string | number;
-  item_name?: string;
+  item_name: string;
   item_category?: string;
   item_brand?: string;
   item_variant?: string;
-  price?: number;
   quantity?: number;
-  [key: string]: Primitive;
+  price?: number;
 }
 
-/**
- * Push a raw event to the dataLayer. Prefer the typed helpers below.
- */
-export const pushToDataLayer = (payload: Record<string, any>) => {
-  if (typeof window === 'undefined') return;
-  window.dataLayer = window.dataLayer || [];
-  window.dataLayer.push(payload);
-  if (process.env.NODE_ENV !== 'production') {
-    // eslint-disable-next-line no-console
-    console.log('[dataLayer]', payload);
-  }
-};
-
-/**
- * Reset the `ecommerce` object before pushing a new ecommerce event.
- * Required by GA4 so successive events don't inherit each other's items.
- */
-const resetEcommerce = () => {
-  pushToDataLayer({ ecommerce: null });
-};
-
-/**
- * Meta Pixel standard event name → GA4 recommended event name.
- * When a caller passes the Meta name we also emit the GA4 name so GTM
- * triggers configured with either convention keep working.
- */
-const META_TO_GA4: Record<string, string> = {
-  AddPaymentInfo: 'add_payment_info',
-  AddToCart: 'add_to_cart',
-  AddToWishlist: 'add_to_wishlist',
-  CompleteRegistration: 'sign_up',
-  Contact: 'contact',
-  InitiateCheckout: 'begin_checkout',
-  Lead: 'generate_lead',
-  Purchase: 'purchase',
-  Search: 'search',
-  Subscribe: 'subscribe',
-  ViewContent: 'view_item',
-  PageView: 'page_view',
-};
-
-// Reverse map, populated once, for callers that use the GA4 convention.
-const GA4_TO_META: Record<string, string> = Object.fromEntries(
-  Object.entries(META_TO_GA4).map(([meta, ga4]) => [ga4, meta])
-);
-
-/**
- * Push a custom or standard event to GTM.
- *
- * `eventName` is the GTM trigger name AND — when it matches a GA4 recommended
- * event or a Meta standard event — the tag name each vendor will forward.
- *
- * Recommended event names (used by GA4 & Meta both):
- *   page_view, view_item, view_item_list, select_item,
- *   add_to_cart, remove_from_cart, view_cart,
- *   begin_checkout, add_shipping_info, add_payment_info, purchase,
- *   search, add_to_wishlist, sign_up, login, generate_lead
- *
- * Legacy Meta names (Purchase, AddToCart, ViewContent, InitiateCheckout, …)
- * are ALSO accepted; each call fires the caller's name AND its equivalent in
- * the other convention, so GTM triggers built with either name keep working.
- */
-export const trackEvent = (
-  eventName: string,
-  eventData: Record<string, any> = {}
-) => {
-  const isEcommerce =
-    'ecommerce' in eventData ||
-    Array.isArray(eventData.items) ||
-    typeof eventData.value === 'number';
-
-  // If the caller passed a flat GA4-style payload (value/currency/items/...),
-  // wrap it in an `ecommerce` object so GA4 tags in GTM can pick it up
-  // directly, while keeping the flat fields for Meta Pixel tags.
-  let payload: Record<string, any> = { event: eventName, ...eventData };
-
-  if (isEcommerce && !('ecommerce' in eventData)) {
-    const { value, currency, items, tax, shipping, coupon, transaction_id, ...rest } =
-      eventData as Record<string, any>;
-    payload = {
-      event: eventName,
-      ...rest,
-      ecommerce: {
-        currency: currency || 'INR',
-        ...(typeof value === 'number' ? { value } : {}),
-        ...(tax !== undefined ? { tax } : {}),
-        ...(shipping !== undefined ? { shipping } : {}),
-        ...(coupon !== undefined ? { coupon } : {}),
-        ...(transaction_id !== undefined ? { transaction_id } : {}),
-        ...(Array.isArray(items) ? { items } : {}),
-      },
-      // Flat fields kept for legacy Meta Pixel tag templates.
-      ...(typeof value === 'number' ? { value } : {}),
-      ...(currency ? { currency } : {}),
-    };
-  }
-
-  if (isEcommerce) resetEcommerce();
-  pushToDataLayer(payload);
-
-  // Fire the alias in the other naming convention (Meta ⇄ GA4) as a
-  // separate dataLayer event so triggers configured with either name catch
-  // it. Payload body is identical — only `event` changes.
-  const alias = META_TO_GA4[eventName] || GA4_TO_META[eventName];
-  if (alias && alias !== eventName) {
-    pushToDataLayer({ ...payload, event: alias });
-  }
-};
-
-/**
- * Client-side route change pageview. Called by `RouteChangeTracker` after
- * every Next.js App Router navigation so single-page navigations show up in
- * GA4 / Meta Pixel / Clarity through GTM.
- */
-export const pageview = (url?: string) => {
-  pushToDataLayer({
-    event: 'page_view',
-    page_path:
-      url ||
-      (typeof window !== 'undefined'
-        ? window.location.pathname + window.location.search
-        : undefined),
-    page_location:
-      typeof window !== 'undefined' ? window.location.href : undefined,
-    page_title: typeof document !== 'undefined' ? document.title : undefined,
-  });
-};
-
-// -----------------------------------------------------------------------
-// Convenience wrappers for the events the storefront actually fires.
-// They keep call sites terse and guarantee a consistent payload shape.
-// -----------------------------------------------------------------------
-
-export const trackViewItem = (item: EcommerceItem, value?: number) =>
-  trackEvent('view_item', {
-    // GA4 ecommerce
-    value: value ?? item.price ?? 0,
-    currency: 'INR',
-    items: [item],
-    // Meta Pixel flat fields (mapped by the GTM Meta Pixel tag).
-    content_type: 'product',
-    content_ids: [item.item_id],
-    content_name: item.item_name,
-  });
-
-export const trackAddToCart = (
-  item: EcommerceItem,
-  quantity: number = 1,
-  value?: number
-) =>
-  trackEvent('add_to_cart', {
-    value: value ?? (item.price || 0) * quantity,
-    currency: 'INR',
-    items: [{ ...item, quantity }],
-    content_type: 'product',
-    content_ids: [item.item_id],
-    content_name: item.item_name,
-    quantity,
-  });
-
-export const trackBeginCheckout = (
-  items: EcommerceItem[],
-  value: number,
-  coupon?: string
-) =>
-  trackEvent('begin_checkout', {
-    value,
-    currency: 'INR',
-    items,
-    coupon,
-    content_type: 'product',
-    content_ids: items.map((i) => i.item_id),
-    num_items: items.length,
-  });
-
-export const trackPurchase = (params: {
-  transaction_id: string;
-  value: number;
+export interface EcomPayload {
   currency?: string;
-  tax?: number;
-  shipping?: number;
-  coupon?: string;
-  items?: EcommerceItem[];
-}) =>
-  trackEvent('purchase', {
-    transaction_id: params.transaction_id,
-    value: params.value,
-    currency: params.currency || 'INR',
-    tax: params.tax,
-    shipping: params.shipping,
-    coupon: params.coupon,
-    items: params.items || [],
+  value?: number;
+  items?: AnalyticsItem[];
+  [k: string]: any;
+}
+
+// -----------------------------------------------------------------------------
+// Raw dispatch — used by the named helpers below.
+// -----------------------------------------------------------------------------
+
+/**
+ * `metaName` is the Meta Pixel standard-event name; `ga4Name` is the GA4
+ * recommended event name (they diverge — GA4 uses snake_case, Meta uses
+ * CamelCase). If either is missing we skip that side.
+ */
+export function dispatch(ga4Name: string | null, metaName: string | null, params: Record<string, any> = {}) {
+  if (typeof window === 'undefined') return;
+
+  // Google Analytics 4
+  if (ga4Name && window.gtag) {
+    try {
+      window.gtag('event', ga4Name, params);
+    } catch (err) {
+      console.warn('[analytics] gtag failed:', err);
+    }
+  }
+
+  // GTM dataLayer (kept alongside gtag for anyone using GTM-based custom triggers)
+  if (window.dataLayer) {
+    window.dataLayer.push({ event: ga4Name || metaName || 'analytics_event', ...params });
+  }
+
+  // Meta Pixel (both primary and optional ads pixel)
+  if (metaName && window.fbq) {
+    const std = ['AddPaymentInfo','AddToCart','AddToWishlist','CompleteRegistration','Contact','CustomizeProduct','Donate','FindLocation','InitiateCheckout','Lead','Purchase','Schedule','Search','StartTrial','SubmitApplication','Subscribe','ViewContent'];
+    const method = std.includes(metaName) ? 'track' : 'trackCustom';
+    try {
+      window.fbq(method, metaName, params);
+      if (META_ADS_PIXEL_ID) window.fbq('trackSingle', META_ADS_PIXEL_ID, metaName, params);
+    } catch (err) {
+      console.warn('[analytics] fbq failed:', err);
+    }
+  }
+
+  if (process.env.NODE_ENV === 'development') {
+    // eslint-disable-next-line no-console
+    console.log(`[analytics] GA4=${ga4Name || '-'} · Meta=${metaName || '-'}`, params);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// E-commerce event helpers — call these from the app
+// -----------------------------------------------------------------------------
+
+export function viewItem(item: AnalyticsItem & { currency?: string; value?: number }) {
+  const payload = {
+    currency: item.currency || 'INR',
+    value: Number(item.value ?? item.price ?? 0),
+    items: [
+      {
+        item_id: String(item.item_id),
+        item_name: item.item_name,
+        item_category: item.item_category,
+        item_brand: item.item_brand || 'Vyra Herbals',
+        price: item.price,
+        quantity: item.quantity ?? 1,
+      },
+    ],
     content_type: 'product',
-    content_ids: (params.items || []).map((i) => i.item_id),
-    num_items: (params.items || []).length,
+    content_ids: [String(item.item_id)],
+    content_name: item.item_name,
+    content_category: item.item_category,
+  };
+  dispatch('view_item', 'ViewContent', payload);
+}
+
+export function addToCart(item: AnalyticsItem & { currency?: string; value?: number }) {
+  const value = Number(item.value ?? (Number(item.price ?? 0) * Number(item.quantity ?? 1)));
+  const payload = {
+    currency: item.currency || 'INR',
+    value,
+    items: [
+      {
+        item_id: String(item.item_id),
+        item_name: item.item_name,
+        item_category: item.item_category,
+        item_brand: item.item_brand || 'Vyra Herbals',
+        price: item.price,
+        quantity: item.quantity ?? 1,
+      },
+    ],
+    content_type: 'product',
+    content_ids: [String(item.item_id)],
+    content_name: item.item_name,
+    content_category: item.item_category,
+  };
+  dispatch('add_to_cart', 'AddToCart', payload);
+}
+
+export function removeFromCart(item: AnalyticsItem & { value?: number; currency?: string }) {
+  dispatch('remove_from_cart', null, {
+    currency: item.currency || 'INR',
+    value: Number(item.value ?? (Number(item.price ?? 0) * Number(item.quantity ?? 1))),
+    items: [
+      {
+        item_id: String(item.item_id),
+        item_name: item.item_name,
+        item_category: item.item_category,
+        quantity: item.quantity ?? 1,
+        price: item.price,
+      },
+    ],
   });
+}
+
+export function viewCart(payload: EcomPayload) {
+  dispatch('view_cart', null, {
+    currency: payload.currency || 'INR',
+    value: Number(payload.value ?? 0),
+    items: payload.items || [],
+  });
+}
+
+export function addToWishlist(item: AnalyticsItem) {
+  dispatch('add_to_wishlist', 'AddToWishlist', {
+    currency: 'INR',
+    value: Number(item.price ?? 0),
+    items: [{ item_id: String(item.item_id), item_name: item.item_name, quantity: 1, price: item.price }],
+    content_type: 'product',
+    content_ids: [String(item.item_id)],
+    content_name: item.item_name,
+  });
+}
+
+export function beginCheckout(payload: EcomPayload) {
+  dispatch('begin_checkout', 'InitiateCheckout', {
+    currency: payload.currency || 'INR',
+    value: Number(payload.value ?? 0),
+    items: payload.items || [],
+    coupon: payload.coupon,
+    num_items: (payload.items || []).reduce((n, i) => n + (i.quantity || 1), 0),
+    content_type: 'product',
+    content_ids: (payload.items || []).map((i) => String(i.item_id)),
+  });
+}
+
+export function addPaymentInfo(payload: EcomPayload & { payment_type?: string }) {
+  dispatch('add_payment_info', 'AddPaymentInfo', {
+    currency: payload.currency || 'INR',
+    value: Number(payload.value ?? 0),
+    payment_type: payload.payment_type,
+    items: payload.items || [],
+  });
+}
+
+export function purchase(payload: EcomPayload & { transaction_id: string; tax?: number; shipping?: number; coupon?: string }) {
+  dispatch('purchase', 'Purchase', {
+    transaction_id: payload.transaction_id,
+    currency: payload.currency || 'INR',
+    value: Number(payload.value ?? 0),
+    tax: payload.tax,
+    shipping: payload.shipping,
+    coupon: payload.coupon,
+    items: payload.items || [],
+    content_type: 'product',
+    content_ids: (payload.items || []).map((i) => String(i.item_id)),
+    num_items: (payload.items || []).reduce((n, i) => n + (i.quantity || 1), 0),
+  });
+}
+
+export function search(query: string) {
+  dispatch('search', 'Search', { search_term: query });
+}
+
+export function signUp(method?: string) {
+  dispatch('sign_up', 'CompleteRegistration', { method: method || 'phone' });
+}
+
+// -----------------------------------------------------------------------------
+// Legacy exports — the `trackEvent` name is already imported in existing
+// components. Keep it working during the transition; internally it routes
+// through the named helpers above so GA4 + Meta both receive events.
+// -----------------------------------------------------------------------------
+
+/** @deprecated Use the named helpers above (`viewItem`, `addToCart`, etc). */
+export const trackEvent = (eventName: string, eventData: Record<string, any> = {}) => {
+  const map: Record<string, [string | null, string | null]> = {
+    ViewContent: ['view_item', 'ViewContent'],
+    AddToCart: ['add_to_cart', 'AddToCart'],
+    AddToWishlist: ['add_to_wishlist', 'AddToWishlist'],
+    InitiateCheckout: ['begin_checkout', 'InitiateCheckout'],
+    AddPaymentInfo: ['add_payment_info', 'AddPaymentInfo'],
+    Purchase: ['purchase', 'Purchase'],
+    Search: ['search', 'Search'],
+    CompleteRegistration: ['sign_up', 'CompleteRegistration'],
+  };
+  const [ga4Name, metaName] = map[eventName] || [null, eventName];
+  dispatch(ga4Name, metaName, eventData);
+};
+
+/** @deprecated Handled centrally by AnalyticsLoader. */
+export const pageview = () => {
+  if (typeof window !== 'undefined' && window.fbq) window.fbq('track', 'PageView');
+  if (typeof window !== 'undefined' && window.dataLayer) window.dataLayer.push({ event: 'pageview' });
+};

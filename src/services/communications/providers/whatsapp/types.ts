@@ -1,11 +1,6 @@
 export interface WhatsAppTemplateComponent {
   type: 'body' | 'header' | 'button';
-  sub_type?: 'url' | 'quick_reply';
-  index?: string | number;
-  parameters: Array<
-    | { type: 'text'; text: string }
-    | { type: 'image'; image: { link: string } }
-  >;
+  parameters: Array<{ type: 'text'; text: string }>;
 }
 
 export type WhatsAppSendPayload =
@@ -33,7 +28,7 @@ export type WhatsAppSendPayload =
       to: string;
       type: 'interactive';
       interactive: {
-        type: 'button' | 'list' | 'product_list' | 'catalog_message' | 'cta_url';
+        type: 'button' | 'list' | 'product_list' | 'catalog_message';
         header?: { type: 'text' | 'image'; text?: string; image?: { link: string } };
         body: { text: string };
         footer?: { text: string };

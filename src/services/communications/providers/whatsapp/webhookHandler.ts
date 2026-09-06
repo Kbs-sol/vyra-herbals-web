@@ -91,6 +91,11 @@ export function parseStatusUpdates(body: WhatsAppWebhookBody): WebhookStatusUpda
 /**
  * Flattens Meta's nested entry/changes/messages structure into a flat list
  * of incoming messages to be handled by the Bot Engine.
+ *
+ * Also joins the `contacts` array from the same `value` block so the admin
+ * inbox can show the customer's WhatsApp display name (Meta's "profile.name"
+ * field). Without this join we'd only have raw phone numbers, which is
+ * usable but ugly.
  */
 export function parseIncomingMessages(body: WhatsAppWebhookBody): any[] {
   const messages: any[] = [];
@@ -102,8 +107,17 @@ export function parseIncomingMessages(body: WhatsAppWebhookBody): any[] {
   for (const entry of body.entry) {
     for (const change of entry.changes ?? []) {
       if (change.field !== 'messages') continue;
+      const contacts = (change.value as any).contacts ?? [];
+      const nameByWaId: Record<string, string> = {};
+      for (const c of contacts) {
+        if (c?.wa_id && c?.profile?.name) nameByWaId[c.wa_id] = c.profile.name;
+      }
       for (const message of change.value.messages ?? []) {
-        messages.push(message);
+        const enriched: any = { ...message };
+        if (message.from && nameByWaId[message.from]) {
+          enriched.profileName = nameByWaId[message.from];
+        }
+        messages.push(enriched);
       }
     }
   }

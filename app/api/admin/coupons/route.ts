@@ -1,7 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
-import { verifyAdminAuth } from '@/utils/adminAuth';
+import { cookies } from 'next/headers';
+import { jwtVerify } from 'jose';
+import { getAdminJwtSecret } from '@/utils/serverEnv';
 
+
+async function verifyAdmin(): Promise<boolean> {
+    try {
+        const cookieStore = await cookies();
+        const token = cookieStore.get('admin_token')?.value;
+        if (!token) return false;
+        const { payload } = await jwtVerify(token, getAdminJwtSecret());
+        return payload.role === 'admin';
+    } catch {
+        return false;
+    }
+}
 
 const TABLE_MISSING = (err: any) =>
     err?.code === '42P01' || (typeof err?.message === 'string' && err.message.includes('coupons'));
@@ -89,7 +103,7 @@ const sanitizeCouponPayload = (body: any) => {
 // GET: list coupons (admin)
 export async function GET(request: NextRequest) {
     try {
-        const isAdmin = await verifyAdminAuth(request);
+        const isAdmin = await verifyAdmin();
         if (!isAdmin) {
             return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
         }
@@ -147,7 +161,7 @@ export async function GET(request: NextRequest) {
 // POST: create a coupon
 export async function POST(request: NextRequest) {
     try {
-        const isAdmin = await verifyAdminAuth(request);
+        const isAdmin = await verifyAdmin();
         if (!isAdmin) {
             return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
         }

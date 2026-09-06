@@ -145,14 +145,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (!mounted) return;
       console.log(`[AuthContext] onAuthStateChange event: ${event}. Session exists?`, !!session);
 
-      if (event === 'SIGNED_IN' && session?.access_token) {
-        // Merge anon cart into authenticated cart
-        fetch('/api/cart/merge', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${session.access_token}` },
-        }).catch(err => console.warn('[cart-merge] merge failed:', err));
-      }
-
       // Ignore periodic token refreshes for an already-resolved user — no need
       // to re-touch React state on an hourly cadence.
       if (
@@ -279,13 +271,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
-      // Set the session established by the server
-      const { data: sessionData, error: sessionError } = await supabase.auth.setSession(data.session);
+      // Successfully verified and created/found user
+      // Now sign in with the deterministic or newly set credentials
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      });
 
-      if (sessionError) throw sessionError;
+      if (signInError) throw signInError;
 
-      if (sessionData?.session?.user) {
-        await fetchUserProfile(sessionData.session.user);
+      if (signInData?.session?.user) {
+        await fetchUserProfile(signInData.session.user);
       }
 
       return { error: null };

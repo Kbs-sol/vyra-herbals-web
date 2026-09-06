@@ -8,9 +8,10 @@ import { WishlistProvider } from '@/Components/Contexts/WishlistContext';
 import Header from '@/Components/Common/Header';
 import Footer from '@/Components/Common/Footer';
 import ConditionalLayout from '@/Components/Common/ConditionalLayout';
-import RouteChangeTracker from '@/Components/Common/RouteChangeTracker';
 import { ToastContainer } from 'react-toastify';
-import { Analytics } from '@vercel/analytics/next';
+import JsonLd from '@/Components/Shared/JsonLd';
+import AnalyticsLoader from '@/Components/Common/AnalyticsLoader';
+import { organizationJsonLd, websiteJsonLd, SITE_URL, BRAND_DEFAULT_DESCRIPTION } from '@/utils/seo';
 import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -36,60 +37,59 @@ const openSans = Open_Sans({
   display: 'swap',
 });
 
+// Root metadata: acts as a fallback + template for pages that do not export
+// their own `generateMetadata`. Product / category / blog pages override each
+// field with a specific value — that's where the SEO win is.
 export const metadata: Metadata = {
-  title: 'Vyra Herbals | Premium Herbal Hair & Skincare Products',
-  description: 'Discover premium herbal hair care and skincare products made from 100% natural ingredients. Chemical-free, organic, and effective solutions for healthy hair and skin.',
-  keywords: 'herbal hair oil, natural shampoo, hair care products, skincare, organic, chemical-free',
-  icons: {
-    icon: '/assets/images/vyra_favicon.jpg',
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: 'Vyra Herbals | Herbal Hair Care — Ayurvedic, ISO & GMP Certified',
+    // %s comes from child `title` strings (e.g. product name). Non-overriding
+    // pages fall back to `default`.
+    template: '%s',
   },
+  description: BRAND_DEFAULT_DESCRIPTION,
+  keywords: ['herbal hair oil', 'natural shampoo', 'ayurvedic hair care', 'rosemary hair oil', 'chemical free', 'sulphate free shampoo', 'GMP certified', 'ISO 9001:2015'],
+  icons: { icon: '/assets/images/vyra_favicon.jpg' },
   openGraph: {
     type: 'website',
-    locale: 'en_US',
-    url: 'https://vyraherbals.com',
+    locale: 'en_IN',
+    url: SITE_URL,
     siteName: 'Vyra Herbals',
-    title: 'Vyra Herbals | Premium Herbal Hair & Skincare Products',
-    description: 'Discover premium herbal hair care and skincare products made from 100% natural ingredients.',
-    images: [
-      {
-        url: 'https://vyraherbals.com/assets/images/banner/og-image.jpg',
-        width: 1200,
-        height: 630,
-      },
-    ],
+    title: 'Vyra Herbals | Herbal Hair Care — Ayurvedic, ISO & GMP Certified',
+    description: BRAND_DEFAULT_DESCRIPTION,
+    images: [{ url: '/assets/images/banner/og-image.jpg', width: 1200, height: 630 }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Vyra Herbals | Premium Herbal Hair & Skincare Products',
-    description: 'Discover premium herbal hair care and skincare products made from 100% natural ingredients.',
+    title: 'Vyra Herbals | Herbal Hair Care',
+    description: BRAND_DEFAULT_DESCRIPTION,
   },
-  robots: 'index, follow',
-  authors: [{ name: 'Vyra Herbals' }],
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  authors: [{ name: 'Sahera Banu' }],
   creator: 'Vyra Herbals',
   publisher: 'Vyra Herbals',
+  alternates: { canonical: SITE_URL },
+  formatDetection: { email: false, address: false, telephone: false },
 };
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1.0,
-  maximumScale: 1.0,
-  userScalable: false,
+  // Note: removed `maximumScale: 1` and `userScalable: false` — pinch-zoom is
+  // an accessibility win (WCAG 1.4.4). Google's Lighthouse a11y audit flags
+  // sites that disable it, and mobile is 58% of Vyra's traffic.
 };
-
-/**
- * Google Tag Manager is the SINGLE analytics entry point for this site.
- *
- * GA4 (Google Analytics 4), Meta Pixel, Microsoft Clarity, Google Ads
- * conversion tags, and any other vendor tag are ALL configured inside the
- * GTM container itself (GTM-MHSG926J). Never hardcode a second copy of a
- * vendor snippet here — doing that fires every event twice and inflates
- * conversion counts in GA4 and Meta Ads Manager.
- *
- * Custom events are pushed via `src/utils/analytics.ts`, which writes to
- * `window.dataLayer`. GTM's triggers listen on that dataLayer and fan the
- * events out to every configured vendor.
- */
-const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID || 'GTM-MHSG926J';
 
 export default function RootLayout({
   children,
@@ -100,49 +100,22 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning={true}>
       <head>
         {/*
-          Google Tag Manager — primes `window.dataLayer` before the loader
-          script pushes `gtm.start`. `beforeInteractive` isn't allowed for
-          inline <Script> outside `_document`, and `afterInteractive` is the
-          documented placement for GTM in the Next.js App Router. Loading a
-          split-second later is a fair trade-off for keeping GTM out of the
-          critical rendering path.
-        */}
-        <Script id="gtm-datalayer-init" strategy="afterInteractive">
-          {`window.dataLayer = window.dataLayer || [];`}
-        </Script>
-        <Script id="google-tag-manager" strategy="afterInteractive">
-          {`
-            (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-            new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-            j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-            'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-            })(window,document,'script','dataLayer','${GTM_ID}');
-          `}
-        </Script>
+         * Structured data emitted at the root. Every page inherits Organization
+         * + WebSite JSON-LD (the audit reported ZERO schema sitewide — this is
+         * the sitewide fix). Product / category / blog pages layer their own
+         * schema on top via <JsonLd />.
+         */}
+        <JsonLd data={[organizationJsonLd(), websiteJsonLd()]} />
       </head>
       <body className={openSans.className} suppressHydrationWarning={true}>
         {/*
-          GTM's <noscript> fallback. Per Google's install instructions this
-          must be the FIRST child of <body> so it renders even when the
-          bundle has not executed.
-        */}
-        <noscript>
-          <iframe
-            src={`https://www.googletagmanager.com/ns.html?id=${GTM_ID}`}
-            height="0"
-            width="0"
-            style={{ display: 'none', visibility: 'hidden' }}
-          />
-        </noscript>
-
-        {/*
-          App Router doesn't fire a full page load between client navigations,
-          so GA4 / Meta Pixel / Clarity would only ever see the first URL.
-          RouteChangeTracker pushes a `page_view` event to the dataLayer on
-          every route change so GTM tags see the updated URL.
-        */}
+         * Unified analytics loader — GA4, Microsoft Clarity, Meta Pixel and
+         * (optionally) a second ads pixel are all initialised from one place.
+         * Reads config from NEXT_PUBLIC_* env vars; missing values silently
+         * skip that tool so a dev instance doesn't spray broken script tags.
+         */}
         <Suspense fallback={null}>
-          <RouteChangeTracker />
+          <AnalyticsLoader />
         </Suspense>
 
         <AuthProvider>
@@ -165,7 +138,6 @@ export default function RootLayout({
           theme="light"
           style={{ zIndex: 99999 }}
         />
-        <Analytics />
       </body>
     </html>
   );

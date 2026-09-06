@@ -16,10 +16,8 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') || '';
     const paymentMethod = searchParams.get('paymentMethod') || '';
     const search = searchParams.get('search') || '';
-    const ALLOWED_SORT_COLS = new Set(['id', 'order_id', 'created_at', 'total_amount', 'status', 'payment_method']);
-    const requestedSortBy = searchParams.get('sortBy') || '';
-    const sortBy = ALLOWED_SORT_COLS.has(requestedSortBy) ? requestedSortBy : 'created_at';
-    const sortOrder = searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc';
+    const sortBy = searchParams.get('sortBy') || 'created_at';
+    const sortOrder = searchParams.get('sortOrder') || 'desc';
     const startDate = searchParams.get('startDate') || '';
     const endDate = searchParams.get('endDate') || '';
 

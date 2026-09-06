@@ -13,11 +13,7 @@ export async function POST(req: Request) {
     }
 
     const supabase = createServerSupabase();
-    // Safety: never expose internal test products to the public shop
-    if (categoryValue === '__test__') {
-      return NextResponse.json({ products: [], data: [] });
-    }
-    let query = supabase.from('products').select('*').eq('category', categoryValue).neq('category', '__test__');
+    let query = supabase.from('products').select('*').eq('category', categoryValue);
     
     if (typeof extra_condition === 'string') {
       const limitMatch = extra_condition.match(/LIMIT\s+(\d+)/i);
