@@ -1,0 +1,70 @@
+# ============================================================================
+# Vyra Herbals — .gitignore
+# ============================================================================
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+/dist
+
+# misc
+.DS_Store
+*.pem
+Thumbs.db
+
+# debug / build logs (were previously polluting repo root — see docs/vyra-herbals-audit-report.pdf)
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+build*.txt
+build*log*
+*.log
+
+# local env files
+.env*.local
+.env
+# Backup copies of .env.local live here — real secrets, must never be committed.
+# The .env*.local rule above does NOT cover them (the suffix comes after .local).
+/env_backup/
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# generated CSVs / DB dumps
+db_transactions_dump*
+*.dump
+*.sqlite
+*.sqlite3
+
+# ad-hoc test scripts (proper tests live in /tests)
+/test-*.js
+/test-*.mjs
+/test_*.js
+/fetch_products_debug.js
+
+# packaged uploads / archives that should never live in the repo
+*.tar
+*.tar.gz
+*.zip
+*.7z
+
+# media assets over 10 MB — offload to Supabase/YouTube (see SYSTEM_LITERACY.md §11)
+*.mp4
+*.webm
+*.mov
+*.avi

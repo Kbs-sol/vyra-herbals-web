@@ -1,0 +1,29 @@
+{
+  "buildCommand": "npm run build",
+  "regions": ["bom1"],
+  "env": {
+    "SKIP_TYPE_CHECK": "1"
+  },
+  "build": {
+    "env": {
+      "SKIP_STATIC_GENERATION": "1"
+    }
+  },
+  "functions": {
+    "app/api/shipping/track/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/payment/cod/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/payment/success/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/payment/reconcile/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/cron/reconcile-payments/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}

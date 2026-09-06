@@ -1,0 +1,22 @@
+[
+  {
+    "id": 1001,
+    "user_id": 55,
+    "status": "placed",
+    "total_amount": 1499.0,
+    "shipping_data": {
+      "name": "Asha Rao",
+      "phone": "9876543210"
+    }
+  },
+  {
+    "id": 1002,
+    "user_id": 56,
+    "status": "placed",
+    "total_amount": 899.5,
+    "shipping_data": {
+      "name": "Vikram Mehta",
+      "phone": "08123456789"
+    }
+  }
+]

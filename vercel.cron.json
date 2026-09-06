@@ -1,0 +1,9 @@
+{
+  "_comment": "Merge this `crons` array into your existing vercel.json — do not overwrite the file wholesale.",
+  "crons": [
+    { "path": "/api/cron/process-message-queue", "schedule": "* * * * *" },
+    { "path": "/api/cron/retry-failed-messages", "schedule": "*/5 * * * *" },
+    { "path": "/api/cron/clean-old-logs", "schedule": "0 2 * * *" },
+    { "path": "/api/cron/scheduled-communications", "schedule": "0 10 * * *" }
+  ]
+}

@@ -1,0 +1,10 @@
+- [ ] **Database Setup**: Create `whatsapp_sessions` table to track user conversation state (e.g., waiting for address).
+- [ ] **WhatsApp Types & Client**: Update `client.ts` and `types.ts` to support receiving `messages` (especially `type: 'order'`) and sending `interactive` messages (buttons, catalog links).
+- [ ] **Webhook Router**: Update `app/api/webhooks/whatsapp/route.ts` to parse incoming messages and pass them to the new Bot Engine.
+- [ ] **Bot Engine Core**: Create state machine to load/save session state from the database.
+- [ ] **Conversational Handlers**:
+  - `MainMenu`: Handle "Hi", send interactive buttons (Catalog, Track, Help).
+  - `OrderReceiver`: Handle incoming native WhatsApp Catalog cart (`type: 'order'`), create draft order, and ask for shipping address.
+  - `AddressReceiver`: Handle text input when state is `AWAITING_ADDRESS`, finalize order total, generate Easebuzz link, and send to user.
+  - `Tracking`: Handle "Track Order" button, lookup user's orders, and return status.
+- [ ] **Cron Job Integration**: Ensure abandoned payment cron job covers WhatsApp-initiated orders (it already should, since we'll use the same orders table).
