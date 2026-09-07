@@ -271,17 +271,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
-      // Successfully verified and created/found user
-      // Now sign in with the deterministic or newly set credentials
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email: data.email,
-        password: data.password,
-      });
+      // Set the session established by the server
+      const { data: sessionData, error: sessionError } = await supabase.auth.setSession(data.session);
 
-      if (signInError) throw signInError;
+      if (sessionError) throw sessionError;
 
-      if (signInData?.session?.user) {
-        await fetchUserProfile(signInData.session.user);
+      if (sessionData?.session?.user) {
+        await fetchUserProfile(sessionData.session.user);
       }
 
       return { error: null };

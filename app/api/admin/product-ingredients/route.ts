@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/utils/supabaseClient';
+import { createServerSupabase } from '@/utils/supabaseClient';
 import { requireAdmin } from '@/utils/adminAuth';
 
 export const dynamic = 'force-dynamic';
@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   const denied = await requireAdmin(request);
   if (denied) return denied;
+  const supabase = createServerSupabase();
 
   try {
     const { searchParams } = new URL(request.url);
@@ -37,6 +38,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const denied = await requireAdmin(request);
   if (denied) return denied;
+  const supabase = createServerSupabase();
 
   try {
     const body = await request.json();
@@ -102,6 +104,7 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   const denied = await requireAdmin(request);
   if (denied) return denied;
+  const supabase = createServerSupabase();
 
   try {
     const body = await request.json();
@@ -139,6 +142,7 @@ export async function PUT(request: Request) {
 export async function DELETE(request: Request) {
   const denied = await requireAdmin(request);
   if (denied) return denied;
+  const supabase = createServerSupabase();
 
   try {
     const { searchParams } = new URL(request.url);
@@ -164,3 +168,4 @@ export async function DELETE(request: Request) {
     );
   }
 }
+

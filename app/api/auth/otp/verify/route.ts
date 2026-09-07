@@ -113,8 +113,18 @@ export async function POST(req: Request) {
             }
         }
 
-        // Return credentials so the client can establish its own session.
-        return NextResponse.json({ email: internalEmail, password });
+        // Sign in on the server to establish a session without leaking the password
+        const { data: sessionData, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
+            email: internalEmail,
+            password
+        });
+        
+        if (signInError) {
+            console.error('OTP Sign In Error:', signInError);
+            return NextResponse.json({ error: 'Verified, but failed to establish session' }, { status: 500 });
+        }
+
+        return NextResponse.json({ session: sessionData.session });
     } catch (error: any) {
         console.error('OTP Verify Error:', error);
         return NextResponse.json(

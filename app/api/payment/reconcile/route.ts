@@ -131,6 +131,8 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'txnid required' }, { status: 400 });
   }
   const supabase = createServerSupabase();
+  const auth = await getCallerAuth(req, supabase);
+
   const { data: txn, error } = await supabase
     .from('transactions')
     .select('*')
@@ -142,6 +144,11 @@ export async function GET(req: Request) {
   if (!txn) {
     return NextResponse.json({ error: 'transaction not found' }, { status: 404 });
   }
+  
+  if (!auth.isAdmin && !auth.isCron && txn.user_id !== auth.userId) {
+     return NextResponse.json({ error: 'unauthorized' }, { status: 403 });
+  }
+
   const outcome = await reconcileOne(supabase, txn);
   return NextResponse.json({ outcome });
 }
@@ -156,10 +163,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'unauthorized' }, { status: 403 });
     }
 
-    // Sweep transactions stuck in 'created' that have a matching order_sessions
-    // row but no orders row yet. We bound the sweep to the most recent 50 so a
-    // single cron tick can't OOM or blow the 60s budget — anything older will
-    // be picked up by the next tick.
     const { data: pending, error } = await supabase
       .from('transactions')
       .select('*')
@@ -186,6 +189,7 @@ export async function POST(req: Request) {
   if (!txnid) {
     return NextResponse.json({ error: 'txnid required (or set { all: true } with admin/cron auth)' }, { status: 400 });
   }
+  
   const { data: txn, error } = await supabase
     .from('transactions')
     .select('*')
@@ -197,6 +201,11 @@ export async function POST(req: Request) {
   if (!txn) {
     return NextResponse.json({ error: 'transaction not found' }, { status: 404 });
   }
+  
+  if (!auth.isAdmin && !auth.isCron && txn.user_id !== auth.userId) {
+     return NextResponse.json({ error: 'unauthorized' }, { status: 403 });
+  }
+
   const outcome = await reconcileOne(supabase, txn);
   return NextResponse.json({ outcome });
 }

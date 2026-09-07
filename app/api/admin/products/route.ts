@@ -15,8 +15,10 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const search = searchParams.get('search') || '';
     const category = searchParams.get('category') || '';
-    const sortBy = searchParams.get('sortBy') || 'created_at';
-    const sortOrder = searchParams.get('sortOrder') || 'desc';
+    const ALLOWED_SORT_COLS = new Set(['id', 'name', 'price', 'created_at', 'stock', 'rating']);
+    const requestedSortBy = searchParams.get('sortBy') || '';
+    const sortBy = ALLOWED_SORT_COLS.has(requestedSortBy) ? requestedSortBy : 'created_at';
+    const sortOrder = searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc';
 
     const offset = (page - 1) * limit;
 

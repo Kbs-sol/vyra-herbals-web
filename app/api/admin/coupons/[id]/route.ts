@@ -1,21 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
-import { cookies } from 'next/headers';
-import { jwtVerify } from 'jose';
-import { getAdminJwtSecret } from '@/utils/serverEnv';
+import { verifyAdminAuth } from '@/utils/adminAuth';
 
-
-async function verifyAdmin(): Promise<boolean> {
-    try {
-        const cookieStore = await cookies();
-        const token = cookieStore.get('admin_token')?.value;
-        if (!token) return false;
-        const { payload } = await jwtVerify(token, getAdminJwtSecret());
-        return payload.role === 'admin';
-    } catch {
-        return false;
-    }
-}
 
 const sanitizeUpdatePayload = (body: any) => {
     const errors: string[] = [];
@@ -118,7 +104,7 @@ export async function PUT(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const isAdmin = await verifyAdmin();
+        const isAdmin = await verifyAdminAuth(request);
         if (!isAdmin) {
             return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
         }
@@ -163,11 +149,11 @@ export async function PUT(
 
 // DELETE: remove a coupon
 export async function DELETE(
-    _request: NextRequest,
+    request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const isAdmin = await verifyAdmin();
+        const isAdmin = await verifyAdminAuth(request);
         if (!isAdmin) {
             return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
         }
