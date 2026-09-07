@@ -4,11 +4,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
-import { getAdminJwtSecret } from '@/utils/serverEnv';
+import { getAdminJwtSecret, getSupabaseUrl, getSupabaseServiceRoleKey } from '@/utils/serverEnv';
 
-
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const DEFAULT_STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET || 'products';
 
 export async function POST(request: NextRequest) {
@@ -43,11 +40,7 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await uploadFile.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      return NextResponse.json({ success: false, error: 'Supabase credentials missing (SUPABASE_URL / SERVICE_ROLE_KEY)' }, { status: 500 });
-    }
-
-    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    const supabaseAdmin = createClient(getSupabaseUrl(), getSupabaseServiceRoleKey(), {
       auth: { persistSession: false },
     });
 

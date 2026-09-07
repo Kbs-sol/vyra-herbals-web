@@ -21,6 +21,11 @@ async function verifyAdmin(): Promise<boolean> {
 // GET: Fetch all settings or a specific setting by key
 export async function GET(request: NextRequest) {
     try {
+        const isAdmin = await verifyAdmin();
+        if (!isAdmin) {
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+        }
+
         const url = new URL(request.url);
         const key = url.searchParams.get('key');
 
