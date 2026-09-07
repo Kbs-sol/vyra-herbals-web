@@ -50,7 +50,7 @@ export interface OrderPlacedEvent extends BaseEvent {
   total_amount: number;
   payment_method: 'cod' | 'online';
   items: OrderItem[];
-  tracking_link?: string;
+  tracking_id?: string;
 }
 
 export interface PaymentConfirmedEvent extends BaseEvent {
@@ -105,7 +105,10 @@ export interface OutboundMessage {
   message_type: EventType;
   provider: ProviderName;
   template_name: string;
+  /** Parameters to inject into the template body, in positional order. */
   parameters: Record<string, string | number>;
+  /** Optional parameters for a dynamic URL button, in positional order. */
+  button_parameters?: string[];
   /** Idempotency key — composite of order_id + message_type by default. */
   dedupe_key: string;
   scheduled_for?: Date;

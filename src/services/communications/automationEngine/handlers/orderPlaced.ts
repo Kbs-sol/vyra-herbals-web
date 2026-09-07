@@ -22,9 +22,8 @@ export class OrderPlacedHandler extends BaseEventHandler<OrderPlacedEvent> {
 
     const values: Record<string, string | number> = {
       customer_name: (event.customer_name && event.customer_name !== 'Customer') ? event.customer_name : (event.customer_phone || 'Customer'),
-      order_id: event.order_id,
       total_amount: event.total_amount ? Number(event.total_amount).toFixed(2) : '0.00',
-      tracking_link: event.tracking_link ?? '',
+      tracking_id: event.tracking_id || 'Pending',
     };
 
     return {
@@ -34,6 +33,7 @@ export class OrderPlacedHandler extends BaseEventHandler<OrderPlacedEvent> {
       provider: 'whatsapp',
       template_name: template.name,
       parameters: pickOrdered(values, template.parameterOrder),
+      button_parameters: [event.tracking_id || 'Pending'],
       dedupe_key: event.dedupe_key ?? `ORDER_PLACED:${event.order_id}`,
     };
   }

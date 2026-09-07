@@ -176,13 +176,20 @@ export const finalizeOrderFromSession = async (
     ]);
     try {
       const result = await syncWithCeiling;
-      if (result.success) trackingId = (result as any).trackingId || '';
+      if (result.success) {
+        const resObj = result as any;
+        trackingId = resObj.awb_code || resObj.trackingId || '';
+      }
       else console.warn(`[finalizeOrderFromSession] iCarry sync incomplete for order ${inserted.id}: ${result.message}`);
     } catch (syncErr) {
       console.error(`[finalizeOrderFromSession] iCarry sync threw for order ${inserted.id}:`, syncErr);
     }
   } else if (inserted?.shipment_id) {
-    trackingId = inserted.tracking_id || '';
+    trackingId = inserted.awb_code || inserted.tracking_id || '';
+  }
+
+  if (inserted && trackingId) {
+    inserted.tracking_id = trackingId;
   }
 
   // Update the transactions row to reflect the confirmed payment.

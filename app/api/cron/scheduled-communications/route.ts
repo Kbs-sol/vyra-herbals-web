@@ -27,10 +27,10 @@ export async function GET(req: Request) {
     errors: [] as string[],
   };
 
-  // 1. Send Registration Promo after 2 hours
+  // 1. Send Registration Promo after 3 hours
   try {
-    const minRegistrationTime = new Date(now.getTime() - 3 * 60 * 60 * 1000).toISOString();
-    const maxRegistrationTime = new Date(now.getTime() - 1 * 60 * 60 * 1000).toISOString();
+    const minRegistrationTime = new Date(now.getTime() - 4 * 60 * 60 * 1000).toISOString();
+    const maxRegistrationTime = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
 
     const { data: users, error: userError } = await db
       .from('users')
@@ -46,11 +46,11 @@ export async function GET(req: Request) {
             type: 'MANUAL' as any,
             order_id: 0,
             customer_phone: phone,
-            template_name: process.env.WHATSAPP_TEMPLATE_WELCOME_PROMO ?? 'welcome_promo_2hr',
+            template_name: process.env.WHATSAPP_TEMPLATE_WELCOME_PROMO ?? 'welcome_promo_3hr',
             parameters: {
               customer_name: u.name || 'Customer',
             },
-            dedupe_key: `PROMO_2HR:${u.id}`,
+            dedupe_key: `PROMO_3HR:${u.id}`,
           } as any, 'cron');
           results.registration_promos_sent++;
         }

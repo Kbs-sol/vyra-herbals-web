@@ -14,8 +14,8 @@ This guide contains the exact template names and message bodies that must be sub
 
 ---
 
-## 1. Welcome Offer (Sent 2 hours after registration)
-- **Template Name**: `welcome_promo_2hr`
+## 1. Welcome Offer (Sent 3 hours after registration)
+- **Template Name**: `welcome_promo_3hr`
 - **Category**: Marketing
 - **Language**: English (`en`)
 - **Body Text**:
@@ -29,32 +29,28 @@ Explore our pure hair oils, natural shampoos, and neem scalp care essentials tod
 
 ---
 
-## 2. Order Placed Confirmation
+## 2. Order Placed & Tracking Confirmation
 - **Template Name**: `order_placed`
 - **Category**: Utility
 - **Language**: English (`en`)
 - **Body Text**:
 ```text
-Hi {{1}}, thanks for your order with Vyra Herbals!
+Good news! 🎉 Your Vyra Herbals order is confirmed!💚
 
-Your order #{{2}} for Rs.{{3}} has been placed successfully. We're carefully preparing your natural hair care products and will update you as soon as your parcel ships.
+Hi {{1}}, your order for Rs {{2}} has been successfully placed.
+
+📦 *Tracking ID:* {{3}}
+
+You can use your tracking ID to check your order status.
+
+Thank you for choosing Vyra Herbals🌿
 ```
-
----
-
-## 3. Order Shipment & Tracking Details
-- **Template Name**: `shipment_created`
-- **Category**: Utility
-- **Language**: English (`en`)
-- **Body Text**:
-```text
-Good news! Your Vyra Herbals order #{{1}} has been shipped via {{2}}.
-
-Tracking number: {{3}}
-Reference AWB: {{4}}
-
-You can track your package online anytime!
-```
+- **Buttons**: Add a "Call to Action" button. 
+  - Type: **Visit Website**
+  - Button Text: **Track Order**
+  - URL Type: **Dynamic**
+  - Base URL: `https://www.icarry.in/track-shipment?awb=`
+  - (When adding the button, Meta will automatically append `{{1}}` to the URL. The system will automatically inject the AWB Number there).
 
 ---
 

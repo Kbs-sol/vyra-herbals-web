@@ -1,5 +1,7 @@
 export interface WhatsAppTemplateComponent {
   type: 'body' | 'header' | 'button';
+  sub_type?: 'url' | 'quick_reply';
+  index?: string | number;
   parameters: Array<{ type: 'text'; text: string }>;
 }
 

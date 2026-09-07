@@ -75,6 +75,7 @@ export async function notifyOrderPlaced(order: any): Promise<void> {
         total_amount: money(order.total_amount),
         payment_method: order.payment_method === 'cod' ? 'cod' : 'online',
         items: toOrderItems(order.items),
+        tracking_id: order.tracking_id,
       },
       'api'
     );

@@ -131,6 +131,7 @@ export const syncOrderShipment = async (supabase: any, order: any): Promise<Sync
                 success: true,
                 trackingId,
                 shipmentId: String(shipmentResult.shipment_id || ''),
+                awb_code: String(shipmentResult.awb_code || ''),
             };
         }
 
