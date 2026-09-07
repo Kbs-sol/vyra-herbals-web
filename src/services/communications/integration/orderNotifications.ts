@@ -137,17 +137,17 @@ export async function notifyShipmentCreated(
     const trackingId = String(shipment.trackingId ?? '').trim() || awb;
     const shipping = readShippingData(order);
 
-    await automationEngine.emit(
-      {
-        type: 'SHIPMENT_CREATED',
-        order_id: Number(order.id),
-        customer_phone: String(shipping.phone ?? ''),
-        tracking_id: trackingId,
-        courier_name: String(shipment.courier_name ?? '').trim() || 'our courier partner',
-        awb_code: awb,
-      },
-      'api'
-    );
+    // await automationEngine.emit(
+    //   {
+    //     type: 'SHIPMENT_CREATED',
+    //     order_id: Number(order.id),
+    //     customer_phone: String(shipping.phone ?? ''),
+    //     tracking_id: trackingId,
+    //     courier_name: String(shipment.courier_name ?? '').trim() || 'our courier partner',
+    //     awb_code: awb,
+    //   },
+    //   'api'
+    // );
   } catch (err) {
     console.warn(`[WhatsApp] SHIPMENT_CREATED notify failed for order ${order?.id}:`, err);
   }
