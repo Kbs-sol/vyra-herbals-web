@@ -11,7 +11,7 @@ interface ManualSendBody {
   order_id: number;
   customer_phone: string;
   template_name: string;
-  parameters: Record<string, string | number>;
+  parameters?: Record<string, string | number> | (string | number)[];
 }
 
 /**
@@ -48,7 +48,9 @@ export async function POST(req: Request) {
     message_type: 'MANUAL', // ad-hoc admin sends aren't tied to a domain event; see template_name for actual content
     provider: 'whatsapp',
     template_name: body.template_name,
-    parameters: body.parameters ?? {},
+    parameters: Array.isArray(body.parameters) 
+      ? body.parameters 
+      : Object.values(body.parameters ?? {}),
     dedupe_key: `MANUAL:${body.order_id}:${body.template_name}:${Date.now()}`,
   });
 
