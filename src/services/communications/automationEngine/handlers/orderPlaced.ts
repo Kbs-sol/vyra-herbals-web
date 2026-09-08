@@ -28,7 +28,7 @@ export class OrderPlacedHandler extends BaseEventHandler<OrderPlacedEvent> {
 
     // The owner uploaded a photo to the Meta template manager for ORDER_PLACED, making it a
     // MEDIA template. Meta requires us to send the image link in the API request if it contains a variable.
-    const headerImageUrl = process.env.WHATSAPP_ORDER_PLACED_IMAGE_URL;
+    // const headerImageUrl = process.env.WHATSAPP_ORDER_PLACED_IMAGE_URL;
 
     return {
       order_id: event.order_id,
@@ -38,7 +38,7 @@ export class OrderPlacedHandler extends BaseEventHandler<OrderPlacedEvent> {
       template_name: template.name,
       parameters: pickOrdered(values, template.parameterOrder),
       button_parameters: [event.tracking_id || 'Pending'],
-      ...(headerImageUrl ? { header_image_url: headerImageUrl } : {}),
+      // ...(headerImageUrl ? { header_image_url: headerImageUrl } : {}),
       dedupe_key: event.dedupe_key ?? `ORDER_PLACED:${event.order_id}`,
     };
   }

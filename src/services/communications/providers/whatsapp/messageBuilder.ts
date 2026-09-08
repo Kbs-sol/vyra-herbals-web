@@ -25,17 +25,17 @@ export function buildTemplatePayload(message: OutboundMessage): WhatsAppSendPayl
     }
   ];
 
-  if (message.header_image_url) {
-    components.push({
-      type: 'header',
-      parameters: [
-        {
-          type: 'image',
-          image: { link: message.header_image_url },
-        },
-      ],
-    });
-  }
+  // if (message.header_image_url) {
+  //   components.push({
+  //     type: 'header',
+  //     parameters: [
+  //       {
+  //         type: 'image',
+  //         image: { link: message.header_image_url },
+  //       },
+  //     ],
+  //   });
+  // }
 
   if (message.button_parameters && message.button_parameters.length > 0) {
     components.push({
