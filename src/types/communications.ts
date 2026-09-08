@@ -106,7 +106,7 @@ export interface OutboundMessage {
   provider: ProviderName;
   template_name: string;
   /** Parameters to inject into the template body, in positional order. */
-  parameters: Record<string, string | number>;
+  parameters: (string | number)[];
   /** Optional parameters for a dynamic URL button, in positional order. */
   button_parameters?: string[];
   /** Optional URL for a media image header. */
@@ -124,7 +124,7 @@ export interface QueuedMessageRow {
   status: MessageStatus;
   provider: ProviderName;
   template_name: string;
-  parameters: Record<string, unknown>;
+  parameters: unknown[] | Record<string, unknown>;
   attempts: number;
   max_attempts: number;
   next_retry_at: string | null;

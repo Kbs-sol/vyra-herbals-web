@@ -6,8 +6,11 @@
 export function pickOrdered(
   values: Record<string, string | number>,
   order: string[]
-): Record<string, string | number> {
-  const result: Record<string, string | number> = {};
-  for (const key of order) result[key] = values[key];
+): (string | number)[] {
+  const result: (string | number)[] = [];
+  for (const key of order) {
+    // We push empty string instead of undefined to satisfy Meta API which requires all params
+    result.push(values[key] ?? '');
+  }
   return result;
 }

@@ -90,19 +90,19 @@ export async function notifyPaymentConfirmed(order: any): Promise<void> {
     if (!order?.id) return;
     const shipping = readShippingData(order);
 
-    await automationEngine.emit(
-      {
-        type: 'PAYMENT_CONFIRMED',
-        order_id: Number(order.id),
-        user_id: order.user_id ?? null,
-        customer_phone: String(shipping.phone ?? ''),
-        // transaction_price is what was actually charged online; total_amount
-        // is the order value. For prepaid they match, but prefer the charge.
-        amount_paid: money(order.transaction_price, order.total_amount),
-        payment_gateway: 'Easebuzz',
-      },
-      'api'
-    );
+    // await automationEngine.emit(
+    //   {
+    //     type: 'PAYMENT_CONFIRMED',
+    //     order_id: Number(order.id),
+    //     user_id: order.user_id ?? null,
+    //     customer_phone: String(shipping.phone ?? ''),
+    //     // transaction_price is what was actually charged online; total_amount
+    //     // is the order value. For prepaid they match, but prefer the charge.
+    //     amount_paid: money(order.transaction_price, order.total_amount),
+    //     payment_gateway: 'Easebuzz',
+    //   },
+    //   'api'
+    // );
   } catch (err) {
     console.warn(`[WhatsApp] PAYMENT_CONFIRMED notify failed for order ${order?.id}:`, err);
   }

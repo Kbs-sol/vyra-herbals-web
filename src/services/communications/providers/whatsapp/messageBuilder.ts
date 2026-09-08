@@ -18,7 +18,7 @@ export function buildTemplatePayload(message: OutboundMessage): WhatsAppSendPayl
   const components: WhatsAppTemplateComponent[] = [
     {
       type: 'body',
-      parameters: Object.values(message.parameters).map((value) => ({
+      parameters: (Array.isArray(message.parameters) ? message.parameters : Object.values(message.parameters)).map((value) => ({
         type: 'text',
         text: String(value),
       })),
