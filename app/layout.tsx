@@ -8,6 +8,7 @@ import { WishlistProvider } from '@/Components/Contexts/WishlistContext';
 import Header from '@/Components/Common/Header';
 import Footer from '@/Components/Common/Footer';
 import ConditionalLayout from '@/Components/Common/ConditionalLayout';
+import RouteChangeTracker from '@/Components/Common/RouteChangeTracker';
 import { ToastContainer } from 'react-toastify';
 import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
@@ -74,8 +75,19 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
-import FacebookPixel from '@/Components/Common/FacebookPixel';
-
+/**
+ * Google Tag Manager is the SINGLE analytics entry point for this site.
+ *
+ * GA4 (Google Analytics 4), Meta Pixel, Microsoft Clarity, Google Ads
+ * conversion tags, and any other vendor tag are ALL configured inside the
+ * GTM container itself (GTM-MHSG926J). Never hardcode a second copy of a
+ * vendor snippet here — doing that fires every event twice and inflates
+ * conversion counts in GA4 and Meta Ads Manager.
+ *
+ * Custom events are pushed via `src/utils/analytics.ts`, which writes to
+ * `window.dataLayer`. GTM's triggers listen on that dataLayer and fan the
+ * events out to every configured vendor.
+ */
 const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID || 'GTM-MHSG926J';
 
 export default function RootLayout({
@@ -86,7 +98,17 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning={true}>
       <head>
-        {/* Google Tag Manager */}
+        {/*
+          Google Tag Manager — primes `window.dataLayer` before the loader
+          script pushes `gtm.start`. `beforeInteractive` isn't allowed for
+          inline <Script> outside `_document`, and `afterInteractive` is the
+          documented placement for GTM in the Next.js App Router. Loading a
+          split-second later is a fair trade-off for keeping GTM out of the
+          critical rendering path.
+        */}
+        <Script id="gtm-datalayer-init" strategy="afterInteractive">
+          {`window.dataLayer = window.dataLayer || [];`}
+        </Script>
         <Script id="google-tag-manager" strategy="afterInteractive">
           {`
             (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
@@ -96,31 +118,13 @@ export default function RootLayout({
             })(window,document,'script','dataLayer','${GTM_ID}');
           `}
         </Script>
-
-        {/* Google Analytics */}
-        <Script
-          src="https://www.googletagmanager.com/gtag/js?id=G-K0F7N513MS"
-          strategy="afterInteractive"
-        />
-        <Script id="google-analytics" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-
-            gtag('config', 'G-K0F7N513MS');
-          `}
-        </Script>
-
-        {/* Facebook Pixel */}
-        <Suspense fallback={null}>
-          <FacebookPixel />
-        </Suspense>
-
-        {/* External Stylesheets are now imported at the top of the file as per Next.js best practices */}
       </head>
       <body className={openSans.className} suppressHydrationWarning={true}>
-        {/* Google Tag Manager (noscript) */}
+        {/*
+          GTM's <noscript> fallback. Per Google's install instructions this
+          must be the FIRST child of <body> so it renders even when the
+          bundle has not executed.
+        */}
         <noscript>
           <iframe
             src={`https://www.googletagmanager.com/ns.html?id=${GTM_ID}`}
@@ -129,6 +133,16 @@ export default function RootLayout({
             style={{ display: 'none', visibility: 'hidden' }}
           />
         </noscript>
+
+        {/*
+          App Router doesn't fire a full page load between client navigations,
+          so GA4 / Meta Pixel / Clarity would only ever see the first URL.
+          RouteChangeTracker pushes a `page_view` event to the dataLayer on
+          every route change so GTM tags see the updated URL.
+        */}
+        <Suspense fallback={null}>
+          <RouteChangeTracker />
+        </Suspense>
 
         <AuthProvider>
           <CartProvider>
