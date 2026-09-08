@@ -8,7 +8,7 @@ export interface MessageLogInput {
   status: MessageStatus;
   provider: ProviderName;
   template_name: string;
-  parameters: Record<string, unknown>;
+  parameters: Record<string, unknown> | unknown[];
   attempts: number;
   last_error?: string | null;
   metadata?: unknown;
