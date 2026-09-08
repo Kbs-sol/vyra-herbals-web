@@ -45,6 +45,9 @@ export default function WhatsAppMarketingPage() {
       return;
     }
 
+    const confirmed = window.confirm(`Are you sure you want to send the "${templateName}" template to ${parsedNumbers.length} recipients?\n\nThis action cannot be undone.`);
+    if (!confirmed) return;
+
     setIsSending(true);
     const logs: string[] = [];
     let successCount = 0;
