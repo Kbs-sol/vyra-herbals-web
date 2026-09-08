@@ -109,6 +109,8 @@ export interface OutboundMessage {
   parameters: Record<string, string | number>;
   /** Optional parameters for a dynamic URL button, in positional order. */
   button_parameters?: string[];
+  /** Optional URL for a media image header. */
+  header_image_url?: string;
   /** Idempotency key — composite of order_id + message_type by default. */
   dedupe_key: string;
   scheduled_for?: Date;
