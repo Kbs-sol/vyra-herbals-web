@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import { isAuthorizedCronRequest } from '@/lib/cronAuth';
+import { verifyAdminAuth } from '@/utils/adminAuth';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
-import { automationEngine } from '@/services/communications';
+import { messageQueue } from '@/services/communications';
+import { sendQueuedMessage } from '@/services/communications/queue/messageSender';
+import { whatsappClient } from '@/services/communications/providers/whatsapp/client';
 import { tryNormalizePhone } from '@/services/communications/utils/phoneNormalizer';
 
 export const runtime = 'nodejs';
@@ -9,12 +12,12 @@ export const maxDuration = 60;
 
 /**
  * Daily cron job to execute scheduled WhatsApp communication flows:
- * 1. 24-hour Registration Welcome Promo
- * 2. 60-day (2-month) Feedback Request post-order
- * 3. 90-day (3-month) Re-order Reminder post-order
+ * 1. 3-hour Registration Welcome Promo (welcome_promo_3hr)
+ * 2. 60-day (2-month) Feedback Request post-order (feedback_request)
+ * 3. 90-day (3-month) Re-order Reminder post-order (reorder_reminder)
  */
 export async function GET(req: Request) {
-  if (!isAuthorizedCronRequest(req)) {
+  if (!isAuthorizedCronRequest(req) && !(await verifyAdminAuth(req))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -27,10 +30,18 @@ export async function GET(req: Request) {
     errors: [] as string[],
   };
 
-  // 1. Send Registration Promo after 3 hours
+  if (!whatsappClient.isEnabled()) {
+    return NextResponse.json({
+      status: 'skipped',
+      message: 'WhatsApp provider disabled or not configured',
+      results,
+    });
+  }
+
+  // 1. Send Registration Promo for users registered at least 3 hours ago (up to 7 days ago)
   try {
-    const minRegistrationTime = new Date(now.getTime() - 4 * 60 * 60 * 1000).toISOString();
-    const maxRegistrationTime = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
+    const minRegistrationTime = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const maxRegistrationTime = new Date(now.getTime() - 3 * 60 * 60 * 1000).toISOString();
 
     const { data: users, error: userError } = await db
       .from('users')
@@ -38,21 +49,39 @@ export async function GET(req: Request) {
       .gte('created_at', minRegistrationTime)
       .lte('created_at', maxRegistrationTime);
 
-    if (!userError && users) {
+    if (userError) {
+      results.errors.push(`Registration promo user fetch error: ${userError.message}`);
+    } else if (users) {
+      const templateName = process.env.WHATSAPP_TEMPLATE_WELCOME_PROMO ?? 'welcome_promo_3hr';
       for (const u of users) {
         const phone = tryNormalizePhone(u.phone);
-        if (phone) {
-          await automationEngine.emit({
-            type: 'MANUAL' as any,
+        if (!phone) continue;
+
+        const dedupeKey = `PROMO_3HR:${u.id}`;
+        const existing = await messageQueue.findByDedupeKey(dedupeKey);
+        if (existing) continue; // Already queued or sent
+
+        const customerName = (u.name && u.name.trim()) ? u.name.trim() : 'Customer';
+
+        try {
+          const queued = await messageQueue.enqueue({
             order_id: 0,
             customer_phone: phone,
-            template_name: process.env.WHATSAPP_TEMPLATE_WELCOME_PROMO ?? 'welcome_promo_3hr',
-            parameters: {
-              customer_name: u.name || 'Customer',
-            },
-            dedupe_key: `PROMO_3HR:${u.id}`,
-          } as any, 'cron');
-          results.registration_promos_sent++;
+            message_type: 'MANUAL',
+            provider: 'whatsapp',
+            template_name: templateName,
+            parameters: [customerName],
+            dedupe_key: dedupeKey,
+          });
+
+          const outcome = await sendQueuedMessage(queued, whatsappClient);
+          if (outcome === 'sent') {
+            results.registration_promos_sent++;
+          } else {
+            results.errors.push(`Promo send returned ${outcome} for user ${u.id}`);
+          }
+        } catch (sendErr: any) {
+          results.errors.push(`Promo send error for user ${u.id}: ${sendErr.message}`);
         }
       }
     }
@@ -60,10 +89,10 @@ export async function GET(req: Request) {
     results.errors.push(`Registration promo error: ${err.message}`);
   }
 
-  // 2. Send Feedback Request after 60 days (2 months)
+  // 2. Send Feedback Request after 60 days (lookback 60 to 70 days)
   try {
-    const min60Days = new Date(now.getTime() - 61 * 24 * 60 * 60 * 1000).toISOString();
-    const max60Days = new Date(now.getTime() - 59 * 24 * 60 * 60 * 1000).toISOString();
+    const min60Days = new Date(now.getTime() - 70 * 24 * 60 * 60 * 1000).toISOString();
+    const max60Days = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString();
 
     const { data: orders60, error: err60 } = await db
       .from('orders')
@@ -72,26 +101,42 @@ export async function GET(req: Request) {
       .lte('created_at', max60Days)
       .neq('status', 'Failed');
 
-    if (!err60 && orders60) {
+    if (err60) {
+      results.errors.push(`Feedback request order fetch error: ${err60.message}`);
+    } else if (orders60) {
+      const templateName = process.env.WHATSAPP_TEMPLATE_FEEDBACK_REQUEST ?? 'feedback_request';
       for (const order of orders60) {
         const shipping = typeof order.shipping_data === 'string' 
           ? JSON.parse(order.shipping_data || '{}') 
           : (order.shipping_data || {});
         const phone = tryNormalizePhone(shipping.phone || shipping.mobile);
-        if (phone) {
-          const customerName = String(shipping.fullName || shipping.name || 'Customer').trim();
-          await automationEngine.emit({
-            type: 'MANUAL' as any,
+        if (!phone) continue;
+
+        const dedupeKey = `FEEDBACK_60D:${order.id}`;
+        const existing = await messageQueue.findByDedupeKey(dedupeKey);
+        if (existing) continue;
+
+        const customerName = String(shipping.fullName || shipping.name || 'Customer').trim() || 'Customer';
+
+        try {
+          const queued = await messageQueue.enqueue({
             order_id: Number(order.id),
             customer_phone: phone,
-            template_name: process.env.WHATSAPP_TEMPLATE_FEEDBACK_REQUEST ?? 'feedback_request',
-            parameters: {
-              customer_name: customerName,
-              order_id: String(order.order_id || order.id),
-            },
-            dedupe_key: `FEEDBACK_60D:${order.id}`,
-          } as any, 'cron');
-          results.feedback_requests_sent++;
+            message_type: 'MANUAL',
+            provider: 'whatsapp',
+            template_name: templateName,
+            parameters: [customerName, String(order.order_id || order.id)],
+            dedupe_key: dedupeKey,
+          });
+
+          const outcome = await sendQueuedMessage(queued, whatsappClient);
+          if (outcome === 'sent') {
+            results.feedback_requests_sent++;
+          } else {
+            results.errors.push(`Feedback send returned ${outcome} for order ${order.id}`);
+          }
+        } catch (sendErr: any) {
+          results.errors.push(`Feedback send error for order ${order.id}: ${sendErr.message}`);
         }
       }
     }
@@ -99,10 +144,10 @@ export async function GET(req: Request) {
     results.errors.push(`Feedback request error: ${err.message}`);
   }
 
-  // 3. Send Re-order Reminder after 90 days (3 months)
+  // 3. Send Re-order Reminder after 90 days (lookback 90 to 100 days)
   try {
-    const min90Days = new Date(now.getTime() - 91 * 24 * 60 * 60 * 1000).toISOString();
-    const max90Days = new Date(now.getTime() - 89 * 24 * 60 * 60 * 1000).toISOString();
+    const min90Days = new Date(now.getTime() - 100 * 24 * 60 * 60 * 1000).toISOString();
+    const max90Days = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString();
 
     const { data: orders90, error: err90 } = await db
       .from('orders')
@@ -111,25 +156,42 @@ export async function GET(req: Request) {
       .lte('created_at', max90Days)
       .neq('status', 'Failed');
 
-    if (!err90 && orders90) {
+    if (err90) {
+      results.errors.push(`Reorder reminder order fetch error: ${err90.message}`);
+    } else if (orders90) {
+      const templateName = process.env.WHATSAPP_TEMPLATE_REORDER_REMINDER ?? 'reorder_reminder';
       for (const order of orders90) {
         const shipping = typeof order.shipping_data === 'string' 
           ? JSON.parse(order.shipping_data || '{}') 
           : (order.shipping_data || {});
         const phone = tryNormalizePhone(shipping.phone || shipping.mobile);
-        if (phone) {
-          const customerName = String(shipping.fullName || shipping.name || 'Customer').trim();
-          await automationEngine.emit({
-            type: 'MANUAL' as any,
+        if (!phone) continue;
+
+        const dedupeKey = `REORDER_90D:${order.id}`;
+        const existing = await messageQueue.findByDedupeKey(dedupeKey);
+        if (existing) continue;
+
+        const customerName = String(shipping.fullName || shipping.name || 'Customer').trim() || 'Customer';
+
+        try {
+          const queued = await messageQueue.enqueue({
             order_id: Number(order.id),
             customer_phone: phone,
-            template_name: process.env.WHATSAPP_TEMPLATE_REORDER_REMINDER ?? 'reorder_reminder',
-            parameters: {
-              customer_name: customerName,
-            },
-            dedupe_key: `REORDER_90D:${order.id}`,
-          } as any, 'cron');
-          results.reorder_reminders_sent++;
+            message_type: 'MANUAL',
+            provider: 'whatsapp',
+            template_name: templateName,
+            parameters: [customerName],
+            dedupe_key: dedupeKey,
+          });
+
+          const outcome = await sendQueuedMessage(queued, whatsappClient);
+          if (outcome === 'sent') {
+            results.reorder_reminders_sent++;
+          } else {
+            results.errors.push(`Reorder send returned ${outcome} for order ${order.id}`);
+          }
+        } catch (sendErr: any) {
+          results.errors.push(`Reorder send error for order ${order.id}: ${sendErr.message}`);
         }
       }
     }

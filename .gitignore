@@ -36,3 +36,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+# Personal reference document
+MY_CONTRIBUTIONS_LOG.md
+
+test_basha.csv

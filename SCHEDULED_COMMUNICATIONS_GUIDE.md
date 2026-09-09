@@ -4,13 +4,13 @@ This document explains the automated scheduled WhatsApp messaging triggers imple
 
 ---
 
-## 1. 2-Hour Registration Welcome Promo (`welcome_promo_2hr`)
-- **Trigger**: 1 to 3 hours after a user signs up/registers on the store.
-- **Query Target**: `users` table (`created_at` between 1h and 3h ago).
-- **Template Default Name**: `welcome_promo_2hr` (configurable via `WHATSAPP_TEMPLATE_WELCOME_PROMO` in Vercel env).
+## 1. 3-Hour Registration Welcome Promo (`welcome_promo_3hr`)
+- **Trigger**: 3 hours or more after a user signs up/registers on the store (queries recent registrations).
+- **Query Target**: `users` table (`created_at` between 3h and 7d ago).
+- **Template Default Name**: `welcome_promo_3hr` (configurable via `WHATSAPP_TEMPLATE_WELCOME_PROMO` in Vercel env).
 - **Parameters Passed**:
-  - `{{1}}` = `customer_name` (User's full name or "Customer")
-- **Dedupe Protection**: `PROMO_2HR:<user_id>` (Ensures each user receives this offer exactly once).
+  - `{{1}}` = `customer_name` (User's name or "Customer")
+- **Dedupe Protection**: `PROMO_3HR:<user_id>` (Ensures each user receives this offer exactly once).
 
 ---
 
@@ -39,5 +39,5 @@ This document explains the automated scheduled WhatsApp messaging triggers imple
 
 All 3 flows execute automatically via Vercel Cron:
 - **Cron Route**: `/api/cron/scheduled-communications`
-- **Schedule**: Every day at 10:00 AM UTC (`0 10 * * *` configured in `vercel.cron.json`).
+- **Schedule**: Every day at 10:00 AM UTC (`0 10 * * *` configured in `vercel.json`).
 - **Safety Features**: Uses `tryNormalizePhone` to ensure phone numbers are formatted in valid E.164 format and respects `message_queue` deduplication keys.
