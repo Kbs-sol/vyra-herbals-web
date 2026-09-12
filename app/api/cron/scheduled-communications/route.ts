@@ -44,6 +44,25 @@ export async function GET(req: Request) {
     });
   }
 
+  // 0. Drain any pre-existing pending messages from the queue (scheduled_for <= now)
+  //    This covers: manually inserted rows, retried rows, and messages queued by the
+  //    DB trigger webhook that were skipped by earlier cron runs.
+  try {
+    const dueMessages = await messageQueue.getDueMessages(50);
+    let drained = 0;
+    for (const msg of dueMessages) {
+      try {
+        const outcome = await sendQueuedMessage(msg, whatsappClient);
+        if (outcome === 'sent') drained++;
+      } catch (e: any) {
+        results.errors.push(`Queue drain error for id ${msg.id}: ${e.message}`);
+      }
+    }
+    if (drained > 0) results.registration_promos_sent += drained; // counts toward promos for now
+  } catch (err: any) {
+    results.errors.push(`Queue drain error: ${err.message}`);
+  }
+
   // 1. Send Registration Promo for users registered at least 3 hours ago (up to 7 days ago)
   try {
     const minRegistrationTime = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -343,7 +362,7 @@ export async function GET(req: Request) {
 
           // Enqueue dummy message so we don't process again, though state change prevents it
           await messageQueue.enqueue({
-            order_id: orderId || 0,
+            order_id: orderId || null,
             customer_phone: phone,
             message_type: 'MANUAL',
             provider: 'whatsapp',
