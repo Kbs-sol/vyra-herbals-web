@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { isAuthorizedCronRequest } from '@/lib/cronAuth';
 import { verifyAdminAuth } from '@/utils/adminAuth';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
@@ -219,39 +219,18 @@ export async function GET(req: Request) {
       .gte('last_activity_at', min2Days)
       .lte('last_activity_at', max2Days);
 
-    // Also get anon_carts if they have a phone in context, but for simplicity, let's assume we do that as well.
-    // The prompt says "Also query anon_carts if we can get a phone from context"
-    const { data: anonCartsD2, error: anonD2Error } = await db
-      .from('anon_carts')
-      .select('*')
-      .eq('status', 'open')
-      .eq('opted_in', true)
-      .eq('reminders_sent', 0)
-      .gte('last_activity_at', min2Days)
-      .lte('last_activity_at', max2Days);
-
-    const allCartsD2 = [...(abandonedCartsD2 || []), ...(anonCartsD2 || [])];
-
-    if (d2Error || anonD2Error) {
-      results.errors.push(`Abandoned cart D2 fetch error`);
-    } else if (allCartsD2.length > 0) {
-      for (const cart of allCartsD2) {
-        let phone = cart.phone;
-        if (!phone && cart.context && typeof cart.context === 'object') {
-          phone = cart.context.phone || cart.context.mobile;
-        }
-        phone = tryNormalizePhone(phone);
+    if (d2Error) {
+      results.errors.push(`Abandoned cart D2 fetch error: ${d2Error.message}`);
+    } else if (abandonedCartsD2 && abandonedCartsD2.length > 0) {
+      for (const cart of abandonedCartsD2) {
+        const phone = tryNormalizePhone(cart.phone);
         if (!phone) continue;
 
         const dedupeKey = `ABANDONED_CART_D2:${cart.id}`;
         const existing = await messageQueue.findByDedupeKey(dedupeKey);
         if (existing) continue;
 
-        let customerName = 'there';
-        if (cart.context?.name || cart.context?.fullName) {
-          customerName = String(cart.context.name || cart.context.fullName).trim();
-        }
-
+        const customerName = 'there';
         const cartTotal = cart.cart_total || 0;
 
         try {
@@ -268,10 +247,7 @@ export async function GET(req: Request) {
           const outcome = await sendQueuedMessage(queued, whatsappClient);
           if (outcome === 'sent') {
             results.abandoned_carts_d2_sent++;
-            
-            // Update reminders_sent = 1
-            const table = cart.user_id ? 'abandoned_carts' : 'anon_carts';
-            await db.from(table).update({ reminders_sent: 1, last_reminder_at: new Date().toISOString() }).eq('id', cart.id);
+            await db.from('abandoned_carts').update({ reminders_sent: 1, last_reminder_at: new Date().toISOString() }).eq('id', cart.id);
           } else {
             results.errors.push(`Abandoned cart D2 send returned ${outcome} for cart ${cart.id}`);
           }
@@ -283,6 +259,7 @@ export async function GET(req: Request) {
   } catch (err: any) {
     results.errors.push(`Abandoned cart D2 error: ${err.message}`);
   }
+
 
   // 5. Abandoned Cart Day 9 nudge
   try {
@@ -298,37 +275,18 @@ export async function GET(req: Request) {
       .gte('last_activity_at', min9Days)
       .lte('last_activity_at', max9Days);
 
-    const { data: anonCartsD9, error: anonD9Error } = await db
-      .from('anon_carts')
-      .select('*')
-      .eq('status', 'open')
-      .eq('opted_in', true)
-      .eq('reminders_sent', 1)
-      .gte('last_activity_at', min9Days)
-      .lte('last_activity_at', max9Days);
-
-    const allCartsD9 = [...(abandonedCartsD9 || []), ...(anonCartsD9 || [])];
-
-    if (d9Error || anonD9Error) {
-      results.errors.push(`Abandoned cart D9 fetch error`);
-    } else if (allCartsD9.length > 0) {
-      for (const cart of allCartsD9) {
-        let phone = cart.phone;
-        if (!phone && cart.context && typeof cart.context === 'object') {
-          phone = cart.context.phone || cart.context.mobile;
-        }
-        phone = tryNormalizePhone(phone);
+    if (d9Error) {
+      results.errors.push(`Abandoned cart D9 fetch error: ${d9Error.message}`);
+    } else if (abandonedCartsD9 && abandonedCartsD9.length > 0) {
+      for (const cart of abandonedCartsD9) {
+        const phone = tryNormalizePhone(cart.phone);
         if (!phone) continue;
 
         const dedupeKey = `ABANDONED_CART_D9:${cart.id}`;
         const existing = await messageQueue.findByDedupeKey(dedupeKey);
         if (existing) continue;
 
-        let customerName = 'there';
-        if (cart.context?.name || cart.context?.fullName) {
-          customerName = String(cart.context.name || cart.context.fullName).trim();
-        }
-
+        const customerName = 'there';
         const cartTotal = cart.cart_total || 0;
 
         try {
@@ -345,10 +303,7 @@ export async function GET(req: Request) {
           const outcome = await sendQueuedMessage(queued, whatsappClient);
           if (outcome === 'sent') {
             results.abandoned_carts_d9_sent++;
-            
-            // Update reminders_sent = 2
-            const table = cart.user_id ? 'abandoned_carts' : 'anon_carts';
-            await db.from(table).update({ reminders_sent: 2, last_reminder_at: new Date().toISOString() }).eq('id', cart.id);
+            await db.from('abandoned_carts').update({ reminders_sent: 2, last_reminder_at: new Date().toISOString() }).eq('id', cart.id);
           } else {
             results.errors.push(`Abandoned cart D9 send returned ${outcome} for cart ${cart.id}`);
           }
@@ -360,6 +315,7 @@ export async function GET(req: Request) {
   } catch (err: any) {
     results.errors.push(`Abandoned cart D9 error: ${err.message}`);
   }
+
 
   // 6. WhatsApp Draft Order Expiry (6 hours)
   try {
