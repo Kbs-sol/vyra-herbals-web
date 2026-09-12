@@ -1,6 +1,6 @@
 import { whatsappClient } from '../../providers/whatsapp/client';
 import { updateSession, type WhatsAppSession } from '../sessionManager';
-import { createServerSupabase } from '@/utils/supabaseClient';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 export async function handleTracking(from: string, session: WhatsAppSession) {
   // Reset state to avoid getting stuck
@@ -8,13 +8,16 @@ export async function handleTracking(from: string, session: WhatsAppSession) {
     await updateSession(from, { state: 'IDLE', context: {} });
   }
 
-  const db = createServerSupabase();
+  const db = getSupabaseAdmin();
 
-  // Find most recent order for this phone
+  // phone is stored inside shipping_data JSONB — query with ->> operator
+  // Normalize: strip leading 91 to match the 10-digit number stored in shipping_data
+  const tenDigit = from.replace(/^91/, '');
+
   const { data: orders, error } = await db
     .from('orders')
-    .select('id, status, created_at')
-    .eq('phone', from)
+    .select('id, status, created_at, shipping_data')
+    .or(`shipping_data->>phone.eq.${tenDigit},shipping_data->>phone.eq.${from}`)
     .order('created_at', { ascending: false })
     .limit(3);
 
