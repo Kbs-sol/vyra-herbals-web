@@ -77,16 +77,38 @@ export async function POST(req: Request) {
   // 2. Process Incoming Messages (Conversational Bot)
   // Dynamic import to avoid circular dependencies and keep the webhook hot path fast
   if (incomingMessages.length > 0) {
-    // Process asynchronously so we don't block the 200 OK response to Meta
-    import('@/services/communications/bot/botEngine')
-      .then(({ processIncomingMessages }) => {
-        processIncomingMessages(incomingMessages).catch((err) => {
-          logger.error('whatsapp_bot_processing_error', { error: err.message });
+    const filteredMessages: any[] = [];
+    for (const msg of incomingMessages) {
+      if (msg.type === 'text' && msg.text?.body) {
+        const normalizedText = msg.text.body.trim().toLowerCase();
+        if (normalizedText === 'stop') {
+          import('@/services/communications/marketing/optOutHandler')
+            .then(({ handleMarketingOptOut }) => handleMarketingOptOut(msg.from, 'unsubscribe'))
+            .catch((err) => logger.error('whatsapp_optout_error', { error: err.message }));
+          continue;
+        }
+        if (normalizedText === 'start') {
+          import('@/services/communications/marketing/optOutHandler')
+            .then(({ handleMarketingOptOut }) => handleMarketingOptOut(msg.from, 'subscribe'))
+            .catch((err) => logger.error('whatsapp_optin_error', { error: err.message }));
+          continue;
+        }
+      }
+      filteredMessages.push(msg);
+    }
+
+    if (filteredMessages.length > 0) {
+      // Process asynchronously so we don't block the 200 OK response to Meta
+      import('@/services/communications/bot/botEngine')
+        .then(({ processIncomingMessages }) => {
+          processIncomingMessages(filteredMessages).catch((err) => {
+            logger.error('whatsapp_bot_processing_error', { error: err.message });
+          });
+        })
+        .catch((err) => {
+          logger.error('whatsapp_bot_import_error', { error: err.message });
         });
-      })
-      .catch((err) => {
-        logger.error('whatsapp_bot_import_error', { error: err.message });
-      });
+    }
   }
 
   // Meta requires a fast 200 regardless of downstream processing outcome,
