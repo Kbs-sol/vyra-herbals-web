@@ -41,6 +41,20 @@ const CartItem = ({
           <p className="mb-2 fw-bold" style={titleStyle}>
             {product.title}
           </p>
+          {product.price_updated && (
+            <div className="text-warning small mb-1">
+              ⚠️ Price updated — was ₹{product.price_at_add}, now ₹{product.price}
+            </div>
+          )}
+          {product.out_of_stock ? (
+            <div className="text-danger small mb-1">
+              ❌ This item is out of stock and will be removed at checkout
+            </div>
+          ) : product.stock_quantity !== undefined && product.quantity > product.stock_quantity ? (
+            <div className="text-warning small mb-1">
+              ⚠️ Only {product.stock_quantity} available
+            </div>
+          ) : null}
         </div>
         <div
           className="d-flex justify-content-start item-price-details"

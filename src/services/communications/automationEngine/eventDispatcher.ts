@@ -1,4 +1,5 @@
 import type { CommunicationEvent, EventSource } from '@/types/communications';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { getHandler, isFeatureEnabled } from './workflow';
 import { messageQueue } from '../queue/dbQueue';
 import { sendQueuedMessage } from '../queue/messageSender';
@@ -46,6 +47,19 @@ export async function emit(event: CommunicationEvent, source: EventSource = 'api
     if (!isFeatureEnabled(event.type)) {
       logger.info('event_skipped_feature_disabled', { type: event.type, order_id: event.order_id });
       if (eventLogId) await markEventProcessed(eventLogId, 'completed');
+      return;
+    }
+
+    // Check notification_rules table — allows disabling per event without a deploy
+    const { data: rule } = await getSupabaseAdmin()
+      .from('notification_rules')
+      .select('enabled')
+      .eq('event', event.type)
+      .maybeSingle();
+
+    if (rule && !rule.enabled) {
+      logger.info('event_skipped_rule_disabled', { type: event.type, order_id: event.order_id });
+      if (eventLogId) await markEventProcessed(eventLogId, 'completed', 'Skipped: notification rule disabled');
       return;
     }
 

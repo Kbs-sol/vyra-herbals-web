@@ -181,6 +181,7 @@ export async function POST(req: Request) {
       shipping_data: orderData.shippingData,
       payment_method: 'cod',
       status: 'placed',
+      source: 'website',
       user_id: userId,
       created_at: now.toISOString(),
       order_date: now.toISOString(),
@@ -232,9 +233,16 @@ export async function POST(req: Request) {
       );
     }
 
-    // 4. Clear cart for the user
+    // 4. Clear carts
     if (userId) {
       await supabase.from('cart').delete().eq('user_id', userId);
+    }
+    
+    // Also clear anonymous cart
+    const cookieHeader = req.headers.get('cookie') || '';
+    const deviceIdMatch = cookieHeader.match(/anon_device_id=([^;]+)/);
+    if (deviceIdMatch && deviceIdMatch[1]) {
+      await supabase.from('anon_carts').delete().eq('device_id', deviceIdMatch[1]);
     }
 
     // Attach tracking ID so the combined ORDER_PLACED message can use it

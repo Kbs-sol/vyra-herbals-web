@@ -113,6 +113,13 @@ export async function POST(req: Request) {
         // the function budget) and read `shipping_data?.phone` directly, which
         // returns undefined on rows where shipping_data is a JSON string.
 
+        // Clear anon cart if it exists
+        const cookieHeader = req.headers.get('cookie') || '';
+        const deviceIdMatch = cookieHeader.match(/anon_device_id=([^;]+)/);
+        if (deviceIdMatch && deviceIdMatch[1]) {
+            await supabase.from('anon_carts').delete().eq('device_id', deviceIdMatch[1]);
+        }
+
         const successUrl = result.order?.id
             ? `${appUrl}/order-placed/${result.order.id}`
             : `${appUrl}/profile?toast=order_success#orders`;

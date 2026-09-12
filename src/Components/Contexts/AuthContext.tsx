@@ -145,6 +145,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (!mounted) return;
       console.log(`[AuthContext] onAuthStateChange event: ${event}. Session exists?`, !!session);
 
+      if (event === 'SIGNED_IN' && session?.access_token) {
+        // Merge anon cart into authenticated cart
+        fetch('/api/cart/merge', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${session.access_token}` },
+        }).catch(err => console.warn('[cart-merge] merge failed:', err));
+      }
+
       // Ignore periodic token refreshes for an already-resolved user — no need
       // to re-touch React state on an hourly cadence.
       if (

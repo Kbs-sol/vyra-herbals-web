@@ -170,12 +170,16 @@ export async function notifyDeliveryStatusChanged(
     const status = canonicalDeliveryStatus(rawStatus);
     if (!status) return; // booked/pending/label-created — not customer-facing
 
+    // Guard: only the 'delivered' template exists in Meta for now
+    if (status !== 'Delivered') return;
+
     const shipping = readShippingData(order);
 
     await automationEngine.emit(
       {
         type: 'DELIVERY_STATUS_UPDATED',
         order_id: Number(order.id),
+        dedupe_key: `DELIVERY_STATUS_UPDATED:${order.id}:${status}`,
         customer_phone: String(shipping.phone ?? ''),
         new_status: status,
         tracking_id: String(order.tracking_id ?? order.awb_code ?? '').trim(),

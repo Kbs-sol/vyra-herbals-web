@@ -120,6 +120,7 @@ export const finalizeOrderFromSession = async (
       shipping_data: orderData.shippingData,
       payment_method: orderData.paymentMethod || opts.paymentMethod || 'online',
       status: 'placed',
+      source: 'website',
       txn_id: txnIdStr,
       user_id: orderData.userId,
       created_at: now.toISOString(),

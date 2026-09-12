@@ -6,6 +6,7 @@ import { useAuth } from "./AuthContext";
 import type { CartItem } from "@/types";
 import { supabase } from "@/utils/supabaseClient";
 import { toast } from "react-toastify";
+import { generateDeviceFingerprint } from "@/utils/deviceFingerprint";
 
 interface AppliedCoupon {
   code: string;
@@ -35,6 +36,7 @@ interface CartContextType {
    */
   directCheckoutItems: CouponLineItem[] | null;
   setDirectCheckoutItems: (items: CouponLineItem[] | null) => void;
+  priceUpdatedItems: Set<string | number>;
 }
 
 interface CouponLineItem {
@@ -100,6 +102,42 @@ const clearGuestCart = (): void => {
   }
 };
 
+const initAnonCart = async (): Promise<void> => {
+  try {
+    const fingerprint = await generateDeviceFingerprint();
+    await fetch('/api/cart/anon/init', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fingerprint }),
+    });
+  } catch (e) {
+    console.warn('[anon-cart] init failed, falling back to localStorage', e);
+  }
+};
+
+const fetchAnonCart = async (): Promise<CartItem[] | null> => {
+  try {
+    const res = await fetch('/api/cart/anon');
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!Array.isArray(data.items)) return null;
+    return data.items.map((item: any) => ({
+      id: item.product_id,
+      quantity: item.quantity,
+      title: item.title,
+      price: item.price,
+      image_url: item.image_url,
+      handle: item.handle,
+      price_updated: item.price_updated,
+      price_at_add: item.price_at_add,
+      out_of_stock: item.out_of_stock,
+      stock_quantity: item.stock_quantity,
+    } as CartItem));
+  } catch {
+    return null;
+  }
+};
+
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
@@ -107,6 +145,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
   const [directCheckoutItems, setDirectCheckoutItems] = useState<CouponLineItem[] | null>(null);
+  const [priceUpdatedItems, setPriceUpdatedItems] = useState<Set<string | number>>(new Set());
   // Guards the guest-cart merge so it runs exactly once per sign-in, even though
   // supabase can re-emit auth events for the same user.
   const mergedForUserId = useRef<string | null>(null);
@@ -154,6 +193,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         }
       } else {
         mergedForUserId.current = null;
+        await initAnonCart();
       }
 
       if (!cancelled) await fetchCart();
@@ -217,47 +257,29 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
    * rather than treat the transfer as done.
    */
   const mergeGuestCartIntoAccount = async (userId: string | number): Promise<boolean> => {
-    const entries = readGuestCart();
-    if (entries.length === 0) return true;
-
     try {
-      const { data: existingRows, error: readError } = await supabase
-        .from('cart')
-        .select('product_id, quantity')
-        .eq('user_id', userId);
+      // First: merge anon DB cart (new path)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        await fetch('/api/cart/merge', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${session.access_token}` },
+        });
+      }
 
-      if (readError) throw readError;
+      // Also handle old localStorage cart for backward compat
+      const entries = readGuestCart();
+      if (entries.length > 0) {
+        const { error } = await supabase.from('cart').upsert(
+          entries.map(e => ({ user_id: userId, product_id: e.product_id, quantity: e.quantity })),
+          { onConflict: 'user_id, product_id' }
+        );
+        if (!error) clearGuestCart();
+      }
 
-      const existingQty = new Map<string, number>();
-      (existingRows || []).forEach((row: any) => {
-        existingQty.set(String(row.product_id), Number(row.quantity) || 0);
-      });
-
-      const rows = entries.map(entry => {
-        const existing = existingQty.get(String(entry.product_id)) || 0;
-        return {
-          user_id: userId,
-          product_id: entry.product_id,
-          // Cap the combined quantity, but never below what the account already
-          // held: the signed-in add path doesn't clamp, so an existing line can
-          // legitimately sit above MAX_CART_QTY and a merge must not silently
-          // shrink it.
-          quantity: Math.max(existing, Math.min(MAX_CART_QTY, existing + entry.quantity)),
-        };
-      });
-
-      const { error: upsertError } = await supabase
-        .from('cart')
-        .upsert(rows, { onConflict: 'user_id, product_id' });
-
-      if (upsertError) throw upsertError;
-
-      // Only drop the local copy once the database has accepted it, so a failed
-      // merge leaves the guest cart intact for the next attempt.
-      clearGuestCart();
       return true;
     } catch (error) {
-      console.error("Error merging guest cart into account:", error);
+      console.error('Error merging guest cart:', error);
       return false;
     }
   };
@@ -288,14 +310,22 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           setCartCount(items.length);
         }
       } else {
-        // Guests shop without an account: their cart is held in localStorage and
-        // rehydrated from the server here, then merged on sign-in. A null result
-        // means the lookup failed, so leave the current items on screen rather
-        // than wrongly telling the shopper their cart is empty.
-        const items = await hydrateGuestCart(readGuestCart());
+        // Guests: try anon DB cart first, fallback to localStorage
+        let items = await fetchAnonCart();
+        if (items === null) {
+          items = await hydrateGuestCart(readGuestCart());
+        }
         if (items === null) return;
         setCartItems(items);
         setCartCount(items.length);
+
+        const updated = new Set<string | number>();
+        items.forEach(item => {
+          if ((item as any).price_updated) {
+            updated.add(item.id);
+          }
+        });
+        setPriceUpdatedItems(updated);
       }
     } catch (error) {
       console.error("Error fetching cart count:", error);
@@ -319,21 +349,40 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     // Guests are not redirected to /login here — that gate now lives at checkout.
     // Their picks go to localStorage and are merged into the account on sign-in.
     if (!user) {
-      const entries = readGuestCart();
-      const existingIndex = entries.findIndex(e => String(e.product_id) === String(id));
+      try {
+        const res = await fetch('/api/cart/anon', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ product_id: id, quantity }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          if (err.error === 'out_of_stock') {
+            toast.error('This item is out of stock');
+            return;
+          }
+          throw new Error(err.error || 'Failed');
+        }
+        await fetchCart();
+        toast.success('Added to cart');
+      } catch {
+        // Fallback to localStorage
+        const entries = readGuestCart();
+        const existingIndex = entries.findIndex(e => String(e.product_id) === String(id));
 
-      if (existingIndex > -1) {
-        entries[existingIndex] = {
-          ...entries[existingIndex],
-          quantity: Math.min(MAX_CART_QTY, entries[existingIndex].quantity + quantity),
-        };
-      } else {
-        entries.push({ product_id: id, quantity: Math.min(MAX_CART_QTY, Math.max(1, quantity)) });
+        if (existingIndex > -1) {
+          entries[existingIndex] = {
+            ...entries[existingIndex],
+            quantity: Math.min(MAX_CART_QTY, entries[existingIndex].quantity + quantity),
+          };
+        } else {
+          entries.push({ product_id: id, quantity: Math.min(MAX_CART_QTY, Math.max(1, quantity)) });
+        }
+
+        writeGuestCart(entries);
+        await fetchCart();
+        toast.success("Added to cart");
       }
-
-      writeGuestCart(entries);
-      await fetchCart();
-      toast.success("Added to cart");
       return;
     }
 
@@ -421,7 +470,16 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     if (!productId) return;
 
     if (!user) {
-      writeGuestCart(readGuestCart().filter(e => String(e.product_id) !== String(productId)));
+      try {
+        const res = await fetch('/api/cart/anon', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ product_id: productId }),
+        });
+        if (!res.ok) throw new Error('Failed to remove item');
+      } catch {
+        writeGuestCart(readGuestCart().filter(e => String(e.product_id) !== String(productId)));
+      }
       await fetchCart();
       return;
     }
@@ -453,11 +511,20 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     if (newQty > MAX_CART_QTY) return;
 
     if (!user) {
-      writeGuestCart(
-        readGuestCart().map(e =>
-          String(e.product_id) === String(productId) ? { ...e, quantity: newQty } : e
-        )
-      );
+      try {
+        const res = await fetch('/api/cart/anon', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ product_id: productId, quantity: newQty }),
+        });
+        if (!res.ok) throw new Error('Failed to update item');
+      } catch {
+        writeGuestCart(
+          readGuestCart().map(e =>
+            String(e.product_id) === String(productId) ? { ...e, quantity: newQty } : e
+          )
+        );
+      }
       setCartItems(prev => prev.map(item => item.id === productId ? { ...item, quantity: newQty } : item));
       return;
     }
@@ -482,6 +549,15 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const clearCart = async (): Promise<void> => {
     if (!user) {
+      try {
+        await Promise.all(cartItems.map(item => fetch('/api/cart/anon', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ product_id: item.id }),
+        })));
+      } catch {
+        // ignore
+      }
       clearGuestCart();
       setCartItems([]);
       setCartCount(0);
@@ -605,6 +681,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         removeCoupon,
         directCheckoutItems,
         setDirectCheckoutItems,
+        priceUpdatedItems,
       }}
     >
       {children}

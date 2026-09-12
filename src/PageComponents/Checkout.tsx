@@ -826,6 +826,15 @@ const Checkout = ({
   const renderOrderSummary = () => {
     return (
       <StyledOrderSummary>
+        <div className="p-3 mb-3 bg-light rounded border">
+          <h6 className="fw-bold mb-2">Delivery Address</h6>
+          <div className="small">
+            {formData.fullName} ({formData.phone})<br/>
+            {formData.houseNumber ? `${formData.houseNumber}, ` : ''}{formData.area}<br/>
+            {formData.landmark ? `Landmark: ${formData.landmark}, ` : ''}{formData.city}<br/>
+            {formData.state}, {formData.pincode}
+          </div>
+        </div>
         <ul className="item-list">
           {orderedItems.map((item, index) => (
             <CartItem
@@ -1016,6 +1025,11 @@ const Checkout = ({
           </div>
         )}
         <Modal.Footer style={{ backgroundColor: "white" }}>
+          {showOrderSummary && (
+            <Button variant="outline-secondary" onClick={onClose}>
+              Edit Cart
+            </Button>
+          )}
           <Button
             variant="secondary"
             onClick={() =>
@@ -1037,7 +1051,7 @@ const Checkout = ({
             {disableBtn
               ? "Processing..."
               : showOrderSummary
-                ? "Confirm Order"
+                ? "Confirm & Pay"
                 : "Continue"}
           </Button>
         </Modal.Footer>
