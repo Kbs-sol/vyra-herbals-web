@@ -14,9 +14,6 @@ export function validateOutboundMessage(message: OutboundMessage): void {
     throw new ValidationError('Outbound message is missing template_name');
   }
 
-  if (!message.order_id) {
-    throw new ValidationError('Outbound message is missing order_id');
-  }
 
   for (const [key, value] of Object.entries(message.parameters ?? {})) {
     const asString = String(value);
