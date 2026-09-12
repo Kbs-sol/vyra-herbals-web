@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { tryNormalizePhone } from '@/services/communications/utils/phoneNormalizer';
 import { messageQueue } from '@/services/communications';
 import { whatsappClient } from '@/services/communications/providers/whatsapp/client';
@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     const templateName = process.env.WHATSAPP_TEMPLATE_WELCOME_PROMO ?? 'welcome_promo_3hr';
 
     const queued = await messageQueue.enqueue({
-      order_id: 0,
+      order_id: null,
       customer_phone: normalizedPhone,
       message_type: 'MANUAL',
       provider: 'whatsapp',

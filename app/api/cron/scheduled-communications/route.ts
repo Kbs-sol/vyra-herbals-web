@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { isAuthorizedCronRequest } from '@/lib/cronAuth';
 import { verifyAdminAuth } from '@/utils/adminAuth';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
@@ -71,7 +71,7 @@ export async function GET(req: Request) {
 
         try {
           const queued = await messageQueue.enqueue({
-            order_id: 0,
+            order_id: null,
             customer_phone: phone,
             message_type: 'MANUAL',
             provider: 'whatsapp',
@@ -256,7 +256,7 @@ export async function GET(req: Request) {
 
         try {
           const queued = await messageQueue.enqueue({
-            order_id: 0,
+            order_id: null,
             customer_phone: phone,
             message_type: 'MANUAL',
             provider: 'whatsapp',
@@ -333,7 +333,7 @@ export async function GET(req: Request) {
 
         try {
           const queued = await messageQueue.enqueue({
-            order_id: 0,
+            order_id: null,
             customer_phone: phone,
             message_type: 'MANUAL',
             provider: 'whatsapp',
@@ -428,3 +428,4 @@ export async function GET(req: Request) {
 
   return NextResponse.json({ status: 'ok', results });
 }
+

@@ -100,7 +100,7 @@ export type CommunicationEvent =
 
 /** A fully-built, provider-agnostic outbound message, ready to be queued/sent. */
 export interface OutboundMessage {
-  order_id: number;
+  order_id: number | null;
   customer_phone: string;
   message_type: EventType;
   provider: ProviderName;

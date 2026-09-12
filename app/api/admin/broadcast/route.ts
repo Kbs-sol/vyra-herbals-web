@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { verifyAdminAuth } from '@/utils/adminAuth';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { getAudiencePhones } from '@/services/communications/marketing/audienceFetcher';
@@ -92,7 +92,7 @@ export async function POST(req: Request) {
         // Enqueue message
         const dedupeKey = `CAMPAIGN:${campaignId}:${user.phone}`;
         const msg = await messageQueue.enqueue({
-          order_id: 0,
+          order_id: null,
           customer_phone: user.phone,
           message_type: 'MANUAL',
           provider: 'whatsapp',
@@ -180,3 +180,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
