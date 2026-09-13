@@ -84,7 +84,11 @@ export default function robots(): MetadataRoute.Robots {
         disallow: DISALLOW,
       })),
     ],
-    sitemap: `${SITE_URL}/sitemap.xml`,
+    // Both sitemap and product feed are discoverable from robots.txt.
+    // Merchant Center reads feed.xml on its own schedule, but including it
+    // here also lets other crawlers (e.g. Bing Merchant, Yandex Products)
+    // find it without extra config.
+    sitemap: [`${SITE_URL}/sitemap.xml`, `${SITE_URL}/feed.xml`],
     host: SITE_URL,
   };
 }

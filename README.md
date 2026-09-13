@@ -8,7 +8,7 @@
 
 A Next.js 15 (App Router) storefront + admin panel + WhatsApp integration + payment/shipping pipelines for Vyra Herbals, a certified Ayurvedic hair-care brand founded by Sahera Banu.
 
-**If you are reading this in a Vercel/Supabase context and need to work with the code, jump straight to `docs/SYSTEM_LITERACY.md`.** That document is the single source of truth for how everything fits together.
+**If you are reading this in a Vercel/Supabase context and need to work with the code, jump straight to [`SYSTEM_LITERACY.md`](./SYSTEM_LITERACY.md) at the repo root.** That document is the single source of truth for how everything fits together.
 
 ## What changed vs the old repo (`vyraherbals-ux/vyra-herbals`)
 
@@ -38,7 +38,7 @@ cp .env.example .env    # fill every value
 npm run dev             # http://localhost:3000
 ```
 
-Full environment variable documentation, deploy instructions, WhatsApp Meta setup, analytics setup, and troubleshooting: **`docs/SYSTEM_LITERACY.md`**.
+Full environment variable documentation, deploy instructions, WhatsApp Meta setup, analytics setup, and troubleshooting: **[`SYSTEM_LITERACY.md`](./SYSTEM_LITERACY.md)** (at the repo root).
 
 ## Deploy to Vercel
 
@@ -47,7 +47,7 @@ Full environment variable documentation, deploy instructions, WhatsApp Meta setu
 3. Add domains `vyraherbals.com` and `www.vyraherbals.com`.
 4. Deploy.
 
-After the first deploy, run through the **post-deploy checklist** in `docs/SYSTEM_LITERACY.md` §15.
+After the first deploy, run through the **post-deploy checklist** in [`SYSTEM_LITERACY.md`](./SYSTEM_LITERACY.md) §15.
 
 ## Tech stack
 
@@ -61,8 +61,10 @@ After the first deploy, run through the **post-deploy checklist** in `docs/SYSTE
 
 ## Documentation
 
-Everything is in `docs/`:
-- **`SYSTEM_LITERACY.md`** — start here. Repo map, env vars, SEO, analytics, WhatsApp, payments, shipping, admin, deploy, troubleshooting.
+- **[`SYSTEM_LITERACY.md`](./SYSTEM_LITERACY.md)** (root) — **start here**. Repo map, env vars, SEO, analytics, WhatsApp, payments, shipping, admin, deploy, troubleshooting.
+- **[`ORGANIC_GROWTH_PLAN.md`](./ORGANIC_GROWTH_PLAN.md)** (root) — the data-backed 90-day organic-traffic + revenue plan (GSC, GA4, order data, competitor benchmarks).
+
+Everything else in `docs/`:
 - `Vyra-Herbals-SEO-AEO-GEO-Audit-and-Growth-Plan.pdf` — the SEO audit that drove this refactor.
 - `vyra-herbals-audit-report.pdf` — the code audit that drove the repo diet + security review.
 - `WHATSAPP_GO_LIVE.md` — Meta Business Manager checklist for WhatsApp.
