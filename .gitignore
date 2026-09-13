@@ -68,3 +68,10 @@ db_transactions_dump*
 *.webm
 *.mov
 *.avi
+
+# Node.js crash dumps (a 599 MB `core` file once made it into an auto-backup — never again)
+core
+core.*
+*.core
+report.*.json
+isolate-*.log
