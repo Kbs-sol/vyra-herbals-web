@@ -3,6 +3,12 @@ import { MessageCentral } from '@/utils/messageCentral';
 import { normalizePhone, isValidPhone } from '@/utils/authAdmin';
 import { enforceRateLimit } from '@/utils/rateLimit';
 
+
+// Force dynamic — API routes touch Supabase / cookies; static analysis at build time would try
+// to import the module without runtime env vars and blow up in 'collect page data'.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export const runtime = 'nodejs';
 
 /**

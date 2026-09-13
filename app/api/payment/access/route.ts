@@ -4,6 +4,12 @@ import { requireUser } from '@/utils/apiAuth';
 import { enforceRateLimit } from '@/utils/rateLimit';
 import crypto from 'crypto';
 
+
+// Force dynamic — API routes touch Supabase / cookies; static analysis at build time would try
+// to import the module without runtime env vars and blow up in 'collect page data'.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // Easebuzz rejects payloads as "Parameter validation failed" when fields contain
 // characters outside their allowlist. Mobile keyboards, autocorrect, voice input,
 // and Chrome autofill regularly inject smart quotes (’ ), em-dashes (—), unicode
