@@ -9,6 +9,8 @@ import {
     findAuthUserByEmailPaginated,
 } from '@/utils/authAdmin';
 import { enforceRateLimit } from '@/utils/rateLimit';
+import { messageQueue } from '@/services/communications';
+import { tryNormalizePhone } from '@/services/communications/utils/phoneNormalizer';
 
 export const runtime = 'nodejs';
 
@@ -110,6 +112,29 @@ export async function POST(req: Request) {
                     .from('users')
                     .update({ phone: cleanedPhone, name: trimmedName })
                     .eq('id', newUser.user.id);
+
+                // Schedule 3-hour welcome promo automatically
+                try {
+                    const normalizedPhone = tryNormalizePhone(cleanedPhone);
+                    if (normalizedPhone) {
+                        const dedupeKey = `PROMO_3HR:${newUser.user.id}`;
+                        const scheduledFor = new Date(Date.now() + 3 * 60 * 60 * 1000);
+                        const templateName = process.env.WHATSAPP_TEMPLATE_WELCOME_PROMO ?? 'welcome_promo_3hr';
+                        await messageQueue.enqueue({
+                            order_id: null,
+                            customer_phone: normalizedPhone,
+                            message_type: 'MANUAL',
+                            provider: 'whatsapp',
+                            template_name: templateName,
+                            parameters: [trimmedName || 'there'],
+                            dedupe_key: dedupeKey,
+                            scheduled_for: scheduledFor,
+                        });
+                        console.info(`[otp/verify] Scheduled 3-hour promo for user ${newUser.user.id} at ${scheduledFor.toISOString()}`);
+                    }
+                } catch (queueErr) {
+                    console.error('[otp/verify] Error scheduling welcome promo:', queueErr);
+                }
             }
         }
 

@@ -54,10 +54,6 @@ export async function POST(req: Request) {
 
     console.info('[user-registered webhook] Promo scheduled for user ' + String(user_id) + ' at ' + scheduledFor.toISOString());
 
-    if (whatsappClient.isEnabled()) {
-      try { await sendQueuedMessage(queued, whatsappClient); } catch { /* not due yet, no-op */ }
-    }
-
     return NextResponse.json({ ok: true, scheduled_for: scheduledFor.toISOString(), queue_id: queued.id });
   } catch (err: any) {
     console.error('[user-registered webhook] Error:', (err as Error).message);

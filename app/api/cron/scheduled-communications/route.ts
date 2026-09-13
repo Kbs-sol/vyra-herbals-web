@@ -404,3 +404,6 @@ export async function GET(req: Request) {
   return NextResponse.json({ status: 'ok', results });
 }
 
+export async function POST(req: Request) {
+  return GET(req);
+}
