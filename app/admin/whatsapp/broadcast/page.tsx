@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import AdminLayoutWrapper from '../components/AdminLayoutWrapper';
+import AdminLayoutWrapper from '../../components/AdminLayoutWrapper';
 
 export default function WhatsAppMarketingPage() {
   const [templateName, setTemplateName] = useState('welcome_promo_24hr');
