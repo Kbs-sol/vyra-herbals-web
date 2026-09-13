@@ -10,6 +10,7 @@ import Footer from '@/Components/Common/Footer';
 import ConditionalLayout from '@/Components/Common/ConditionalLayout';
 import RouteChangeTracker from '@/Components/Common/RouteChangeTracker';
 import { ToastContainer } from 'react-toastify';
+import { Analytics } from '@vercel/analytics/next';
 import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -164,6 +165,7 @@ export default function RootLayout({
           theme="light"
           style={{ zIndex: 99999 }}
         />
+        <Analytics />
       </body>
     </html>
   );
