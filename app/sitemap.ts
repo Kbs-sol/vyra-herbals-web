@@ -35,6 +35,13 @@ const STATIC_ROUTES: Route[] = [
   { url: `${SITE_URL}/blogs`, changeFrequency: 'weekly', priority: 0.9, lastModified: new Date() },
   { url: `${SITE_URL}/privacy-policy`, changeFrequency: 'yearly', priority: 0.3, lastModified: new Date() },
   { url: `${SITE_URL}/terms-conditions`, changeFrequency: 'yearly', priority: 0.3, lastModified: new Date() },
+  // Concern landing pages — programmatic SEO targeting non-brand queries
+  // ("hair oil for hair fall", "rosemary leaves for hair growth", etc.)
+  // that already generate impressions in GSC but had no matching page.
+  { url: `${SITE_URL}/concern/hair-fall`, changeFrequency: 'weekly', priority: 0.9, lastModified: new Date() },
+  { url: `${SITE_URL}/concern/hair-growth`, changeFrequency: 'weekly', priority: 0.9, lastModified: new Date() },
+  { url: `${SITE_URL}/concern/dandruff`, changeFrequency: 'weekly', priority: 0.9, lastModified: new Date() },
+  { url: `${SITE_URL}/concern/scalp-care`, changeFrequency: 'weekly', priority: 0.9, lastModified: new Date() },
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
