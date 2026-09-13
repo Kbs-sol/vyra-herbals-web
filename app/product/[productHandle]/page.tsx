@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createServerSupabase } from '@/utils/supabaseClient';
 import {
@@ -140,8 +141,8 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
         <p>{product.short_description || (product.description ? String(product.description).replace(/<[^>]*>/g, '').slice(0, 300) : '')}</p>
         <nav aria-label="Breadcrumb">
           <ol>
-            <li><a href="/">Home</a></li>
-            {product.category ? <li><a href={`/category/${encodeURIComponent(product.category)}`}>{product.category}</a></li> : null}
+            <li><Link href="/">Home</Link></li>
+            {product.category ? <li><Link href={`/category/${encodeURIComponent(product.category)}`}>{product.category}</Link></li> : null}
             <li>{product.title}</li>
           </ol>
         </nav>

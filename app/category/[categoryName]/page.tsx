@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createServerSupabase } from '@/utils/supabaseClient';
 import {
@@ -113,7 +114,7 @@ export default async function CategoryPage({ params }: { params: Promise<Params>
         <ul>
           {result.products.slice(0, 20).map((p) => (
             <li key={p.id}>
-              <a href={`/product/${encodeURIComponent(p.handle)}`}>{p.title}</a>
+              <Link href={`/product/${encodeURIComponent(p.handle)}`}>{p.title}</Link>
               {p.price ? <span> — ₹{p.price}</span> : null}
             </li>
           ))}
