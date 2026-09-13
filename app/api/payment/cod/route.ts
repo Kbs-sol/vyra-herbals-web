@@ -7,6 +7,12 @@ import { requireUser } from '@/utils/apiAuth';
 import { enforceRateLimit } from '@/utils/rateLimit';
 import { COD_Charges } from '@/constants';
 
+
+// Force dynamic — API routes touch Supabase / cookies; static analysis at build time would try
+// to import the module without runtime env vars and blow up in 'collect page data'.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export const runtime = 'nodejs';
 export const preferredRegion = 'bom1';
 // Must stay >= the 25s iCarry race below plus DB + notification overhead.

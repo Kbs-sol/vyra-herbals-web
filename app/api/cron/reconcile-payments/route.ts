@@ -4,6 +4,12 @@ import { verifyEasebuzzTransaction } from '@/utils/easebuzz';
 import { finalizeOrderFromSession } from '@/utils/orderFinalize';
 import { SUCCESSFUL_ORDER_STATUSES } from '@/utils/orderStatus';
 
+
+// Force dynamic — API routes touch Supabase / cookies; static analysis at build time would try
+// to import the module without runtime env vars and blow up in 'collect page data'.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export const runtime = 'nodejs';
 export const preferredRegion = 'bom1';
 export const maxDuration = 60;

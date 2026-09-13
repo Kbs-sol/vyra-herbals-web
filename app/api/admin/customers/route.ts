@@ -1,14 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { SUCCESSFUL_ORDER_STATUSES } from '@/utils/orderStatus';
 import { verifyAdminAuth } from '@/utils/adminAuth';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  // Service role only — the anon key cannot read across customers, so falling
-  // back to it would silently return partial data instead of failing loudly.
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+
+// Force dynamic — API routes touch Supabase / cookies; static analysis at build time would try
+// to import the module without runtime env vars and blow up in 'collect page data'.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+// Lazy Supabase init.
+//
+// The previous version constructed the client at module top level:
+//
+//   const supabase = createClient(URL!, KEY!);
+//
+// Next.js 15's "Collecting page data" pass imports every route module before
+// production env vars are guaranteed to be present. If SUPABASE_SERVICE_ROLE_KEY
+// isn't populated at that moment, createClient() throws `Error: supabaseKey is
+// required.` and the whole build fails — which is exactly what happened on
+// Vercel deployments dpl_BxY5jGmHi… / dpl_3e8fXPoVee… (commit 2dc01e8).
+//
+// Deferring construction until the first request keeps admin-panel behaviour
+// unchanged (fail loudly at request time if the env is really missing) without
+// breaking the build.
+let _supabase: SupabaseClient | null = null;
+function supabase(): SupabaseClient {
+  if (_supabase) return _supabase;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error(
+      'SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY missing at /api/admin/customers request time',
+    );
+  }
+  _supabase = createClient(url, key);
+  return _supabase;
+}
 
 // GET - Fetch all customers with order statistics
 export async function GET(request: NextRequest) {
@@ -30,7 +58,7 @@ export async function GET(request: NextRequest) {
     const SUCCESSFUL_STATUSES = SUCCESSFUL_ORDER_STATUSES as unknown as string[];
 
     // Get unique customers from orders
-    let query = supabase
+    let query = supabase()
       .from('orders')
       .select('shipping_data, total_amount, created_at, status')
       .in('status', SUCCESSFUL_STATUSES);
@@ -97,7 +125,7 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    const { data: users } = await supabase
+    const { data: users } = await supabase()
       .from('users')
       .select('id, name, email, phone, created_at, role');
 
