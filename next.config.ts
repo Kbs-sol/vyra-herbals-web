@@ -99,6 +99,54 @@ const nextConfig: NextConfig = {
           { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
         ],
       },
+      // Sitemap / feed / llms.txt / ai.txt — these are read by BOTS, not
+      // people. Aggressive caching with SWR is fine; explicit `X-Robots-Tag`
+      // keeps them out of a search-result page's "site:" listing (Google
+      // occasionally indexes .xml/.txt as results, which pollutes clicks).
+      {
+        source: '/sitemap.xml',
+        headers: [
+          { key: 'Cache-Control', value: 'public, s-maxage=900, stale-while-revalidate=3600' },
+          { key: 'X-Robots-Tag', value: 'noindex' },
+        ],
+      },
+      {
+        source: '/feed.xml',
+        headers: [
+          { key: 'Cache-Control', value: 'public, s-maxage=900, stale-while-revalidate=3600' },
+          { key: 'X-Robots-Tag', value: 'noindex' },
+        ],
+      },
+      {
+        source: '/llms.txt',
+        headers: [
+          { key: 'Cache-Control', value: 'public, s-maxage=3600, stale-while-revalidate=86400' },
+          { key: 'X-Robots-Tag', value: 'noindex' },
+        ],
+      },
+      {
+        source: '/ai.txt',
+        headers: [
+          { key: 'Cache-Control', value: 'public, s-maxage=86400, stale-while-revalidate=604800' },
+          { key: 'X-Robots-Tag', value: 'noindex' },
+        ],
+      },
+      // PWA manifest — small and cache-friendly, but must revalidate weekly.
+      {
+        source: '/manifest.webmanifest',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=604800' },
+          { key: 'Content-Type', value: 'application/manifest+json' },
+        ],
+      },
+      // security.txt — long cache, immutable-in-practice.
+      {
+        source: '/.well-known/security.txt',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=604800' },
+          { key: 'Content-Type', value: 'text/plain; charset=utf-8' },
+        ],
+      },
       // Baseline security headers for every response.
       {
         source: '/:path*',
@@ -126,6 +174,39 @@ const nextConfig: NextConfig = {
     ];
   },
 
+  // ---------------------------------------------------------------------------
+  // SEO redirects — permanent (301) so link equity transfers to the canonical.
+  //
+  // Rationale
+  // ---------
+  //  - Non-www → apex canonical: the site.metadata + sitemap all use
+  //    https://vyraherbals.com. Any inbound link that hits www.* must fold
+  //    into that one canonical, else Google splits authority.
+  //  - Trailing-slash normalisation for content pages: `/about/` and `/about`
+  //    should not both index.
+  //  - Legacy paths from the old repo: /store, /shop-all, /collections/*
+  //    still receive backlinks; redirect them to the new /category/* routes.
+  //  - Blog `.html` suffix cleanup — pre-migration URLs.
+  // ---------------------------------------------------------------------------
+  async redirects() {
+    return [
+      // Legacy /collections/... → /category/...
+      { source: '/collections/:slug', destination: '/category/:slug', permanent: true },
+      // Legacy /shop-all or /store → homepage (which now lists everything)
+      { source: '/store', destination: '/', permanent: true },
+      { source: '/shop-all', destination: '/', permanent: true },
+      // Legacy /product.html?id=... never worked cleanly — send them home so
+      // they can search rather than land on a 404.
+      { source: '/product.html', destination: '/', permanent: true },
+      // Legacy blog URLs
+      { source: '/blog/:slug', destination: '/blogs/:slug', permanent: true },
+      // Case-normalise the concern slugs (people paste them in Title Case).
+      { source: '/concern/Hair-Fall', destination: '/concern/hair-fall', permanent: true },
+      { source: '/concern/Hair-Growth', destination: '/concern/hair-growth', permanent: true },
+      { source: '/concern/Dandruff', destination: '/concern/dandruff', permanent: true },
+      { source: '/concern/Scalp-Care', destination: '/concern/scalp-care', permanent: true },
+    ];
+  },
 
   // Optimize bundle size
   webpack: (config, { isServer }) => {

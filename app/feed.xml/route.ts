@@ -157,6 +157,22 @@ export async function GET() {
         .map((u: string) => `<g:additional_image_link>${xmlEscape(u)}</g:additional_image_link>`)
         .join('');
 
+      // Meta Commerce Manager fields — Meta shares Google's Merchant feed
+      // spec but reads a few extras. Adding them here means the SAME
+      // feed.xml can be plugged into Meta Commerce Manager (Facebook /
+      // Instagram Shops) without a duplicate export step.
+      //   `age_group` + `gender` = adult / unisex (hair care is unisex)
+      //   `product_highlight`   = bullet-point selling points, up to 4
+      //   `shipping_weight`     = required for accurate Meta shipping quotes
+      const highlights = [
+        '100% herbal formulation',
+        'ISO 9001:2015 & GMP certified',
+        'Sulphate- and paraben-free',
+        'Free shipping across India',
+      ]
+        .map((h) => `<g:product_highlight><![CDATA[${h}]]></g:product_highlight>`)
+        .join('');
+
       return `<item>
   <g:id>${xmlEscape(p.handle)}</g:id>
   <g:title><![CDATA[${p.title.slice(0, 150)}]]></g:title>
@@ -170,12 +186,22 @@ export async function GET() {
   ${gtinBlock}
   <g:mpn>${xmlEscape(p.sku || String(p.id))}</g:mpn>
   <g:condition>new</g:condition>
+  <g:age_group>adult</g:age_group>
+  <g:gender>unisex</g:gender>
+  ${highlights}
   ${p.category ? `<g:product_type>${xmlEscape(p.category)}</g:product_type>` : ''}
   <g:google_product_category>${xmlEscape(googleCategoryFor(p.category))}</g:google_product_category>
+  <g:custom_label_0>${xmlEscape(p.category || 'general')}</g:custom_label_0>
+  <g:custom_label_1>${inStock ? 'available' : 'unavailable'}</g:custom_label_1>
+  <g:custom_label_2>${salePrice ? 'on-sale' : 'regular-price'}</g:custom_label_2>
   <g:shipping>
     <g:country>IN</g:country>
     <g:service>Standard</g:service>
     <g:price>0.00 INR</g:price>
+    <g:min_handling_time>1</g:min_handling_time>
+    <g:max_handling_time>2</g:max_handling_time>
+    <g:min_transit_time>2</g:min_transit_time>
+    <g:max_transit_time>5</g:max_transit_time>
   </g:shipping>
   <g:tax>
     <g:country>IN</g:country>
