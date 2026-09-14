@@ -1,0 +1,58 @@
+{
+  "name": "Vyra Herbals — Ayurvedic Hair Care",
+  "short_name": "Vyra Herbals",
+  "description": "Herbal hair care and skincare made with 100% natural, plant-based ingredients. ISO 9001:2015 & GMP certified. Free shipping across India.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#2d7a3a",
+  "lang": "en-IN",
+  "dir": "ltr",
+  "categories": ["shopping", "beauty", "health", "lifestyle"],
+  "icons": [
+    {
+      "src": "/assets/images/logo-final.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/images/logo-final.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/images/logo-final.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Shop",
+      "short_name": "Shop",
+      "description": "Browse all products",
+      "url": "/",
+      "icons": [{ "src": "/assets/images/logo-final.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Track Order",
+      "short_name": "Track",
+      "description": "Track your order",
+      "url": "/track-order",
+      "icons": [{ "src": "/assets/images/logo-final.png", "sizes": "192x192" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/assets/images/banner/og-image.jpg",
+      "sizes": "1200x630",
+      "type": "image/jpeg",
+      "label": "Vyra Herbals — Ayurvedic hair care"
+    }
+  ]
+}

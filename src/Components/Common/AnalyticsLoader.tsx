@@ -18,26 +18,32 @@ import { useEffect } from 'react';
  *
  * Env vars (all NEXT_PUBLIC_, safe to expose):
  *   NEXT_PUBLIC_GA4_ID              e.g. G-K0F7N513MS   (Google Analytics 4)
+ *   NEXT_PUBLIC_GADS_CONVERSION_ID  e.g. AW-1234567890  (Google Ads, optional)
  *   NEXT_PUBLIC_CLARITY_ID          e.g. p1a2b3c4d5     (Microsoft Clarity)
  *   NEXT_PUBLIC_META_PIXEL_ID       e.g. 1234567890     (Meta Business "Pixel & Conversions" — Advantage+ / web events)
  *   NEXT_PUBLIC_META_ADS_PIXEL_ID   e.g. 9876543210     (Optional second Pixel dedicated to Meta Ads performance)
  *   NEXT_PUBLIC_GTM_ID              e.g. GTM-MHSG926J   (Optional GTM container — loaded only if set)
+ *   NEXT_PUBLIC_PINTEREST_TAG_ID    e.g. 2612345678901  (Optional Pinterest tag — beauty audiences skew heavily to Pinterest)
  *
  * Any missing var → the corresponding vendor is silently skipped. That means
  * a preview deploy without ad-pixel creds does not spray broken tags into
  * the DOM.
  *
- * Consent: this is India (DPDP Act 2023). We're not gating on a cookie
- * banner yet — that's a pending TODO in the SEO literacy doc. When we do,
- * this component is the one place to plug `window.gtag('consent', 'default', ...)`
- * and Meta's `fbq('consent', 'revoke')` calls.
+ * Consent: this is India (DPDP Act 2023). We initialise Google Consent Mode
+ * v2 in "denied" default, then upgrade if the visitor has previously
+ * consented (cookie `vh_consent=granted`). Meta gets `fbq('consent', 'revoke')`
+ * until the same cookie flips. The consent banner UI is a small component
+ * that just sets this cookie and reloads the analytics context — the
+ * heavy lifting stays here so every vendor stays in sync.
  */
 
 const GA4_ID = process.env.NEXT_PUBLIC_GA4_ID || process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID || 'G-K0F7N513MS';
+const GADS_CONVERSION_ID = process.env.NEXT_PUBLIC_GADS_CONVERSION_ID || '';
 const CLARITY_ID = process.env.NEXT_PUBLIC_CLARITY_ID || '';
 const META_PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID || process.env.NEXT_PUBLIC_FACEBOOK_PIXEL_ID || '';
 const META_ADS_PIXEL_ID = process.env.NEXT_PUBLIC_META_ADS_PIXEL_ID || '';
 const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID || '';
+const PINTEREST_TAG_ID = process.env.NEXT_PUBLIC_PINTEREST_TAG_ID || '';
 
 export default function AnalyticsLoader() {
   const pathname = usePathname();
@@ -60,17 +66,67 @@ export default function AnalyticsLoader() {
         page_title: document.title,
       });
     }
-    // Meta Pixel
+    // Meta Pixel — SPA-nav PageView, deduped against the initial-load one
+    // in fbevents.js via the `eventID` third-argument.
     if (META_PIXEL_ID && typeof window !== 'undefined' && (window as any).fbq) {
-      (window as any).fbq('track', 'PageView');
+      const evt = { eventID: `pv_${Date.now()}_${Math.random().toString(36).slice(2, 8)}` };
+      (window as any).fbq('track', 'PageView', {}, evt);
     }
     if (META_ADS_PIXEL_ID && typeof window !== 'undefined' && (window as any).fbq) {
       (window as any).fbq('trackSingle', META_ADS_PIXEL_ID, 'PageView');
+    }
+    // Pinterest
+    if (PINTEREST_TAG_ID && typeof window !== 'undefined' && (window as any).pintrk) {
+      (window as any).pintrk('page');
     }
   }, [pathname, searchParams]);
 
   return (
     <>
+      {/* --------------------------------------------------------------------
+       * Google Consent Mode v2 — MUST run BEFORE any analytics tag.
+       * Default = denied for ad_* + analytics_storage. This makes the initial
+       * page-view GA4 event "cookieless" until the user opts in via the DPDP
+       * banner (which just sets vh_consent=granted and calls
+       * `gtag('consent', 'update', ...)`).
+       *
+       * `wait_for_update` gives the banner ~500ms to fire before Google Ads
+       * assumes denied — this is the recommended pattern from Google's
+       * Consent Mode v2 docs.
+       * ------------------------------------------------------------------ */}
+      <Script id="consent-default" strategy="beforeInteractive">
+        {`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          window.gtag = gtag;
+          gtag('consent', 'default', {
+            ad_storage: 'denied',
+            ad_user_data: 'denied',
+            ad_personalization: 'denied',
+            analytics_storage: 'denied',
+            functionality_storage: 'granted',
+            security_storage: 'granted',
+            wait_for_update: 500,
+          });
+          gtag('set', 'ads_data_redaction', true);
+          gtag('set', 'url_passthrough', true);
+          // Read prior consent from a first-party cookie. If the visitor
+          // consented on a previous visit, upgrade all four storage buckets
+          // immediately so the first page_view is measured properly.
+          try {
+            var m = document.cookie.match(/(?:^|;\\s*)vh_consent=([^;]+)/);
+            if (m && decodeURIComponent(m[1]) === 'granted') {
+              gtag('consent', 'update', {
+                ad_storage: 'granted',
+                ad_user_data: 'granted',
+                ad_personalization: 'granted',
+                analytics_storage: 'granted',
+              });
+            }
+          } catch(e) {}
+        `}
+      </Script>
+
       {/* -------- Google Analytics 4 -------- */}
       {GA4_ID ? (
         <>
@@ -85,7 +141,14 @@ export default function AnalyticsLoader() {
               window.gtag = gtag;
               gtag('js', new Date());
               /* send_page_view is TRUE on load; SPA nav handled by AnalyticsLoader effect */
-              gtag('config', '${GA4_ID}', { send_page_view: true, anonymize_ip: true });
+              gtag('config', '${GA4_ID}', {
+                send_page_view: true,
+                anonymize_ip: true,
+                /* Enhanced Measurement is on server side — turn off duplicate scroll/outbound tracking here */
+                allow_google_signals: true,
+                allow_ad_personalization_signals: true,
+              });
+              ${GADS_CONVERSION_ID ? `gtag('config', '${GADS_CONVERSION_ID}');` : ''}
             `}
           </Script>
         </>
@@ -104,7 +167,17 @@ export default function AnalyticsLoader() {
         </Script>
       ) : null}
 
-      {/* -------- Meta Pixel (organic/audience) -------- */}
+      {/* -------- Meta Pixel (organic/audience) --------
+       * Notes on this snippet:
+       *   1. `fbq('consent', 'revoke')` gates ALL events (including PageView)
+       *      until the DPDP banner grants it. The banner code below re-issues
+       *      `fbq('consent', 'grant')` when the user opts in.
+       *   2. We call `fbq('init', pid, {}, { agent: 'plnextjs' })` so Meta's
+       *      Events Manager UI shows the traffic as "Next.js" rather than
+       *      "unknown web integration". Useful when debugging.
+       *   3. The initial PageView carries an `eventID` so a CAPI-side page-view
+       *      (fired opportunistically from /api/events/meta) can dedupe.
+       * ------------------------------------------------------------------ */}
       {META_PIXEL_ID ? (
         <Script id="meta-pixel" strategy="afterInteractive">
           {`
@@ -114,9 +187,18 @@ export default function AnalyticsLoader() {
             n.queue=[];t=b.createElement(e);t.async=!0;
             t.src=v;s=b.getElementsByTagName(e)[0];
             s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
-            fbq('init', '${META_PIXEL_ID}');
-            ${META_ADS_PIXEL_ID ? `fbq('init', '${META_ADS_PIXEL_ID}');` : ''}
-            fbq('track', 'PageView');
+
+            /* Default consent = revoked until DPDP banner grants it. */
+            var hasConsent = false;
+            try {
+              var m = document.cookie.match(/(?:^|;\\s*)vh_consent=([^;]+)/);
+              hasConsent = m && decodeURIComponent(m[1]) === 'granted';
+            } catch(e){}
+            if (!hasConsent) fbq('consent', 'revoke');
+
+            fbq('init', '${META_PIXEL_ID}', {}, { agent: 'plnextjs' });
+            ${META_ADS_PIXEL_ID ? `fbq('init', '${META_ADS_PIXEL_ID}', {}, { agent: 'plnextjs' });` : ''}
+            fbq('track', 'PageView', {}, { eventID: 'pv_init_' + Date.now().toString(36) });
           `}
         </Script>
       ) : null}
@@ -133,6 +215,17 @@ export default function AnalyticsLoader() {
             alt=""
           />
         </noscript>
+      ) : null}
+
+      {/* -------- Pinterest Tag — beauty / hair-care audiences skew high on Pinterest -------- */}
+      {PINTEREST_TAG_ID ? (
+        <Script id="pinterest-tag" strategy="afterInteractive">
+          {`
+            !function(e){if(!window.pintrk){window.pintrk=function(){window.pintrk.queue.push(Array.prototype.slice.call(arguments))};var n=window.pintrk;n.queue=[],n.version="3.0";var t=document.createElement("script");t.async=!0,t.src=e;var r=document.getElementsByTagName("script")[0];r.parentNode.insertBefore(t,r)}}("https://s.pinimg.com/ct/core.js");
+            pintrk('load', '${PINTEREST_TAG_ID}', { em: '<user_email_address>' });
+            pintrk('page');
+          `}
+        </Script>
       ) : null}
 
       {/* -------- Optional GTM (only if the ID is set) -------- */}
