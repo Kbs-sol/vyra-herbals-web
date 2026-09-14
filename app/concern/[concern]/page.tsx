@@ -2,7 +2,14 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createServerSupabase } from '@/utils/supabaseClient';
-import { SITE_URL, breadcrumbJsonLd, faqJsonLd, itemListJsonLd } from '@/utils/seo';
+import {
+  SITE_URL,
+  breadcrumbJsonLd,
+  faqJsonLd,
+  itemListJsonLd,
+  howToJsonLd,
+  speakableJsonLd,
+} from '@/utils/seo';
 import JsonLd from '@/Components/Shared/JsonLd';
 
 /**
@@ -37,6 +44,21 @@ interface ConcernContent {
   faqs: { question: string; answer: string }[];
   productHandles: string[];
   keywords: string[];
+  /**
+   * Optional HowTo — attaches a HowTo JSON-LD block if present. AI answer
+   * engines (ChatGPT, Perplexity, Claude, Gemini) heavily quote step-by-step
+   * instructions marked with this schema. Google no longer renders the rich
+   * result but the schema still improves discoverability in generative
+   * answers.
+   */
+  howTo?: {
+    name: string;
+    description: string;
+    totalTime?: string; // e.g. "PT10M"
+    supply?: string[];
+    tool?: string[];
+    steps: Array<{ name: string; text: string }>;
+  };
 }
 
 const CONCERNS: Record<string, ConcernContent> = {
@@ -72,6 +94,44 @@ const CONCERNS: Record<string, ConcernContent> = {
     ],
     productHandles: ['hair-oil-100ml', 'hair-oil-200ml', 'herbal-hair-oil', 'oil-shampoo-combo', 'hair-care-kit'],
     keywords: ['hair oil for hair fall', 'herbal hair oil', 'ayurvedic hair oil', 'rosemary hair oil', 'stop hair fall naturally', 'postpartum hair fall'],
+    howTo: {
+      name: 'How to apply herbal hair oil to reduce hair fall',
+      description:
+        'A step-by-step routine for using Vyra Herbals\' 9-herb hair oil to reduce hair fall, strengthen roots, and support regrowth. Recommended 2-3 times a week.',
+      totalTime: 'PT2H15M',
+      supply: ['Vyra Herbal Hair Oil (2-3 tablespoons)', 'Soft cotton towel', 'Sulphate-free shampoo'],
+      tool: ['Silicone scalp massager (optional)', 'Wide-toothed neem comb'],
+      steps: [
+        {
+          name: 'Warm the oil',
+          text: 'Pour 2-3 tablespoons of Vyra Herbal Hair Oil into a small bowl and warm it to skin-safe temperature — a bain-marie or 15 seconds of gentle warming is enough. Never microwave; overheating destroys the volatile rosemary compounds.',
+        },
+        {
+          name: 'Section your hair',
+          text: 'Divide your hair into 4-6 sections with clips. Wet or dry hair both work; slightly damp scalp absorbs oil faster.',
+        },
+        {
+          name: 'Apply oil to the scalp (not the strands)',
+          text: 'Dip your fingertips into the oil and apply directly to the scalp, section by section. The strands only need whatever oil naturally travels down during massage. Cover thinning areas and hairline with extra care.',
+        },
+        {
+          name: 'Massage in circular motions for 5-10 minutes',
+          text: 'Use the pads of your fingers (or a silicone scalp massager) to massage in slow, small circles. This improves blood flow to the follicles — the mechanism rosemary was clinically shown to enhance in the Panahi 2015 trial.',
+        },
+        {
+          name: 'Rest for at least 2 hours (ideally overnight)',
+          text: 'Wrap your head in a soft cotton towel to keep hair off the pillow. Longer contact gives the herbal actives more time to penetrate the follicle. Do not sleep on satin without a towel — oil will stain.',
+        },
+        {
+          name: 'Wash with a sulphate-free shampoo',
+          text: 'Apply shampoo directly to a wet scalp, lather with cool-to-lukewarm water, and rinse twice. Vyra Herbal Shampoo pairs specifically with the oil (shared herb base). Skip conditioner on the scalp; apply to mid-lengths only.',
+        },
+        {
+          name: 'Repeat 2-3 times a week for 6-8 weeks',
+          text: 'Consistency matters more than session length. Visible reduction in daily fall typically appears within 6-8 weeks; regrowth of thinning areas takes 3-6 months (one full follicle cycle).',
+        },
+      ],
+    },
   },
 
   'hair-growth': {
@@ -106,6 +166,40 @@ const CONCERNS: Record<string, ConcernContent> = {
     ],
     productHandles: ['rosemary-leaves', 'hair-oil-100ml', 'hair-oil-200ml', 'herbal-hair-mask-powder', 'hair-care-kit'],
     keywords: ['rosemary leaves for hair growth', 'hair growth oil', 'ayurvedic hair growth', 'grow hair faster naturally', 'herbal hair regrowth'],
+    howTo: {
+      name: 'How to use rosemary leaves for hair growth',
+      description:
+        'Two traditional preparations — a rosemary-infused herbal oil and a post-shampoo rosemary rinse — that improve scalp circulation and support faster visible hair growth.',
+      totalTime: 'PT30M',
+      supply: ['2 tablespoons dried Vyra rosemary leaves', '100ml Vyra Herbal Hair Oil (for infusion) OR 500ml water (for rinse)'],
+      tool: ['Dark glass bottle (for oil infusion)', 'Small saucepan and strainer (for rinse)'],
+      steps: [
+        {
+          name: 'Method A · Prepare a rosemary-infused hair oil',
+          text: 'Add 2 tablespoons of dried rosemary leaves to a dark glass bottle. Pour in 100ml of Vyra Herbal Hair Oil. Seal and store in a cool, dark cupboard for 2 weeks, shaking daily.',
+        },
+        {
+          name: 'Strain and use the infused oil',
+          text: 'After 2 weeks, strain out the leaves through a fine sieve or muslin cloth. Apply 1-2 tablespoons to the scalp 2-3 times a week, massage for 5-10 minutes, leave for 2 hours or overnight, then wash with sulphate-free shampoo.',
+        },
+        {
+          name: 'Method B · Boil a rosemary rinse',
+          text: 'Bring 500ml of filtered water to a boil. Add 1 cup (roughly 20g) of dried Vyra rosemary leaves. Simmer covered for 15 minutes. Turn off heat and let the leaves steep as the water cools.',
+        },
+        {
+          name: 'Strain and cool the rinse',
+          text: 'Strain the leaves out. Let the liquid cool to room or lukewarm temperature — never pour warm liquid on the scalp.',
+        },
+        {
+          name: 'Use as a final rinse after shampoo',
+          text: 'After shampooing and rinsing your hair, pour the rosemary infusion slowly over your scalp and hair, letting it collect in a bowl below. Pour that bowl through again 2-3 times. Do not rinse it out. Squeeze gently and let hair air-dry.',
+        },
+        {
+          name: 'Track progress with a photo diary',
+          text: 'Hair grows about 1.25 cm (0.5 inch) per month — visible new growth takes 3-4 months of consistent use. Take a "day 1" photo of your hairline and crown. It is the only reliable way to measure results in month 4.',
+        },
+      ],
+    },
   },
 
   'dandruff': {
@@ -139,6 +233,40 @@ const CONCERNS: Record<string, ConcernContent> = {
     ],
     productHandles: ['herbal-shampoo-200ml', 'shampoo-scalp-massager-combo', 'hair-oil-100ml', 'scalp-massager'],
     keywords: ['herbal dandruff treatment', 'anti dandruff shampoo natural', 'sulphate free anti dandruff', 'neem shampoo dandruff', 'stop dandruff naturally'],
+    howTo: {
+      name: 'How to treat dandruff naturally with herbal shampoo',
+      description:
+        'A 4-week routine using Vyra Herbal Shampoo and neem-based hair oil to reduce dandruff, flakes, and scalp itching without harsh anti-fungals.',
+      totalTime: 'PT1H',
+      supply: ['Vyra Herbal Shampoo (sulphate-free)', 'Vyra Herbal Hair Oil with neem'],
+      tool: ['Silicone scalp massager', 'Wide-toothed comb'],
+      steps: [
+        {
+          name: 'Pre-wash oiling (twice a week)',
+          text: 'Warm 2 tablespoons of Vyra Herbal Hair Oil. Section your hair and apply directly to the scalp. Massage in circles for 8-10 minutes to lift dead skin and reduce Malassezia fungal load. Rest for at least 1 hour before washing.',
+        },
+        {
+          name: 'Wet your hair with cool water',
+          text: 'Hot water strips the scalp barrier and worsens dandruff. Use cool-to-lukewarm water only. Wet hair thoroughly for 30 seconds before shampooing.',
+        },
+        {
+          name: 'First shampoo pass — 2 minutes',
+          text: 'Apply Vyra Herbal Shampoo directly to the scalp (not the strands). Massage in circles for a full 2 minutes so the herbal actives (neem, tulsi, hibiscus) contact the skin. Rinse.',
+        },
+        {
+          name: 'Second shampoo pass — cleanse the strands',
+          text: 'Apply a small amount again, this time letting the lather run down the strands. Rinse thoroughly.',
+        },
+        {
+          name: 'Skip conditioner on the scalp',
+          text: 'Apply conditioner only from mid-lengths to tips. Product build-up at the roots is a leading cause of persistent dandruff.',
+        },
+        {
+          name: 'Air-dry and repeat 3 times a week for 4 weeks',
+          text: 'Visible flake reduction usually appears within 2 weeks; the underlying Malassezia rebalance takes ~4 weeks. If the itching does not improve after 6 weeks, consult a trichologist — chronic seborrhoeic dermatitis needs medical attention.',
+        },
+      ],
+    },
   },
 
   'scalp-care': {
@@ -172,6 +300,40 @@ const CONCERNS: Record<string, ConcernContent> = {
     ],
     productHandles: ['scalp-massager', 'shampoo-scalp-massager-combo', 'hair-oil-100ml', 'herbal-shampoo-200ml', 'neem-combs-combo-2'],
     keywords: ['scalp care', 'scalp massager for hair growth', 'scalp exfoliation', 'healthy scalp routine', 'ayurvedic scalp treatment'],
+    howTo: {
+      name: 'How to build a weekly Ayurvedic scalp care routine',
+      description:
+        'A weekly scalp routine using Vyra Herbals oil, shampoo, scalp massager, and neem comb — designed to keep the scalp healthy, exfoliated, and free of product build-up.',
+      totalTime: 'PT2H30M',
+      supply: ['Vyra Herbal Hair Oil', 'Vyra Herbal Shampoo', 'Filtered water'],
+      tool: ['Silicone scalp massager', 'Neem wood comb'],
+      steps: [
+        {
+          name: 'Day 1 — Oil + massage',
+          text: 'Warm 2 tablespoons of Vyra Herbal Hair Oil. Apply to the scalp in sections and use the silicone scalp massager in slow circles for 8-10 minutes. The massager both spreads oil evenly and mechanically lifts flakes and dead skin.',
+        },
+        {
+          name: 'Day 1 — Wash and comb',
+          text: 'After 2 hours (or overnight) wash with Vyra Herbal Shampoo, cool-water rinse, air dry, then detangle with the neem wood comb from the tips upward.',
+        },
+        {
+          name: 'Day 4 — Water-only rinse',
+          text: 'Wet the scalp and gently massage with fingertips for 3-4 minutes without shampoo. This lifts sebum build-up without stripping the barrier.',
+        },
+        {
+          name: 'Day 7 — Second oil + shampoo cycle',
+          text: 'Repeat Day 1 with slightly less oil (1.5 tablespoons). Focus the massage on any tender or itchy spots.',
+        },
+        {
+          name: 'Daily — Neem-comb detangle',
+          text: 'Neem wood is naturally anti-static; it distributes scalp oil down the strands and stops frizz-from-friction. Comb from tips upward to avoid breakage.',
+        },
+        {
+          name: 'Monthly — Hair mask deep clean',
+          text: 'Once a month, replace Day 1 with a Vyra herbal hair mask powder (mixed with warm water into a paste, applied to scalp and lengths for 30 minutes, then rinsed). This deep-cleans product residue and restores shine.',
+        },
+      ],
+    },
   },
 };
 
@@ -253,6 +415,21 @@ export default async function ConcernPage({ params }: { params: Promise<Params> 
     products.length
       ? itemListJsonLd(products.map((p) => ({ handle: p.handle, title: p.title, image_url: p.image_url, price: p.price })))
       : null,
+    // HowTo — read heavily by ChatGPT / Perplexity / Claude / Gemini when
+    // answering "how to ..." queries. This is the highest-ROI GEO signal.
+    c.howTo
+      ? howToJsonLd({
+          name: c.howTo.name,
+          description: c.howTo.description,
+          totalTime: c.howTo.totalTime,
+          supply: c.howTo.supply,
+          tool: c.howTo.tool,
+          steps: c.howTo.steps,
+        })
+      : null,
+    // Speakable — marks the quick-answer block and h1 as readable by voice
+    // assistants (Google Assistant, Alexa, Siri "hey Google, how do I ...").
+    speakableJsonLd(['[data-speakable="quick-answer"]', 'h1[data-speakable="h1"]']),
   ].filter(Boolean);
 
   return (
@@ -265,9 +442,11 @@ export default async function ConcernPage({ params }: { params: Promise<Params> 
           <span style={{ color: '#222', fontWeight: 500 }}>{c.displayName}</span>
         </nav>
 
-        <h1 style={{ fontSize: 32, fontWeight: 700, margin: '0 0 12px' }}>{c.h1}</h1>
+        <h1 data-speakable="h1" style={{ fontSize: 32, fontWeight: 700, margin: '0 0 12px' }}>{c.h1}</h1>
 
         <div
+          className="quick-answer"
+          data-speakable="quick-answer"
           style={{
             padding: 20,
             background: '#fbfaf5',
@@ -325,6 +504,47 @@ export default async function ConcernPage({ params }: { params: Promise<Params> 
             <p style={{ fontSize: 16 }}>{g.body}</p>
           </section>
         ))}
+
+        {c.howTo && (
+          <section style={{ margin: '40px 0', padding: '24px 20px', background: '#f5f8f3', borderRadius: 12 }}>
+            <h2 style={{ fontSize: 22, fontWeight: 600, marginBottom: 8 }}>{c.howTo.name}</h2>
+            <p style={{ fontSize: 15, color: '#456', marginBottom: 20 }}>{c.howTo.description}</p>
+
+            {(c.howTo.supply?.length || c.howTo.tool?.length) && (
+              <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap', marginBottom: 24, fontSize: 14 }}>
+                {c.howTo.supply?.length ? (
+                  <div>
+                    <strong style={{ display: 'block', marginBottom: 6, color: '#2d7a3a' }}>You&apos;ll need</strong>
+                    <ul style={{ margin: 0, paddingLeft: 18 }}>
+                      {c.howTo.supply.map((s, i) => (
+                        <li key={i}>{s}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                {c.howTo.tool?.length ? (
+                  <div>
+                    <strong style={{ display: 'block', marginBottom: 6, color: '#2d7a3a' }}>Tools</strong>
+                    <ul style={{ margin: 0, paddingLeft: 18 }}>
+                      {c.howTo.tool.map((s, i) => (
+                        <li key={i}>{s}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
+            )}
+
+            <ol style={{ paddingLeft: 22, margin: 0 }}>
+              {c.howTo.steps.map((step, i) => (
+                <li key={i} style={{ marginBottom: 14 }}>
+                  <strong style={{ display: 'block', marginBottom: 4 }}>{step.name}</strong>
+                  <span style={{ color: '#333', fontSize: 15 }}>{step.text}</span>
+                </li>
+              ))}
+            </ol>
+          </section>
+        )}
 
         <section style={{ margin: '48px 0 32px' }}>
           <h2 style={{ fontSize: 22, fontWeight: 600, marginBottom: 16 }}>

@@ -309,28 +309,68 @@ export function organizationJsonLd() {
     '@type': 'Organization',
     '@id': `${SITE_URL}/#organization`,
     name: SITE_NAME,
-    alternateName: 'Vyra',
+    legalName: 'Vyra Herbals',
+    alternateName: ['Vyra', 'Vyra Herbal'],
     url: SITE_URL,
     logo: {
       '@type': 'ImageObject',
       url: `${SITE_URL}/assets/images/logo-final.png`,
+      width: '512',
+      height: '512',
     },
+    image: `${SITE_URL}/assets/images/logo-final.png`,
     founder: {
       '@type': 'Person',
       '@id': `${SITE_URL}/about#founder`,
       name: FOUNDER.name,
       jobTitle: FOUNDER.jobTitle,
       image: FOUNDER.image,
+      description:
+        'Sahera Banu founded Vyra Herbals in 2023 after a personal hair-loss journey, formulating Ayurvedic hair oil, shampoo, and hair masks with 9 traditional herbs including rosemary, neem, and bhringraj.',
     },
+    foundingDate: '2023',
+    foundingLocation: {
+      '@type': 'Place',
+      name: 'Hyderabad, Telangana, India',
+    },
+    knowsAbout: [
+      'Ayurvedic hair care',
+      'Herbal hair oil',
+      'Rosemary hair care',
+      'Natural hair growth remedies',
+      'Sulphate-free shampoo',
+      'Hair fall treatment',
+      'Dandruff treatment',
+      'Scalp health',
+    ],
+    naics: '446120', // Cosmetics, Beauty Supplies, and Perfume Stores
     description: BRAND_DEFAULT_DESCRIPTION,
     slogan: 'Nature. Certified. Yours.',
+    brand: {
+      '@type': 'Brand',
+      name: SITE_NAME,
+      logo: `${SITE_URL}/assets/images/logo-final.png`,
+    },
+    award: [
+      'ISO 9001:2015 Certified Manufacturing',
+      'GMP (Good Manufacturing Practices) Certified',
+    ],
     hasCredential: [
-      { '@type': 'EducationalOccupationalCredential', name: 'ISO 9001:2015' },
-      { '@type': 'EducationalOccupationalCredential', name: 'GMP Certified' },
+      { '@type': 'EducationalOccupationalCredential', name: 'ISO 9001:2015', credentialCategory: 'certification' },
+      { '@type': 'EducationalOccupationalCredential', name: 'GMP Certified', credentialCategory: 'certification' },
+    ],
+    areaServed: [
+      { '@type': 'Country', name: 'India' },
+      { '@type': 'State', name: 'Telangana' },
+      { '@type': 'State', name: 'Andhra Pradesh' },
+      { '@type': 'State', name: 'Karnataka' },
+      { '@type': 'State', name: 'Tamil Nadu' },
+      { '@type': 'State', name: 'Maharashtra' },
     ],
     sameAs: [
       'https://www.instagram.com/vyraherbals/',
       'https://www.youtube.com/@vyraherbals',
+      'https://www.facebook.com/vyraherbals',
       // Fill in Amazon / Flipkart / Meesho seller pages when available — these
       // feed the GEO "entity clarity" signal the SEO audit calls out.
     ],
@@ -342,6 +382,61 @@ export function organizationJsonLd() {
         areaServed: 'IN',
         availableLanguage: ['en', 'hi', 'te'],
       },
+      {
+        '@type': 'ContactPoint',
+        contactType: 'sales',
+        url: `${SITE_URL}/contact`,
+        areaServed: 'IN',
+        availableLanguage: ['en', 'hi', 'te'],
+      },
+    ],
+  };
+}
+
+/**
+ * LocalBusiness / Store JSON-LD — feeds Google's local knowledge panel
+ * ("Vyra Herbals Hyderabad" queries) and Maps if a GBP is claimed against
+ * the same address.
+ *
+ * This is separate from Organization so the two can coexist. Google
+ * accepts multiple entities per page as long as `@id` values are unique.
+ */
+export function localBusinessJsonLd() {
+  return {
+    '@context': 'https://schema.org',
+    '@type': ['Store', 'HealthAndBeautyBusiness'],
+    '@id': `${SITE_URL}/#localbusiness`,
+    name: SITE_NAME,
+    url: SITE_URL,
+    image: `${SITE_URL}/assets/images/logo-final.png`,
+    telephone: '+91-XXXXXXXXXX', // Replace with real phone when public
+    email: 'support@vyraherbals.com',
+    priceRange: '₹₹',
+    currenciesAccepted: 'INR',
+    paymentAccepted: 'Credit Card, Debit Card, UPI, Netbanking, Cash on Delivery',
+    address: {
+      '@type': 'PostalAddress',
+      addressLocality: 'Hyderabad',
+      addressRegion: 'Telangana',
+      addressCountry: 'IN',
+    },
+    areaServed: [
+      { '@type': 'Country', name: 'India' },
+      { '@type': 'State', name: 'Telangana' },
+      { '@type': 'State', name: 'Andhra Pradesh' },
+      { '@type': 'State', name: 'Karnataka' },
+    ],
+    openingHoursSpecification: [
+      {
+        '@type': 'OpeningHoursSpecification',
+        dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+        opens: '10:00',
+        closes: '19:00',
+      },
+    ],
+    sameAs: [
+      'https://www.instagram.com/vyraherbals/',
+      'https://www.youtube.com/@vyraherbals',
     ],
   };
 }
@@ -464,6 +559,110 @@ export function blogPostingJsonLd(post: SeoBlogPost) {
     mainEntityOfPage: canonical,
     articleSection: 'Hair Care',
     keywords: post.tags?.join(', ') || undefined,
+  };
+}
+
+/**
+ * HowTo JSON-LD — targets "how to apply hair oil", "how to use rosemary
+ * leaves", "how to oil hair overnight" and other AEO-heavy queries. Google
+ * strips the rich result for HowTo in most markets since Sep 2023, BUT
+ * Bing, DuckDuckGo, and ChatGPT/Perplexity/Claude ALL still consume it
+ * heavily for answer generation. This is the highest-ROI schema for GEO.
+ *
+ * Attach one per concern page + one on the About/routine pages.
+ */
+export function howToJsonLd(params: {
+  name: string;
+  description: string;
+  image?: string;
+  totalTime?: string; // ISO 8601 duration, e.g. "PT10M" for 10 minutes
+  estimatedCost?: { currency: string; value: number };
+  supply?: string[];
+  tool?: string[];
+  steps: Array<{ name: string; text: string; image?: string; url?: string }>;
+}) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'HowTo',
+    name: params.name,
+    description: params.description,
+    image: params.image ? absoluteUrl(params.image) : DEFAULT_OG_IMAGE,
+    ...(params.totalTime ? { totalTime: params.totalTime } : {}),
+    ...(params.estimatedCost
+      ? {
+          estimatedCost: {
+            '@type': 'MonetaryAmount',
+            currency: params.estimatedCost.currency,
+            value: params.estimatedCost.value,
+          },
+        }
+      : {}),
+    ...(params.supply?.length
+      ? { supply: params.supply.map((s) => ({ '@type': 'HowToSupply', name: s })) }
+      : {}),
+    ...(params.tool?.length
+      ? { tool: params.tool.map((t) => ({ '@type': 'HowToTool', name: t })) }
+      : {}),
+    step: params.steps.map((s, i) => ({
+      '@type': 'HowToStep',
+      position: i + 1,
+      name: s.name,
+      text: s.text,
+      ...(s.image ? { image: absoluteUrl(s.image) } : {}),
+      ...(s.url ? { url: s.url } : {}),
+    })),
+  };
+}
+
+/**
+ * Speakable JSON-LD — marks a set of CSS selectors as "read aloud" content
+ * for Google Assistant / Alexa / Siri voice answers. Attach to article/blog
+ * pages and concern landing pages that contain a "quick answer" block.
+ */
+export function speakableJsonLd(cssSelectors: string[] = ['.quick-answer', 'h1', '[data-speakable]']) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    speakable: {
+      '@type': 'SpeakableSpecification',
+      cssSelector: cssSelectors,
+    },
+  };
+}
+
+/**
+ * Video schema — attach when embedding a YouTube video (hero, testimonials,
+ * routine explainer). Feeds Google Video results, YouTube's own Suggested
+ * shelf, and AI assistants that quote captions.
+ */
+export function videoObjectJsonLd(params: {
+  name: string;
+  description: string;
+  thumbnailUrl: string;
+  uploadDate: string; // ISO 8601 date
+  contentUrl?: string;
+  embedUrl?: string;
+  duration?: string; // ISO 8601 duration
+  publisher?: string;
+}) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'VideoObject',
+    name: params.name,
+    description: params.description,
+    thumbnailUrl: absoluteUrl(params.thumbnailUrl),
+    uploadDate: params.uploadDate,
+    ...(params.contentUrl ? { contentUrl: params.contentUrl } : {}),
+    ...(params.embedUrl ? { embedUrl: params.embedUrl } : {}),
+    ...(params.duration ? { duration: params.duration } : {}),
+    publisher: {
+      '@type': 'Organization',
+      name: params.publisher || SITE_NAME,
+      logo: {
+        '@type': 'ImageObject',
+        url: `${SITE_URL}/assets/images/logo-final.png`,
+      },
+    },
   };
 }
 

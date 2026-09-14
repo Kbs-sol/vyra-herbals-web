@@ -7,7 +7,7 @@ import { FaEye, FaShoppingCart } from "react-icons/fa";
 import { useCart } from "../Contexts/CartContext";
 import { useRouter } from "next/navigation";
 
-import { trackEvent } from "@/utils/analytics";
+import { addToCart } from "@/utils/analytics";
 
 const AddToCartButton = (props) => {
   const { productId, quantity = 1, className, product } = props;
@@ -27,14 +27,18 @@ const AddToCartButton = (props) => {
     setLoading(true);
     await addItemToCart(productId, quantity, product);
     
-    // Track AddToCart event
-    trackEvent('AddToCart', {
-      content_name: product?.title,
-      content_ids: [productId],
-      content_type: 'product',
-      value: product?.price || 0,
+    // Track AddToCart — GA4 + Meta Pixel (browser) + Meta CAPI (server, via
+    // /api/events/meta), all deduplicated via the shared event_id. The named
+    // helper takes care of storing the event_id in sessionStorage so a
+    // matching InitiateCheckout / Purchase can reference the same journey.
+    addToCart({
+      item_id: productId,
+      item_name: product?.title,
+      item_category: product?.category,
+      item_brand: 'Vyra Herbals',
+      price: Number(product?.price || 0),
+      quantity,
       currency: 'INR',
-      quantity: quantity
     });
 
     setLoading(false);

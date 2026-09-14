@@ -6,6 +6,7 @@ import { notifyOrderPlaced } from '@/services/communications/integration/orderNo
 import { requireUser } from '@/utils/apiAuth';
 import { enforceRateLimit } from '@/utils/rateLimit';
 import { COD_Charges } from '@/constants';
+import { capiPurchase, extractCapiContext } from '@/utils/metaCapi';
 
 
 // Force dynamic — API routes touch Supabase / cookies; static analysis at build time would try
@@ -252,6 +253,47 @@ export async function POST(req: Request) {
     //    the function budget, for a message the queue's dedupe_key then threw
     //    away. It also read `shippingData.phone` directly, which breaks on rows
     //    whose shipping_data is stored as a JSON string.
+
+    // 6. Meta Conversions API — server-side Purchase mirror. COD orders count
+    //    as conversions the same as prepaid; without CAPI we'd under-report
+    //    the ~55% of the order book that ships COD in South India. event_id
+    //    matches the browser-side `order_<txn_id>` fired from OrderPlaced.tsx.
+    try {
+      const capiCtx = extractCapiContext(req);
+      const shipping = order?.shipping_data || orderData?.shippingData || {};
+      const nameParts = String(shipping.fullName || shipping.name || '').trim().split(/\s+/);
+      const capiItems = (order?.items || orderItems || []).map((p: any) => ({
+        id: String(p.product_id || p.id),
+        quantity: Number(p.quantity || p.qty || 1),
+        price: Number(p.price || p.unit_price || 0),
+        title: p.title || p.name,
+        category: p.category,
+      }));
+      await capiPurchase({
+        order_id: order?.txn_id || order?.id,
+        total: Number(order?.total_amount ?? 0),
+        currency: 'INR',
+        items: capiItems,
+        customer: {
+          email: shipping.email,
+          phone: shipping.phone || shipping.mobile,
+          first_name: nameParts[0],
+          last_name: nameParts.slice(1).join(' ') || undefined,
+          city: shipping.city,
+          state: shipping.state,
+          zip: shipping.pincode || shipping.zip || shipping.postalCode,
+          country: 'in',
+          external_id: userId ? String(userId) : undefined,
+        },
+        ip: capiCtx.ip,
+        userAgent: capiCtx.userAgent,
+        fbp: capiCtx.fbp,
+        fbc: capiCtx.fbc,
+        sourceUrl: `${new URL(req.url).origin}/order-placed/${order?.id ?? ''}`,
+      });
+    } catch (capiErr) {
+      console.warn('[COD] CAPI Purchase send failed:', (capiErr as Error).message);
+    }
 
     return NextResponse.json({
       order_id: order?.id,

@@ -1,0 +1,9 @@
+# RFC 9116 security.txt — trust signal picked up by Google, Bing, and
+# security-scanning crawlers. A missing security.txt slightly downweights
+# the site's E-E-A-T score, especially for e-commerce.
+
+Contact: mailto:support@vyraherbals.com
+Expires: 2027-12-31T23:59:59.000Z
+Preferred-Languages: en, hi
+Canonical: https://vyraherbals.com/.well-known/security.txt
+Policy: https://vyraherbals.com/privacy-policy

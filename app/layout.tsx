@@ -11,7 +11,8 @@ import ConditionalLayout from '@/Components/Common/ConditionalLayout';
 import { ToastContainer } from 'react-toastify';
 import JsonLd from '@/Components/Shared/JsonLd';
 import AnalyticsLoader from '@/Components/Common/AnalyticsLoader';
-import { organizationJsonLd, websiteJsonLd, SITE_URL, BRAND_DEFAULT_DESCRIPTION } from '@/utils/seo';
+import ConsentBanner from '@/Components/Common/ConsentBanner';
+import { organizationJsonLd, websiteJsonLd, localBusinessJsonLd, SITE_URL, BRAND_DEFAULT_DESCRIPTION } from '@/utils/seo';
 import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -105,7 +106,23 @@ export default function RootLayout({
          * the sitewide fix). Product / category / blog pages layer their own
          * schema on top via <JsonLd />.
          */}
-        <JsonLd data={[organizationJsonLd(), websiteJsonLd()]} />
+        <JsonLd data={[organizationJsonLd(), websiteJsonLd(), localBusinessJsonLd()]} />
+        {/*
+         * Preconnect the third-party origins that render on the first
+         * paint. Each one saves ~100–200 ms of DNS+TLS on mobile.
+         */}
+        <link rel="preconnect" href="https://www.googletagmanager.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://connect.facebook.net" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://www.facebook.com" />
+        <link rel="dns-prefetch" href="https://www.clarity.ms" />
+        {/* PWA manifest + theme color for Chrome/Safari address bar + Android install prompt */}
+        <link rel="manifest" href="/manifest.webmanifest" />
+        <meta name="theme-color" content="#2d7a3a" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Vyra Herbals" />
       </head>
       <body className={openSans.className} suppressHydrationWarning={true}>
         {/*
@@ -117,6 +134,10 @@ export default function RootLayout({
         <Suspense fallback={null}>
           <AnalyticsLoader />
         </Suspense>
+        {/* DPDP Act 2023 consent banner — renders once until the visitor
+         * chooses accept or reject. Wired to Google Consent Mode v2 and
+         * Meta Pixel's `fbq('consent', ...)`. */}
+        <ConsentBanner />
 
         <AuthProvider>
           <CartProvider>
