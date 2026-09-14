@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
 import { finalizeOrderFromSession } from '@/utils/orderFinalize';
 import { verifyEasebuzzCallbackHash, verifyEasebuzzTransaction } from '@/utils/easebuzz';
+import { extractCapiContext } from '@/utils/metaCapi';
 
 
 // Force dynamic — API routes touch Supabase / cookies; static analysis at build time would try
@@ -92,9 +93,21 @@ export async function POST(req: Request) {
         }
 
         // ---- PAYMENT IS GENUINE — create the durable order -------------------
+        // Capture Meta CAPI context from the callback request: the visitor's
+        // browser fbp/fbc cookies + IP + UA are on THIS request (Easebuzz
+        // sends them along as browser POSTs the surl). Pass into finalize so
+        // the server-side Purchase event has full attribution context.
+        const capiCtx = extractCapiContext(req);
         const result = await finalizeOrderFromSession(supabase, txnid, {
             paymentAmount: (data.amount as any) ?? null,
             paymentMethod: 'online',
+            capi: {
+                ip: capiCtx.ip,
+                userAgent: capiCtx.userAgent,
+                fbp: capiCtx.fbp,
+                fbc: capiCtx.fbc,
+                sourceUrl: `${appUrl}/order-placed`,
+            },
         });
 
         if (!result.ok) {

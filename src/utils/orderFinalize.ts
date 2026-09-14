@@ -5,6 +5,7 @@ import {
   notifyPaymentConfirmed,
 } from '@/services/communications/integration/orderNotifications';
 import { SUCCESSFUL_ORDER_STATUSES } from '@/utils/orderStatus';
+import { capiPurchase } from '@/utils/metaCapi';
 
 export type FinalizeResult =
   | { ok: true; order: any; alreadyExisted: boolean; trackingId: string }
@@ -25,7 +26,26 @@ export type FinalizeResult =
 export const finalizeOrderFromSession = async (
   supabase: any,
   txnIdStr: string,
-  opts: { paymentAmount?: number | string | null; paymentMethod?: string | null } = {}
+  opts: {
+    paymentAmount?: number | string | null;
+    paymentMethod?: string | null;
+    /**
+     * Optional visitor context captured from the payment-completion request
+     * (surl callback, reconcile route). Used for the server-side Meta
+     * Conversions API Purchase event so Meta can match the visitor to the ad
+     * click even when Safari ITP / adblockers dropped the browser Pixel.
+     *
+     * Every field is optional — a missing context just means a lower match
+     * quality score in Meta, not a broken purchase.
+     */
+    capi?: {
+      ip?: string;
+      userAgent?: string;
+      fbp?: string;
+      fbc?: string;
+      sourceUrl?: string;
+    };
+  } = {}
 ): Promise<FinalizeResult> => {
   // Idempotency check: did a prior call already create a *successful* order?
   // Restricting to successful statuses means a stale 'Failed' row (legacy data)
@@ -210,6 +230,55 @@ export const finalizeOrderFromSession = async (
   if (inserted && !alreadyExisted) {
     await notifyOrderPlaced(inserted);
     await notifyPaymentConfirmed(inserted);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Meta Conversions API — server-side Purchase mirror.
+  //
+  // Fire once per NEW order (guarded on !alreadyExisted so reconciliation
+  // retries don't double-count). event_id is `order_<txn_id>` so it dedupes
+  // against the browser Pixel event fired from OrderPlaced.tsx.
+  //
+  // Failure is deliberately swallowed — Meta's Graph API being slow / down
+  // must never fail a checkout finalize path.
+  // ---------------------------------------------------------------------------
+  if (inserted && !alreadyExisted) {
+    try {
+      const shipping = inserted.shipping_data || orderData?.shippingData || {};
+      const items = (inserted.items || orderData?.orderItems || []).map((p: any) => ({
+        id: String(p.product_id || p.id),
+        quantity: Number(p.quantity || p.qty || 1),
+        price: Number(p.price || p.unit_price || 0),
+        title: p.title || p.name,
+        category: p.category,
+      }));
+      const nameParts = String(shipping.fullName || shipping.name || '').trim().split(/\s+/);
+      await capiPurchase({
+        order_id: inserted.txn_id || inserted.order_id || inserted.id,
+        total: Number(inserted.total_amount ?? opts.paymentAmount ?? 0),
+        currency: 'INR',
+        items,
+        customer: {
+          email: shipping.email || orderData?.email,
+          phone: shipping.phone || shipping.mobile || orderData?.phone,
+          first_name: nameParts[0],
+          last_name: nameParts.slice(1).join(' ') || undefined,
+          city: shipping.city,
+          state: shipping.state,
+          zip: shipping.pincode || shipping.zip || shipping.postalCode,
+          country: 'in',
+          external_id: inserted.user_id ? String(inserted.user_id) : undefined,
+        },
+        ip: opts.capi?.ip,
+        userAgent: opts.capi?.userAgent,
+        fbp: opts.capi?.fbp,
+        fbc: opts.capi?.fbc,
+        sourceUrl: opts.capi?.sourceUrl,
+      });
+    } catch (capiErr) {
+      // Never throw — a broken CAPI attempt is a marketing loss, not a business loss.
+      console.warn('[finalizeOrderFromSession] CAPI Purchase send failed:', (capiErr as Error).message);
+    }
   }
 
   return { ok: true, order: inserted, alreadyExisted, trackingId };
