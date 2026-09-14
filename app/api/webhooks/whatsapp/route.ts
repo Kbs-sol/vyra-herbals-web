@@ -5,6 +5,11 @@ import { updateDeliveryStatusByMessageId } from '@/services/communications/loggi
 import { logInboundMessage } from '@/services/communications/logging/inboundLogger';
 import { logger } from '@/services/communications/logging/logger';
 
+// Force dynamic — API routes touch Supabase / cookies; static analysis at build time would try
+// to import the module without runtime env vars and blow up in 'collect page data'.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export const runtime = 'nodejs'; // crypto signature verification needs the Node runtime, not edge
 
 /**
@@ -91,12 +96,6 @@ export async function POST(req: Request) {
   if (incomingMessages.length > 0) {
     // Process asynchronously so we don't block the 200 OK response to Meta
     import('@/services/communications/bot/botEngine')
-
-// Force dynamic — API routes touch Supabase / cookies; static analysis at build time would try
-// to import the module without runtime env vars and blow up in 'collect page data'.
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
       .then(({ processIncomingMessages }) => {
         processIncomingMessages(incomingMessages).catch((err) => {
           logger.error('whatsapp_bot_processing_error', { error: err.message });
