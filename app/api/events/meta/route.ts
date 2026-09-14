@@ -152,36 +152,35 @@ export async function POST(req: Request) {
         break;
 
       case 'InitiateCheckout':
+        result = await capiInitiateCheckout({
+          event_id,
+          total: Number(body.total ?? 0),
+          items: Array.isArray(body.items) ? body.items : [],
+          ...requestCtx,
+        });
+        break;
+
       case 'AddPaymentInfo':
-        result = await (event_name === 'InitiateCheckout' ? capiInitiateCheckout : sendCapiEvent)(
-          event_name === 'InitiateCheckout'
-            ? {
-                event_id,
-                total: Number(body.total ?? 0),
-                items: Array.isArray(body.items) ? body.items : [],
-                ...requestCtx,
-              }
-            : {
-                event_name: 'AddPaymentInfo',
-                event_id,
-                event_source_url,
-                user_data: {
-                  country: 'in',
-                  client_ip_address: requestCtx.ip,
-                  client_user_agent: requestCtx.userAgent,
-                  fbp: requestCtx.fbp,
-                  fbc: requestCtx.fbc,
-                },
-                custom_data: {
-                  currency: 'INR',
-                  value: Number(body.total ?? 0),
-                  content_type: 'product',
-                  content_ids: (body.items || []).map((i: any) => String(i.id)),
-                  contents: (body.items || []).map((i: any) => ({ id: String(i.id), quantity: i.quantity ?? 1, item_price: i.price })),
-                  num_items: (body.items || []).reduce((n: number, i: any) => n + (i.quantity || 1), 0),
-                },
-              }
-        );
+        result = await sendCapiEvent({
+          event_name: 'AddPaymentInfo',
+          event_id,
+          event_source_url,
+          user_data: {
+            country: 'in',
+            client_ip_address: requestCtx.ip,
+            client_user_agent: requestCtx.userAgent,
+            fbp: requestCtx.fbp,
+            fbc: requestCtx.fbc,
+          },
+          custom_data: {
+            currency: 'INR',
+            value: Number(body.total ?? 0),
+            content_type: 'product',
+            content_ids: (body.items || []).map((i: any) => String(i.id)),
+            contents: (body.items || []).map((i: any) => ({ id: String(i.id), quantity: i.quantity ?? 1, item_price: i.price })),
+            num_items: (body.items || []).reduce((n: number, i: any) => n + (i.quantity || 1), 0),
+          },
+        });
         break;
 
       case 'Search':

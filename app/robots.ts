@@ -88,6 +88,11 @@ export default function robots(): MetadataRoute.Robots {
     // Merchant Center reads feed.xml on its own schedule, but including it
     // here also lets other crawlers (e.g. Bing Merchant, Yandex Products)
     // find it without extra config.
+    //
+    // NOTE: `/llms.txt` and `/ai.txt` are not sitemaps, but many AI
+    // assistants look for them at the site root regardless — no need to
+    // advertise them here (advertising them via robots.txt would flag
+    // them as sitemaps to Google, which is incorrect).
     sitemap: [`${SITE_URL}/sitemap.xml`, `${SITE_URL}/feed.xml`],
     host: SITE_URL,
   };
