@@ -25,7 +25,7 @@ vyra-herbals-web/
 │   ├── category/[categoryName]/  Category listing — server component with ItemList schema.
 │   ├── blogs/                    Blog index + [slug] detail (BlogPosting schema).
 │   ├── faqs/                     Static FAQ page (with FAQPage schema).
-│   ├── about/                    Founder story (Person schema for Sahera Banu).
+│   ├── about/                    Founder story (Person schema — name read from `NEXT_PUBLIC_FOUNDER_NAME`).
 │   ├── contact/                  Contact form.
 │   │
 │   ├── (utility routes)          cart, checkout, login, signup, profile, orders, wishlist,
@@ -599,7 +599,7 @@ Being explicit about scope so future you doesn't wonder:
 5. **Order ID generation (`Date.now()` in `orderFinalize.ts`)** — the audit flags collision risk. Real risk is small at current volume but should be migrated to UUID v4 with an idempotency key on the payment side. Not this pass.
 6. **Cart context re-renders** — the whole cart re-renders on every quantity change. Not urgent given cart sizes are small; refactor to a `Map<id, item>` + selector hooks later.
 7. **`bootstrap` + `slick-carousel` + `sass`** — big dependencies, but ripping them out mid-flight breaks styling in many places. Consolidate onto Tailwind or CSS Modules in a dedicated pass.
-8. **Blog default author** — was hardcoded to "Nat Habit". Now falls back to founder name (`Sahera Banu`) in the blog page. But any old blog rows with `author = 'Nat Habit'` in the DB need a one-time `UPDATE blogs SET author = 'Sahera Banu' WHERE author = 'Nat Habit'`.
+8. **Blog default author** — was hardcoded to "Nat Habit". Now falls back to the configured founder name in the blog page. Any old blog rows still carrying `author = 'Nat Habit'` in the DB need a one-time `UPDATE blogs SET author = '<founder name>' WHERE author = 'Nat Habit'`.
 
 ## 15. Post-deploy checklist (30 minutes)
 
@@ -629,4 +629,13 @@ Run this after the first Vercel deploy of this repo:
 - **SEO question**: this document (§3), then the SEO audit PDF in `docs/`.
 - **Code audit findings**: `docs/vyra-herbals-audit-report.pdf` (largely fixed — see §14 for what's deferred).
 
-_Last updated: with the vyra-herbals-web migration — 2026-09-06._
+_Last updated: with the vyra-herbals-web migration + SEO/GEO/AEO + Meta CAPI + DPDP consent + admin Media Library + admin dashboard UX pass — 2026-09-15._
+
+---
+
+## Credit
+
+The SEO / GEO / AEO rebuild, Meta Pixel + Conversions API wire-up, DPDP consent stack, `/admin/media` Library page, admin dashboard welcome header + quick-actions, and this System Literacy document itself were built by **[VJ](mailto:vijayprasadvvp@gmail.com?subject=Found%20you%20via%20vyraherbals.com&body=Hi%20VJ%2C%20I%20saw%20your%20credit%20on%20https%3A%2F%2Fvyraherbals.com%20%2F%20its%20GitHub%20repo%20and%20wanted%20to%20get%20in%20touch.)**.
+
+Reach VJ at [vijayprasadvvp@gmail.com](mailto:vijayprasadvvp@gmail.com?subject=Found%20you%20via%20vyraherbals.com) — the mailto pre-fills a subject line with the site name so VJ knows where you found this credit.
+

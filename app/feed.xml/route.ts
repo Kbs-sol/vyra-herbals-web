@@ -112,10 +112,15 @@ export async function GET() {
   const supabase = createServerSupabase();
 
   // Only publish products that are active, in stock, and have a price.
+  // NOTE: `products.status` is INTEGER DEFAULT 1 (see DATABASE_FIX_PRODUCTION.sql).
+  // Previous filter used `.or('status.eq.1,status.eq.active,status.is.null')` which
+  // failed at the PostgREST layer because `active` is a string being compared
+  // against an INTEGER column, producing 0 rows. Use the same simple filter
+  // that the working /api/products/by-category route uses: `.eq('status', 1)`.
   const { data, error } = await supabase
     .from('products')
     .select('id, handle, title, description, short_description, price, compare_at_price, image_url, images, category, sku, stock, status, brand')
-    .or('status.eq.1,status.eq.active,status.is.null')
+    .eq('status', 1)
     .limit(500);
 
   if (error) {
