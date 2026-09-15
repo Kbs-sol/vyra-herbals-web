@@ -135,18 +135,66 @@ export default function AdminDashboard() {
     return colors[status] || '#f3f4f6';
   };
 
+  // Human greeting based on IST time
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
+  })();
+
+  const todayStr = new Date().toLocaleDateString('en-IN', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+
   return (
     <AdminLayoutWrapper pageTitle="Dashboard">
       <div className="dashboard">
+        {/* Welcome header — always visible, doesn't depend on data */}
+        <div className="welcome-header">
+          <div className="welcome-text">
+            <h1 className="welcome-title">{greeting} 👋</h1>
+            <p className="welcome-sub">{todayStr} · Here's a snapshot of your store today.</p>
+          </div>
+          <div className="quick-actions">
+            <a href="/admin/products" className="qa-btn">
+              <span className="qa-icon">📦</span>
+              <span>Products</span>
+            </a>
+            <a href="/admin/media" className="qa-btn">
+              <span className="qa-icon">🖼️</span>
+              <span>Media</span>
+            </a>
+            <a href="/admin/orders" className="qa-btn qa-primary">
+              <span className="qa-icon">🧾</span>
+              <span>Orders</span>
+            </a>
+            <a href="/admin/whatsapp" className="qa-btn">
+              <span className="qa-icon">💬</span>
+              <span>WhatsApp</span>
+            </a>
+            <a href="/admin/reviews" className="qa-btn">
+              <span className="qa-icon">⭐</span>
+              <span>Reviews</span>
+            </a>
+          </div>
+        </div>
+
         {loading ? (
-          <div className="loading-container">
-            <div className="spinner"></div>
-            <p>Loading dashboard...</p>
+          <div className="skeleton-grid">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="skeleton-card" />
+            ))}
           </div>
         ) : error ? (
           <div className="error-container">
+            <div className="error-icon">⚠️</div>
+            <h3>Unable to load dashboard</h3>
             <p>{error}</p>
-            <button onClick={() => fetchDashboardData(selectedMonth)}>Retry</button>
+            <button onClick={() => fetchDashboardData(selectedMonth)}>Try again</button>
           </div>
         ) : data && (
           <>
@@ -498,6 +546,111 @@ export default function AdminDashboard() {
           .dashboard {
             max-width: 1400px;
             margin: 0 auto;
+          }
+
+          /* Welcome header */
+          .welcome-header {
+            background: linear-gradient(135deg, #ecfdf5 0%, #ffffff 60%, #f0f9ff 100%);
+            border: 1px solid #e5e7eb;
+            border-radius: 16px;
+            padding: 22px 24px;
+            margin-bottom: 22px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: center;
+            justify-content: space-between;
+          }
+          .welcome-title {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 700;
+            color: #0f172a;
+            letter-spacing: -0.3px;
+          }
+          .welcome-sub {
+            margin: 4px 0 0;
+            color: #64748b;
+            font-size: 14px;
+          }
+          .quick-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+          }
+          .qa-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 14px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            color: #334155;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: transform 0.1s, box-shadow 0.2s, border-color 0.2s;
+          }
+          .qa-btn:hover {
+            transform: translateY(-1px);
+            border-color: #10b981;
+            box-shadow: 0 4px 10px rgba(16, 185, 129, 0.12);
+          }
+          .qa-btn.qa-primary {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: #ffffff;
+            border-color: transparent;
+            box-shadow: 0 4px 10px rgba(16, 185, 129, 0.28);
+          }
+          .qa-btn.qa-primary:hover {
+            box-shadow: 0 6px 14px rgba(16, 185, 129, 0.38);
+          }
+          .qa-icon {
+            font-size: 15px;
+            line-height: 1;
+          }
+
+          /* Skeleton loading — perceived-performance win */
+          .skeleton-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-top: 24px;
+          }
+          @media (max-width: 1200px) {
+            .skeleton-grid { grid-template-columns: repeat(2, 1fr); }
+          }
+          @media (max-width: 640px) {
+            .skeleton-grid { grid-template-columns: 1fr; }
+          }
+          .skeleton-card {
+            height: 128px;
+            border-radius: 16px;
+            background: linear-gradient(90deg, #f1f5f9 0%, #e2e8f0 50%, #f1f5f9 100%);
+            background-size: 200% 100%;
+            animation: shimmer 1.4s ease-in-out infinite;
+          }
+          @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+          }
+
+          .error-icon {
+            font-size: 40px;
+          }
+          .error-container h3 {
+            margin: 0;
+            color: #0f172a;
+            font-size: 18px;
+            font-weight: 600;
+          }
+          .error-container p {
+            color: #64748b;
+            max-width: 400px;
+            text-align: center;
+            font-size: 14px;
+            margin: 0;
           }
 
           .loading-container, .error-container {
