@@ -24,8 +24,10 @@ import { Product } from '@/types';
 
 // ------------------------------- Row --------------------------------------
 
+type ProductId = number | string;
+
 interface RowState {
-  id: number;
+  id: ProductId;
   title: string;
   handle: string;
   category: string;
@@ -94,7 +96,7 @@ function Thumb({ url, onClick, size = 72 }: { url: string; onClick?: () => void;
 
 export default function AdminMediaPage() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [rows, setRows] = useState<Record<number, RowState>>({});
+  const [rows, setRows] = useState<Record<string, RowState>>({});
   const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [search, setSearch] = useState('');
@@ -116,9 +118,9 @@ export default function AdminMediaPage() {
       if (data.success) {
         const list = (data.data || []) as any[];
         setProducts(list);
-        const map: Record<number, RowState> = {};
+        const map: Record<string, RowState> = {};
         list.forEach((p) => {
-          map[p.id] = emptyRow(p);
+          map[String(p.id)] = emptyRow(p);
         });
         setRows(map);
         const cats = Array.from(new Set(list.map((p) => p.category).filter(Boolean))) as string[];
@@ -137,7 +139,7 @@ export default function AdminMediaPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return products.filter((p) => {
-      const row = rows[p.id];
+      const row = rows[String(p.id)];
       if (!row) return false;
       if (categoryFilter && row.category !== categoryFilter) return false;
       if (onlyMissing && row.mainImage) return false;
@@ -152,19 +154,20 @@ export default function AdminMediaPage() {
   }, [products, rows, categoryFilter, search, onlyBroken, onlyMissing]);
 
   // -------- state mutation helpers --------
-  const patchRow = (id: number, patch: Partial<RowState>) => {
+  const patchRow = (id: ProductId, patch: Partial<RowState>) => {
+    const k = String(id);
     setRows((prev) => ({
       ...prev,
-      [id]: { ...prev[id], ...patch, dirty: true },
+      [k]: { ...prev[k], ...patch, dirty: true },
     }));
   };
 
-  const onMainUrlChange = (id: number, value: string) => {
+  const onMainUrlChange = (id: ProductId, value: string) => {
     patchRow(id, { mainUrlDraft: value });
   };
 
-  const commitMainUrl = (id: number) => {
-    const row = rows[id];
+  const commitMainUrl = (id: ProductId) => {
+    const row = rows[String(id)];
     if (!row) return;
     const url = row.mainUrlDraft.trim();
     // Update gallery so main image is always at index 0 (or absent if empty)
@@ -173,8 +176,8 @@ export default function AdminMediaPage() {
     patchRow(id, { mainImage: url, gallery });
   };
 
-  const addGalleryUrl = (id: number) => {
-    const row = rows[id];
+  const addGalleryUrl = (id: ProductId) => {
+    const row = rows[String(id)];
     if (!row) return;
     const url = row.newUrl.trim();
     if (!url) return;
@@ -192,8 +195,8 @@ export default function AdminMediaPage() {
     });
   };
 
-  const removeGallery = (id: number, url: string) => {
-    const row = rows[id];
+  const removeGallery = (id: ProductId, url: string) => {
+    const row = rows[String(id)];
     if (!row) return;
     const gallery = row.gallery.filter((g) => g !== url);
     patchRow(id, {
@@ -204,8 +207,8 @@ export default function AdminMediaPage() {
     });
   };
 
-  const moveGallery = (id: number, from: number, to: number) => {
-    const row = rows[id];
+  const moveGallery = (id: ProductId, from: number, to: number) => {
+    const row = rows[String(id)];
     if (!row) return;
     const gallery = [...row.gallery];
     if (to < 0 || to >= gallery.length) return;
@@ -219,7 +222,7 @@ export default function AdminMediaPage() {
   };
 
   // -------- upload --------
-  const onFileUpload = async (id: number, file: File, target: 'main' | 'gallery') => {
+  const onFileUpload = async (id: ProductId, file: File, target: 'main' | 'gallery') => {
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
       patchRow(id, { error: 'File must be under 5 MB' });
@@ -237,7 +240,7 @@ export default function AdminMediaPage() {
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Upload failed');
       const url: string = data.publicUrl;
-      const row = rows[id];
+      const row = rows[String(id)];
       if (target === 'main') {
         const gallery = [url, ...row.gallery.filter((g) => g !== url)];
         patchRow(id, {
@@ -261,8 +264,9 @@ export default function AdminMediaPage() {
   };
 
   // -------- save --------
-  const saveRow = async (id: number) => {
-    const row = rows[id];
+  const saveRow = async (id: ProductId) => {
+    const k = String(id);
+    const row = rows[k];
     if (!row) return;
     patchRow(id, { saving: true, error: null });
     try {
@@ -284,8 +288,8 @@ export default function AdminMediaPage() {
       if (!data.success) throw new Error(data.error || 'Save failed');
       setRows((prev) => ({
         ...prev,
-        [id]: {
-          ...prev[id],
+        [k]: {
+          ...prev[k],
           saving: false,
           savedAt: Date.now(),
           dirty: false,
@@ -297,10 +301,10 @@ export default function AdminMediaPage() {
     }
   };
 
-  const revertRow = (id: number) => {
-    const src = products.find((p) => p.id === id);
+  const revertRow = (id: ProductId) => {
+    const src = products.find((p) => String(p.id) === String(id));
     if (!src) return;
-    setRows((prev) => ({ ...prev, [id]: emptyRow(src) }));
+    setRows((prev) => ({ ...prev, [String(id)]: emptyRow(src) }));
   };
 
   const saveAllDirty = async () => {
@@ -316,7 +320,7 @@ export default function AdminMediaPage() {
       // Sequential to keep server load gentle.
       // eslint-disable-next-line no-await-in-loop
       await saveRow(r.id);
-      const post = rows[r.id];
+      const post = rows[String(r.id)];
       if (post?.error) fail += 1;
       else ok += 1;
     }
@@ -391,10 +395,10 @@ export default function AdminMediaPage() {
         ) : (
           <div className="rows">
             {filtered.map((p) => {
-              const r = rows[p.id];
+              const r = rows[String(p.id)];
               if (!r) return null;
               return (
-                <div key={p.id} className={`row ${r.dirty ? 'row-dirty' : ''}`}>
+                <div key={String(p.id)} className={`row ${r.dirty ? 'row-dirty' : ''}`}>
                   <div className="row-head">
                     <Thumb url={r.mainImage} size={96} />
                     <div className="meta">
