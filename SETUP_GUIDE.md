@@ -1,162 +1,205 @@
-# Quick Setup Guide
+# Vyra Herbals — Complete System Setup & Operations Guide 🌿
 
-## ✅ What's Been Done
-
-1. **Cleaned up all API endpoints** - Removed `.php` extensions and renamed to clean REST endpoints:
-   - ❌ `/api/get.php` → ✅ `/api/data`
-   - ❌ `/api/insert.php` → ✅ `/api/reviews/create`
-   - ❌ `/api/product_detail.php` → ✅ `/api/products/detail`
-   - ❌ `/api/category_products.php` → ✅ `/api/products/by-category`
-   - ❌ `/api/get_products_with_reviews.php` → ✅ `/api/products/with-reviews`
-   - ❌ `/api/order_info.php` → ✅ `/api/orders/info`
-   - ❌ `/api/shipping.php` → ✅ `/api/shipping/track`
-   - ❌ `/api/payment/get_access.php` → ✅ `/api/payment/access`
-   - ❌ `/api/payment/order_session.php` → ✅ `/api/payment/session`
-   - ❌ `/api/payment/cod_order.php` → ✅ `/api/payment/cod`
-
-2. **Updated all frontend calls** - All components now use the new clean endpoints
-
-3. **Configured Supabase integration** - Database client ready to connect
-
-4. **Removed old files** - Deleted all `.php` forwarding routes and duplicate files
+This guide covers everything you need to configure, operate, and verify the Vyra Herbals e-commerce platform, including the **WhatsApp Conversational Bot**, **Anonymous/Guest Cart System**, **Automated Notification Engine**, and **Supabase Cron Triggers**.
 
 ---
 
-## 🚀 What You Need to Do Now
+## 1. Architecture Overview
 
-### Step 1: Your `.env.local` is Already Configured ✅
-Your environment file already has:
-- NEXT_PUBLIC_SUPABASE_URL
-- NEXT_PUBLIC_SUPABASE_ANON_KEY
-- SUPABASE_URL
-- SUPABASE_SERVICE_ROLE_KEY
-- SUPABASE_STORAGE_BUCKET
-
-### Step 2: Create Database Tables in Supabase
-
-1. Open your Supabase Dashboard: https://app.supabase.com/project/obbohecegyagnqufelpx
-
-2. Go to **SQL Editor**
-
-3. Copy and paste the entire SQL schema from `API_DOCUMENTATION.md` (lines 56-166)
-
-4. Click **Run** to create all tables
-
-### Step 3: Import Your MySQL Data
-
-**Option A: Manual Import (Recommended for small datasets)**
-
-1. Export from your MySQL database:
-   \`\`\`sql
-   SELECT * FROM products;
-   -- Copy results
-   \`\`\`
-
-2. In Supabase SQL Editor, insert data:
-   \`\`\`sql
-   INSERT INTO products (handle, title, description, price, regular_price, image_url, category)
-   VALUES 
-   ('product-handle', 'Product Title', 'Description', 299, 399, 'image.jpg', 'category');
-   -- Add all your products
-   \`\`\`
-
-**Option B: CSV Import**
-
-1. Export MySQL tables to CSV
-2. In Supabase, go to Table Editor → Import from CSV
-3. Upload each CSV file to corresponding table
-
-### Step 4: Upload Product Images to Supabase Storage
-
-1. In Supabase Dashboard → Storage
-2. Create bucket named `images` (or use existing)
-3. Set bucket to **Public**
-4. Upload all product images
-5. Images will be accessible via `/api/uploads/[filename]`
-
-### Step 5: Test the Application
-
-1. Server is already running on: **http://localhost:3001**
-
-2. Open in browser and test:
-   - Homepage loads ✓
-   - Products display ✓
-   - Reviews work ✓
-   - Cart functions ✓
-   - Checkout works ✓
-
-### Step 6: Verify API Endpoints
-
-Test each endpoint to ensure it works:
-
-\`\`\`bash
-# Test products fetch
-curl -X POST http://localhost:3001/api/data \\
-  -H "Content-Type: application/json" \\
-  -d '{"tbl_name":"products","extra_condition":"ORDER BY id DESC LIMIT 5"}'
-
-# Test product detail
-curl -X POST http://localhost:3001/api/products/detail \\
-  -H "Content-Type: application/json" \\
-  -d '{"product_handle":"your-product-handle"}'
-\`\`\`
+```
++-----------------------------------------------------------------------------------+
+|                                 VYRA HERBALS                                      |
++-----------------------------------------------------------------------------------+
+|                                                                                   |
+|  [ Web Storefront ]                 [ WhatsApp Conversational Bot ]               |
+|   • Next.js 14 App Router            • Meta Cloud API Webhook                     |
+|   • Anonymous Cart (anon_carts)      • Multi-State Machine (botEngine.ts)         |
+|   • Seamless Merge on Login          • Browse -> Categories -> Summary -> Pay     |
+|   • Easebuzz / COD Checkout          • Saved Address Re-use                       |
+|                                                                                   |
+|                                         ^                                         |
+|                                         |                                         |
+|  [ Automation & Cron Engine ]           |                                         |
+|   • Supabase pg_cron (10-min tick) -----+                                         |
+|   • /api/cron/scheduled-communications                                            |
+|   • 3-Hour Registration Follow-Up                                                 |
+|   • WhatsApp Event Dispatcher & Message Queue                                     |
+|                                                                                   |
+|  [ Admin Intelligence ]                                                           |
+|   • /admin/customer-intelligence                                                  |
+|   • Abandoned Carts, Wishlists, Delivered, Past Buyers                            |
+|   • CSV Lead Importer & Audience Segmentation                                     |
++-----------------------------------------------------------------------------------+
+```
 
 ---
 
-## 📋 Complete API Endpoint List
+## 2. WhatsApp Conversational Bot Flow
 
-| Old Endpoint | New Endpoint | Status |
-|-------------|--------------|--------|
-| `/api/get.php` | `/api/data` | ✅ Active |
-| `/api/insert.php` | `/api/reviews/create` | ✅ Active |
-| `/api/product_detail.php` | `/api/products/detail` | ✅ Active |
-| `/api/category_products.php` | `/api/products/by-category` | ✅ Active |
-| `/api/get_products_with_reviews.php` | `/api/products/with-reviews` | ✅ Active |
-| `/api/order_info.php` | `/api/orders/info` | ✅ Active |
-| `/api/shipping.php` | `/api/shipping/track` | ✅ Active |
-| `/api/payment/get_access.php` | `/api/payment/access` | ✅ Active |
-| `/api/payment/order_session.php` | `/api/payment/session` | ✅ Active |
-| `/api/payment/cod_order.php` | `/api/payment/cod` | ✅ Active |
-| `/api/uploads/[name]` | `/api/uploads/[name]` | ✅ Active |
+The WhatsApp bot is designed for frictionless mobile shopping without requiring customers to download an app or register an account.
+
+### Customer Interaction Flow:
+1. **Initiation (`"Hi"`, `"Hello"`, or `"Menu"`):**
+   - The bot fetches the customer's name from `users` (if registered) or addresses them naturally.
+   - Responds with:
+     > *"Hey {Name}! Welcome to Vyra Herbals 🌿\nShop 100% pure ayurvedic & herbal products — all right here in chat.\nHave a look around, no sign-up needed."*
+   - Sends interactive list button: **Menu**.
+
+2. **Menu List:**
+   - **Shop**:
+     - `Shop Products` (*Buy products outright*)
+     - `My Orders` (*Track your orders*)
+   - **Help**:
+     - `Track My Order` (*Live shipment tracking via iCarry*)
+     - `Support` (*Direct human handoff / customer support*)
+
+3. **Category Selection (`Shop Products`):**
+   - Displays interactive list: **Shop by category**
+   - Categories: *All Products, Hair Oil, Shampoo, Kits, Combos, Scalp Massager, Neem Combs, Hair Mask Powder, Rosemary Leaves*.
+
+4. **Product Selection:**
+   - Shows active products in the selected category:
+     > `Title (max 24 chars)`
+     > `₹{price} (was ₹{regular_price}) · {category}`
+   - Automatically handles null or unlimited stock in the database.
+
+5. **Order Summary (Immediate Checkout Screen):**
+   - The moment a customer taps any product, it updates `whatsapp_cart_items` and renders the exact order summary:
+     ```
+     📦 Order summary
+     • Vyra Herbal Hair Oil × 1 — ₹499
+     Total due: ₹499
+     ```
+   - Action Buttons:
+     - `[Confirm & Pay]`
+     - `[Browse More]`
+     - `[Main Menu]`
+
+6. **Address Collection & Confirmation:**
+   - Tapping `[Confirm & Pay]` checks if the customer has an existing address from past orders:
+     - **Saved Address**: Prompts `[Deliver Here]` or `[Add New Address]`.
+     - **New Customer**: Sends `[Add Address]` button.
+   - Customer replies with their address. The bot validates the format and sends confirmation buttons:
+     - `[Confirm Address]`
+     - `[Edit Address]`
+
+7. **Payment Options:**
+   - Tapping `[Confirm Address]` creates a draft order in the `orders` table (`source: 'whatsapp'`) and offers:
+     - `[Pay Online]` -> Generates instant Easebuzz checkout link (`/checkout/pay?order_id=...&source=whatsapp`).
+     - `[Pay on Delivery]` -> Converts order to COD and notifies the fulfillment team.
+     - `[Main Menu]`
 
 ---
 
-## ⚠️ Important Notes
+## 3. Web Anonymous / Guest Cart System
 
-1. **The app will work once you create the tables** - Right now APIs return empty arrays because tables don't exist yet
+Guests can browse and add items to cart before logging in without losing their cart on reload or clearing cache.
 
-2. **Image paths** - The `/api/uploads/` endpoint redirects to Supabase Storage. Make sure:
-   - Bucket name matches `SUPABASE_STORAGE_BUCKET` in `.env.local`
-   - Images are uploaded with correct filenames
-
-3. **Product handles** - Make sure your products have unique `handle` fields (URL-friendly slugs)
-
-4. **Reviews status** - Reviews have a `status` field (0 = pending, 1 = approved). Only approved reviews show on frontend.
-
----
-
-## 🎯 Current Status
-
-✅ All API endpoints renamed and working
-✅ All frontend calls updated
-✅ Supabase client configured
-✅ Environment variables set
-✅ Dev server running on port 3001
-
-⏳ **Waiting for you:**
-- Create database tables in Supabase
-- Import your MySQL data
-- Upload product images to Supabase Storage
-
-Once you complete these 3 steps, your application will be **100% functional**!
+### How It Works:
+- **Device Fingerprint**: `src/utils/deviceFingerprint.ts` computes an anonymous hash of non-identifying browser attributes (resolution, timezone, language, canvas hash).
+- **HTTP-Only Cookie**: `app/api/cart/anon/init/route.ts` creates or retrieves a row in `anon_carts` and sets a secure, HTTP-only `anon_device_id` cookie (90-day expiry).
+- **CRUD Operations**: Handled securely on the backend via `/api/cart/anon` (GET, POST, PATCH, DELETE).
+- **Login Merge**: When the guest logs in or completes OTP verification, `app/api/cart/merge/route.ts` moves items from `anon_carts` into the user's permanent `cart` table in Supabase and clears the cookie.
+- **Stock Guard**: Evaluates inventory gracefully. If `stock_quantity` is null in the database, it treats the product as active with unlimited availability. Stock alerts only show if an item is physically low or out of stock.
 
 ---
 
-## 🐛 If Something's Not Working
+## 4. WhatsApp Automation & Supabase Cron Setup
 
-Check the terminal logs where `npm run dev` is running. You'll see:
-- `DEBUG /api/data body:` - Shows what data is being requested
-- `Supabase returned error` - Shows database connection issues
-- Any other errors with stack traces
+The automated notification pipeline handles welcome follow-ups, order status updates, and delivery confirmations.
 
-All error logs include helpful context to debug issues quickly.
+### Step-by-Step Supabase `pg_cron` Activation:
+To run the automated message processor every 10 minutes, execute this SQL in your **Supabase Dashboard > SQL Editor**:
+
+```sql
+-- 1. Ensure extensions are active
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+CREATE EXTENSION IF NOT EXISTS pg_net;
+
+-- 2. Unschedule any legacy or hourly jobs
+SELECT cron.unschedule('process-message-queue-hourly');
+SELECT cron.unschedule('process-message-queue-10min');
+
+-- 3. Schedule the 10-minute processor
+SELECT cron.schedule(
+  'process-message-queue-10min',
+  '*/10 * * * *',
+  $cron$
+    SELECT net.http_post(
+      url     := 'https://vyraherbals.com/api/cron/scheduled-communications',
+      body    := '{}',
+      headers := '{"Content-Type":"application/json","Authorization":"Bearer 05d2360f74057ec232d2ab41b01031d9b0093a96b8143f73f6152a32a845fc3d"}'::jsonb
+    );
+  $cron$
+);
+
+-- 4. Verify the active cron job
+SELECT jobid, jobname, schedule, active FROM cron.job;
+```
+
+### Automatic 3-Hour Registration Trigger:
+- When a customer registers on the website, a scheduled task is inserted into `message_queue` with `scheduled_for = NOW() + INTERVAL '3 hours'`.
+- Every 10 minutes, the cron job hits `/api/cron/scheduled-communications`, picks up any pending jobs whose `scheduled_for <= NOW()`, and sends the approved Meta template.
+
+---
+
+## 5. Required Environment Variables
+
+Ensure the following keys are set in your **Vercel Project Settings > Environment Variables** and `.env.local`:
+
+```env
+# App URL
+NEXT_PUBLIC_APP_URL=https://vyraherbals.com
+
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://<your-project>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>
+
+# Cron Security Token
+CRON_SECRET=05d2360f74057ec232d2ab41b01031d9b0093a96b8143f73f6152a32a845fc3d
+
+# Meta WhatsApp Cloud API
+WHATSAPP_TOKEN=<your-meta-system-user-token>
+WHATSAPP_PHONE_NUMBER_ID=<your-phone-number-id>
+WHATSAPP_BUSINESS_ACCOUNT_ID=<your-waba-id>
+WHATSAPP_WEBHOOK_VERIFY_TOKEN=<your-webhook-verify-token>
+
+# Easebuzz Payment Gateway
+EASEBUZZ_KEY=<your-merchant-key>
+EASEBUZZ_SALT=<your-merchant-salt>
+EASEBUZZ_ENV=prod
+
+# iCarry Shipping
+ICARRY_API_KEY=<your-icarry-key>
+```
+
+---
+
+## 6. Meta WhatsApp Webhook Configuration
+
+1. Log in to [Meta for Developers](https://developers.facebook.com/).
+2. Navigate to your WhatsApp App > **Configuration**.
+3. Set **Callback URL**:
+   ```
+   https://vyraherbals.com/api/webhooks/whatsapp
+   ```
+4. Set **Verify Token**: Must match your `WHATSAPP_WEBHOOK_VERIFY_TOKEN`.
+5. Under **Webhook Fields**, subscribe to:
+   - `messages`
+
+---
+
+## 7. Operational Testing & Verification Checklist
+
+| Test Case | Expected Behavior |
+| :--- | :--- |
+| **Guest Add-to-Cart** | Open browser in incognito mode. Add any product to cart. The cart counter updates, and navigating to `/cart` shows items without errors or missing stock warnings. |
+| **Cart Merge on Login** | Add item as guest, click Login / Enter OTP. After verification, guest items appear in user's permanent cart. |
+| **WhatsApp Bot "Hi"** | Send "Hi" from a test phone to your WhatsApp Business number. Bot responds with welcome text and the `Menu` list button. |
+| **Browse & Order via Chat** | Tap `Menu` -> `Shop Products` -> select category -> tap product -> order summary renders with `[Confirm & Pay]`. |
+| **Address & Payment Link** | Tap `Confirm & Pay`, send address text, tap `Confirm Address`, choose `Pay Online` -> instant Easebuzz payment link arrives. |
+| **Supabase Cron Tick** | In Supabase SQL editor: `SELECT * FROM cron.job_run_details ORDER BY start_time DESC LIMIT 5;` -> Verify exit code is 0 / `status = 'succeeded'`. |
+
+---
+*Maintained by Vyra Herbals Engineering Team.*
