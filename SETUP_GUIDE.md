@@ -116,9 +116,17 @@ To run the automated message processor every 10 minutes, execute this SQL in you
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 CREATE EXTENSION IF NOT EXISTS pg_net;
 
--- 2. Unschedule any legacy or hourly jobs
-SELECT cron.unschedule('process-message-queue-hourly');
-SELECT cron.unschedule('process-message-queue-10min');
+-- 2. Safely unschedule existing jobs without throwing errors if they don't exist
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'process-message-queue-hourly') THEN
+    PERFORM cron.unschedule('process-message-queue-hourly');
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'process-message-queue-10min') THEN
+    PERFORM cron.unschedule('process-message-queue-10min');
+  END IF;
+END $$;
 
 -- 3. Schedule the 10-minute processor
 SELECT cron.schedule(
