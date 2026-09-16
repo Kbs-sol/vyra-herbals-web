@@ -134,7 +134,7 @@ SELECT cron.schedule(
   '*/10 * * * *',
   $cron$
     SELECT net.http_post(
-      url     := 'https://vyraherbals.com/api/cron/scheduled-communications',
+      url     := 'https://vyraherbals.com/api/cron/scheduled-communications?token=05d2360f74057ec232d2ab41b01031d9b0093a96b8143f73f6152a32a845fc3d',
       body    := '{}',
       headers := '{"Content-Type":"application/json","Authorization":"Bearer 05d2360f74057ec232d2ab41b01031d9b0093a96b8143f73f6152a32a845fc3d"}'::jsonb
     );
