@@ -24,11 +24,16 @@ export async function POST(req: Request) {
   const results = items.map(item => {
     const product = productMap.get(item.product_id);
     if (!product) return { product_id: item.product_id, status: 'not_found' };
-    if (product.status !== 1) return { product_id: item.product_id, status: 'unavailable' };
-    const stock = product.stock_quantity ?? product.quantity ?? 0;
-    if (stock < 1) return { product_id: item.product_id, status: 'out_of_stock', available: 0 };
-    if (stock < item.quantity) return { product_id: item.product_id, status: 'insufficient_stock', available: stock, requested: item.quantity };
-    return { product_id: item.product_id, status: 'ok', available: stock, price: product.price };
+    if (product.status === 0) return { product_id: item.product_id, status: 'unavailable' };
+    const hasStockLimit = product.stock_quantity !== null && product.stock_quantity !== undefined;
+    const stock = hasStockLimit ? (product.stock_quantity ?? product.quantity) : null;
+    if (hasStockLimit && stock !== null && stock < 1) {
+      return { product_id: item.product_id, status: 'out_of_stock', available: 0 };
+    }
+    if (hasStockLimit && stock !== null && stock < item.quantity) {
+      return { product_id: item.product_id, status: 'insufficient_stock', available: stock, requested: item.quantity };
+    }
+    return { product_id: item.product_id, status: 'ok', available: stock ?? 999, price: product.price };
   });
 
   const allOk = results.every(r => r.status === 'ok');

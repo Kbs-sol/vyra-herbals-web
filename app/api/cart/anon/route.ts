@@ -51,7 +51,9 @@ export async function GET() {
   const enriched = cart.items.map((item: any) => {
     const product = productMap.get(item.product_id);
     if (!product) return null; // Product deleted
-    const currentStock = product.stock_quantity ?? product.quantity ?? 0;
+    const hasStockLimit = product.stock_quantity !== null && product.stock_quantity !== undefined;
+    const currentStock = hasStockLimit ? (product.stock_quantity ?? product.quantity ?? 0) : null;
+    const isOutOfStock = hasStockLimit && currentStock !== null && currentStock < 1;
     return {
       ...item,
       title: product.title,
@@ -59,7 +61,7 @@ export async function GET() {
       image_url: product.image_url,
       handle: product.handle,
       price_updated: product.price !== item.price_at_add,
-      out_of_stock: currentStock < item.quantity,
+      out_of_stock: isOutOfStock,
       stock_quantity: currentStock,
     };
   }).filter(Boolean);
@@ -79,17 +81,20 @@ export async function POST(req: Request) {
 
   const db = getSupabaseAdmin();
 
-  // Fetch current product
+  // Fetch current product — products have status: null or 1 for active
   const { data: product } = await db
     .from('products')
     .select('id, title, price, image_url, handle, stock_quantity, quantity, status')
     .eq('id', productId)
-    .eq('status', 1) // Active products only
+    .or('status.eq.1,status.is.null') // Active products
     .maybeSingle();
 
   if (!product) return NextResponse.json({ error: 'product_not_found' }, { status: 404 });
-  const currentStock = product.stock_quantity ?? product.quantity ?? 0;
-  if (currentStock < 1) return NextResponse.json({ error: 'out_of_stock' }, { status: 409 });
+  const hasStockLimit = product.stock_quantity !== null && product.stock_quantity !== undefined;
+  const currentStock = hasStockLimit ? (product.stock_quantity ?? product.quantity ?? 0) : null;
+  if (hasStockLimit && currentStock !== null && currentStock < 1) {
+    return NextResponse.json({ error: 'out_of_stock' }, { status: 409 });
+  }
 
   const cart = await getCart(db, deviceId);
   const items: any[] = Array.isArray(cart?.items) ? [...cart.items] : [];
@@ -98,7 +103,7 @@ export async function POST(req: Request) {
   if (existingIdx > -1) {
     const existing = items[existingIdx];
     const newQty = Math.min(MAX_QTY, existing.quantity + qty);
-    if (newQty > currentStock) {
+    if (hasStockLimit && currentStock !== null && newQty > currentStock) {
       return NextResponse.json({ error: 'insufficient_stock', available: currentStock }, { status: 409 });
     }
     items[existingIdx] = {
@@ -107,7 +112,7 @@ export async function POST(req: Request) {
       price_updated: product.price !== existing.price_at_add,
     };
   } else {
-    if (qty > currentStock) {
+    if (hasStockLimit && currentStock !== null && qty > currentStock) {
       return NextResponse.json({ error: 'insufficient_stock', available: currentStock }, { status: 409 });
     }
     items.push({

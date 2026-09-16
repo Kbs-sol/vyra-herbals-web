@@ -74,35 +74,23 @@ export async function handleCart(from: string, session: WhatsAppSession) {
   });
 }
 
-export async function handleAddToCart(from: string, session: WhatsAppSession) {
-  const productId = session.context?.selected_product_id;
-  if (!productId) {
-    await sendText(from, 'Please select a product first. Type *Menu* to browse.');
-    return;
-  }
-
+export async function handleProductSelectedAndShowSummary(from: string, productId: number, session: WhatsAppSession) {
   const db = getSupabaseAdmin();
 
-  // Verify stock
+  // 1. Fetch product (handle status null or 1)
   const { data: product } = await db
     .from('products')
-    .select('id, title, price, stock_quantity, quantity, status')
+    .select('id, title, price, regular_price, stock_quantity, quantity, status')
     .eq('id', productId)
-    .eq('status', 1)
+    .or('status.eq.1,status.is.null')
     .maybeSingle();
 
   if (!product) {
-    await sendText(from, 'This product is no longer available.');
+    await sendText(from, 'This product is no longer available. Type *Menu* to browse other products.');
     return;
   }
 
-  const stock = product.stock_quantity ?? product.quantity ?? 0;
-  if (stock < 1) {
-    await sendText(from, `Sorry, *${product.title}* is currently out of stock. Type *Menu* to browse other products.`);
-    return;
-  }
-
-  // Check existing
+  // 2. Add or increment in whatsapp_cart_items
   const { data: existing } = await db
     .from('whatsapp_cart_items')
     .select('id, quantity')
@@ -112,10 +100,6 @@ export async function handleAddToCart(from: string, session: WhatsAppSession) {
 
   if (existing) {
     const newQty = Math.min(MAX_QTY, existing.quantity + 1);
-    if (newQty > stock) {
-      await sendText(from, `You already have the maximum available quantity of *${product.title}* in your cart.`);
-      return;
-    }
     await db.from('whatsapp_cart_items').update({ quantity: newQty }).eq('id', existing.id);
   } else {
     await db.from('whatsapp_cart_items').insert({
@@ -126,9 +110,25 @@ export async function handleAddToCart(from: string, session: WhatsAppSession) {
     });
   }
 
-  // Count total cart items
-  const { data: allItems } = await db.from('whatsapp_cart_items').select('id, quantity').eq('phone', from);
-  const totalItems = (allItems || []).length;
+  // 3. Fetch all cart items to build order summary (Image 5)
+  const items = await getCartItems(db, from);
+
+  let total = 0;
+  let itemsSummary = '';
+  for (const item of items) {
+    const p = item.products;
+    if (!p) continue;
+    const lineTotal = p.price * item.quantity;
+    total += lineTotal;
+    itemsSummary += `• ${p.title} × ${item.quantity} — \u20b9${lineTotal}\n`;
+  }
+
+  const summaryText = `📦 *Order summary*\n\n${itemsSummary}\n*Total due: \u20b9${total}*`;
+
+  await updateSession(from, {
+    state: 'BUILDING_CART',
+    context: { ...session.context, selected_product_id: productId, cart_total: total }
+  });
 
   await whatsappClient.sendRaw({
     messaging_product: 'whatsapp',
@@ -136,16 +136,26 @@ export async function handleAddToCart(from: string, session: WhatsAppSession) {
     type: 'interactive',
     interactive: {
       type: 'button',
-      body: { text: `✅ *${product.title}* added to cart!\n\n🛒 Cart: ${totalItems} item(s)\n\nContinue shopping or checkout when ready.` },
+      body: { text: summaryText.substring(0, 1024) },
       action: {
         buttons: [
-          { type: 'reply', reply: { id: 'CHECKOUT', title: '✔️ Checkout' } },
-          { type: 'reply', reply: { id: 'VIEW_CATALOG', title: '➕ More Products' } },
-          { type: 'reply', reply: { id: 'VIEW_CART', title: '🛒 View Cart' } },
+          { type: 'reply', reply: { id: 'CONFIRM_AND_PAY', title: 'Confirm & Pay' } },
+          { type: 'reply', reply: { id: 'BROWSE_MORE', title: 'Browse More' } },
+          { type: 'reply', reply: { id: 'MAIN_MENU', title: 'Main Menu' } },
         ]
       }
     }
   });
+}
+
+export async function handleAddToCart(from: string, session: WhatsAppSession) {
+  const productId = session.context?.selected_product_id;
+  if (!productId) {
+    await sendText(from, 'Please select a product first. Type *Menu* to browse.');
+    return;
+  }
+
+  await handleProductSelectedAndShowSummary(from, productId, session);
 }
 
 export async function handleCartQuantity(from: string, productId: number, action: 'increment' | 'decrement', session: WhatsAppSession) {

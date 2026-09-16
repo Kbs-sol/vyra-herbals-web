@@ -50,7 +50,7 @@ const CartItem = ({
             <div className="text-danger small mb-1">
               ❌ This item is out of stock and will be removed at checkout
             </div>
-          ) : product.stock_quantity !== undefined && product.quantity > product.stock_quantity ? (
+          ) : product.stock_quantity != null && product.stock_quantity > 0 && product.quantity > product.stock_quantity ? (
             <div className="text-warning small mb-1">
               ⚠️ Only {product.stock_quantity} available
             </div>

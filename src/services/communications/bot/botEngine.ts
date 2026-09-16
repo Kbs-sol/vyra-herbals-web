@@ -1,13 +1,13 @@
 import { logger } from '../logging/logger';
 import { whatsappClient } from '../providers/whatsapp/client';
 import { getSession, updateSession } from './sessionManager';
-import { handleMainMenu } from './handlers/mainMenu';
+import { handleMainMenu, handleShopByCategory } from './handlers/mainMenu';
 import { handleOrderReceived } from './handlers/orderReceiver';
-import { handleAddressInput, handleConfirmAddress } from './handlers/addressReceiver';
+import { handleAddressInput, handleConfirmAddress, handlePromptForAddress, handleStartAddAddress, handlePayOnline } from './handlers/addressReceiver';
 import { handleTracking } from './handlers/tracking';
 import { handleProductBrowser } from './handlers/productBrowser';
 import { handleProductViewer } from './handlers/productViewer';
-import { handleCart, handleAddToCart, handleCartQuantity, handleRemoveFromCart } from './handlers/cartManager';
+import { handleCart, handleAddToCart, handleCartQuantity, handleRemoveFromCart, handleProductSelectedAndShowSummary } from './handlers/cartManager';
 import { handleCheckout, handlePaymentCheck, handleCodCheckout } from './handlers/paymentHandler';
 import { handleHumanHandoff } from './handlers/humanHandoff';
 import { handleCancellation } from './handlers/cancellationHandler';
@@ -79,6 +79,16 @@ async function processSingleMessage(msg: any) {
     return;
   }
 
+  if (replyId === 'SHOP_PRODUCTS' || replyId === 'BROWSE_MORE' || ['shop products', 'products', 'shop'].includes(normalizedText)) {
+    await handleShopByCategory(from, session);
+    return;
+  }
+
+  if (replyId === 'MY_ORDERS' || ['my orders', 'orders'].includes(normalizedText)) {
+    await handleTracking(from, session);
+    return;
+  }
+
   if (replyId === 'TRACK_ORDER' || normalizedText === 'track order') {
     await handleTracking(from, session);
     return;
@@ -98,7 +108,7 @@ async function processSingleMessage(msg: any) {
   if (replyId.startsWith('PRODUCT_')) {
     const productId = parseInt(replyId.replace('PRODUCT_', ''), 10);
     if (!isNaN(productId)) {
-      await handleProductViewer(from, productId, session);
+      await handleProductSelectedAndShowSummary(from, productId, session);
       return;
     }
   }
@@ -108,8 +118,23 @@ async function processSingleMessage(msg: any) {
     return;
   }
 
+  if (replyId === 'CONFIRM_AND_PAY') {
+    await handlePromptForAddress(from, session);
+    return;
+  }
+
+  if (replyId === 'ADD_ADDRESS') {
+    await handleStartAddAddress(from, session);
+    return;
+  }
+
+  if (replyId === 'PAY_ONLINE') {
+    await handlePayOnline(from, session);
+    return;
+  }
+
   if (replyId === 'CHECKOUT' || replyId === 'PROCEED_TO_CHECKOUT') {
-    await handleCheckout(from, session);
+    await handlePromptForAddress(from, session);
     return;
   }
 

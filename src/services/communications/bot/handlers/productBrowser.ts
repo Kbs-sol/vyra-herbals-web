@@ -7,13 +7,13 @@ export async function handleProductBrowser(from: string, session: WhatsAppSessio
 
   let query = db
     .from('products')
-    .select('id, title, price, description, stock_quantity, quantity, category')
-    .eq('status', 1)
+    .select('id, title, price, regular_price, description, stock_quantity, quantity, category')
+    .or('status.eq.1,status.is.null')
     .order('featured_order', { ascending: true })
     .limit(10);
 
-  if (categorySlug) {
-    query = query.ilike('category', `%${categorySlug.replace(/_/g, ' ')}%`);
+  if (categorySlug && categorySlug !== 'ALL') {
+    query = query.ilike('category', `%${categorySlug.replace(/_/g, '-').toLowerCase()}%`);
   }
 
   const { data: products } = await query;
@@ -23,21 +23,21 @@ export async function handleProductBrowser(from: string, session: WhatsAppSessio
       messaging_product: 'whatsapp',
       to: from,
       type: 'text',
-      text: { body: `No products found${categorySlug ? ' in this category' : ''}. Type *Menu* to go back.` }
+      text: { body: `No products found${categorySlug && categorySlug !== 'ALL' ? ' in this category' : ''}. Type *Menu* to go back.` }
     });
     return;
   }
 
   await updateSession(from, { state: 'BROWSING', context: { ...session.context } });
 
-  // WhatsApp list rows: max 10 items, title max 24 chars, description max 72 chars
+  // WhatsApp list rows: max 10 items, title max 24 chars, description max 72 chars (Image 4)
   const rows = products.map((p: any) => {
-    const stock = p.stock_quantity ?? p.quantity ?? 0;
-    const stockLabel = stock < 1 ? ' [Out of Stock]' : stock <= 5 ? ` [Only ${stock} left]` : '';
+    const wasPrice = p.regular_price && p.regular_price > p.price ? ` (was \u20b9${p.regular_price})` : '';
+    const catLabel = p.category ? ` · ${p.category.replace(/-/g, ' ')}` : '';
     return {
       id: `PRODUCT_${p.id}`,
       title: p.title.substring(0, 24),
-      description: `\u20b9${p.price}${stockLabel}`,
+      description: `\u20b9${p.price}${wasPrice}${catLabel}`.substring(0, 72),
     };
   });
 
@@ -47,11 +47,11 @@ export async function handleProductBrowser(from: string, session: WhatsAppSessio
     type: 'interactive',
     interactive: {
       type: 'list',
-      header: { type: 'text', text: categorySlug ? '🌿 Products' : '🌿 All Products' },
-      body: { text: 'Tap a product to view details, price, and add to cart.' },
+      header: { type: 'text', text: 'Select products to buy' },
+      body: { text: 'Available products:' },
       footer: { text: 'Type Menu to go back' },
       action: {
-        button: 'View Products',
+        button: 'Select Product',
         sections: [{ title: 'Products', rows }]
       }
     }
