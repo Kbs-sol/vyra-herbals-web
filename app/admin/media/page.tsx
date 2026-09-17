@@ -92,6 +92,165 @@ function Thumb({ url, onClick, size = 72 }: { url: string; onClick?: () => void;
   );
 }
 
+// --------------------- Site Media (videos & embeds) ----------------------
+// Sits above the per-product image grid. Manages hero video + review videos +
+// founder image + default OG image via the shared `site_settings` table.
+// Blank input = use built-in fallback (env var / hardcoded default).
+
+interface SiteMediaEntry {
+  url: string;         // current DB override (blank = using fallback)
+  effective: string;   // the URL actually used at runtime
+  hasOverride: boolean;
+  fallbackFrom: 'env' | 'hardcoded' | 'none';
+  meta: { label: string; description: string; defaultKind?: string };
+}
+
+function SiteMediaSection() {
+  const [items, setItems] = useState<Record<string, SiteMediaEntry>>({});
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [savingSlot, setSavingSlot] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/admin/site-media', { credentials: 'include' });
+      const data = await res.json();
+      if (data.success) {
+        setItems(data.data || {});
+        const d: Record<string, string> = {};
+        Object.entries(data.data || {}).forEach(([slot, v]: any) => (d[slot] = v.url || ''));
+        setDrafts(d);
+      } else {
+        setError(data.error || 'Failed to load site media.');
+      }
+    } catch (e: any) {
+      setError(e.message || 'Network error.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  const save = async (slot: string) => {
+    setSavingSlot(slot);
+    setError(null);
+    try {
+      const res = await fetch('/api/admin/site-media', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slot, url: drafts[slot] || '' }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Save failed');
+      await load();
+    } catch (e: any) {
+      setError(e.message || 'Save failed');
+    } finally {
+      setSavingSlot(null);
+    }
+  };
+
+  const clear = async (slot: string) => {
+    setDrafts((d) => ({ ...d, [slot]: '' }));
+    await save(slot);
+  };
+
+  const slots = Object.keys(items);
+  const dirty = (slot: string) => (drafts[slot] || '') !== (items[slot]?.url || '');
+
+  return (
+    <div className="site-media-section">
+      <div className="sm-head">
+        <div>
+          <h2 className="sm-title">Site media (videos &amp; embeds)</h2>
+          <p className="sm-sub">
+            Hero video, review videos, founder photo, default social image.
+            Blank field = use the built-in fallback (env var or hard-coded default).
+            Fill it in to override site-wide without a code deploy.
+          </p>
+        </div>
+        <button className="btn btn-ghost" onClick={load}>↻ Refresh</button>
+      </div>
+
+      {error && <div className="sm-error">{error}</div>}
+
+      {loading ? (
+        <div className="sm-loading">Loading site media…</div>
+      ) : (
+        <div className="sm-grid">
+          {slots.map((slot) => {
+            const it = items[slot];
+            const isDirty = dirty(slot);
+            const isYouTubeSlot = slot.startsWith('hero_video') || slot.startsWith('review_video');
+            return (
+              <div key={slot} className={`sm-card ${isDirty ? 'sm-dirty' : ''}`}>
+                <div className="sm-card-head">
+                  <div>
+                    <div className="sm-card-label">{it.meta.label}</div>
+                    <div className="sm-card-desc">{it.meta.description}</div>
+                  </div>
+                  <div className="sm-status">
+                    {it.hasOverride ? (
+                      <span className="tag tag-ok">DB override</span>
+                    ) : (
+                      <span className="tag tag-info">Fallback ({it.fallbackFrom})</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="sm-current">
+                  <span className="sm-current-label">Effective URL now:</span>
+                  <code className="sm-current-url" title={it.effective}>
+                    {it.effective || <em style={{ color: '#94a3b8' }}>(none)</em>}
+                  </code>
+                </div>
+
+                <div className="sm-input-row">
+                  <input
+                    className="input sm-input"
+                    placeholder={
+                      isYouTubeSlot
+                        ? 'YouTube ID (11 chars) or full URL — blank = use fallback'
+                        : 'Public URL — blank = use fallback'
+                    }
+                    value={drafts[slot] ?? ''}
+                    onChange={(e) => setDrafts((d) => ({ ...d, [slot]: e.target.value }))}
+                  />
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => save(slot)}
+                    disabled={!isDirty || savingSlot === slot}
+                    title={isDirty ? 'Save this override' : 'No change to save'}
+                  >
+                    {savingSlot === slot ? 'Saving…' : 'Save'}
+                  </button>
+                  {it.hasOverride && (
+                    <button
+                      className="btn btn-ghost"
+                      onClick={() => clear(slot)}
+                      disabled={savingSlot === slot}
+                      title="Clear DB override, re-engage fallback"
+                    >
+                      Reset to fallback
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ----------------------------- Main page ---------------------------------
 
 export default function AdminMediaPage() {
@@ -388,6 +547,10 @@ export default function AdminMediaPage() {
 
         {globalStatus && <div className="global-status">{globalStatus}</div>}
 
+        <SiteMediaSection />
+
+        <h2 className="section-heading">Product images</h2>
+
         {loading ? (
           <div className="loading">Loading products…</div>
         ) : filtered.length === 0 ? (
@@ -566,6 +729,70 @@ export default function AdminMediaPage() {
         )}
 
         <style jsx>{`
+          /* ------- Site Media section ------- */
+          .site-media-section {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 18px 20px;
+            margin-bottom: 20px;
+          }
+          .sm-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 14px;
+          }
+          .sm-title {
+            margin: 0 0 4px;
+            font-size: 16px;
+            font-weight: 700;
+            color: #0f172a;
+            letter-spacing: -0.2px;
+          }
+          .sm-sub { margin: 0; font-size: 13px; color: #64748b; line-height: 1.5; max-width: 700px; }
+          .sm-error {
+            background: #fef2f2; border: 1px solid #fecaca; color: #991b1b;
+            padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 12px;
+          }
+          .sm-loading { padding: 20px; text-align: center; color: #94a3b8; font-size: 13px; }
+          .sm-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+          @media (min-width: 900px) { .sm-grid { grid-template-columns: 1fr 1fr; } }
+          .sm-card {
+            border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px;
+            background: #f8fafc; transition: border-color 0.15s;
+          }
+          .sm-card.sm-dirty { border-color: #fbbf24; box-shadow: 0 0 0 3px rgba(251,191,36,0.15); }
+          .sm-card-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+          .sm-card-label { font-weight: 600; font-size: 13.5px; color: #0f172a; }
+          .sm-card-desc { font-size: 12px; color: #64748b; margin-top: 2px; line-height: 1.4; }
+          .sm-status .tag {
+            font-size: 10.5px; padding: 3px 8px; border-radius: 999px; font-weight: 600; white-space: nowrap;
+          }
+          .tag-ok { background: #d1fae5; color: #065f46; }
+          .tag-info { background: #dbeafe; color: #1e40af; }
+          .sm-current {
+            font-size: 11.5px; color: #64748b; margin: 8px 0 6px;
+            display: flex; gap: 6px; align-items: baseline;
+          }
+          .sm-current-label { font-weight: 600; color: #475569; }
+          .sm-current-url {
+            background: #e2e8f0; padding: 2px 6px; border-radius: 3px;
+            font-family: ui-monospace, SFMono-Regular, monospace; font-size: 11px;
+            color: #0f172a; word-break: break-all; max-width: 100%; overflow: hidden;
+            text-overflow: ellipsis;
+          }
+          .sm-input-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+          .sm-input {
+            flex: 1; min-width: 220px;
+            font-family: ui-monospace, SFMono-Regular, monospace; font-size: 12.5px;
+          }
+          .section-heading {
+            margin: 20px 0 10px; font-size: 16px; font-weight: 700;
+            color: #0f172a; letter-spacing: -0.2px;
+          }
+
           .media-wrap {
             max-width: 1200px;
             margin: 0 auto;

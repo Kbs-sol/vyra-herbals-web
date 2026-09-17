@@ -152,7 +152,7 @@ export default function WhatsAppInboxPage() {
   };
 
   return (
-    <AdminLayoutWrapper>
+    <AdminLayoutWrapper pageTitle="WhatsApp Inbox">
       <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 90px)', padding: '16px', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
           <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>

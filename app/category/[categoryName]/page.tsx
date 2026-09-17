@@ -110,7 +110,7 @@ export default async function CategoryPage({ params }: { params: Promise<Params>
       {/* Server-rendered SEO block — hidden from view, visible to crawlers */}
       <div className="seo-server-content" style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }}>
         <h1>{result.name} — Herbal Care</h1>
-        <p>Browse our {result.name.toLowerCase()} collection: {result.products.length} product{result.products.length === 1 ? '' : 's'} formulated with Ayurvedic herbs, chemical-free, ISO 9001:2015 & GMP certified.</p>
+        <p>Browse our {result.name.toLowerCase()} collection: {result.products.length} product{result.products.length === 1 ? '' : 's'} \u2014 100% natural, handmade, chemical-free herbal formulations. Sulphate-free, paraben-free, ISO 9001:2015 & GMP certified.</p>
         <ul>
           {result.products.slice(0, 20).map((p) => (
             <li key={p.id}>

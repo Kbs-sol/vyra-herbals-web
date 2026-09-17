@@ -1,42 +1,67 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import YouTubeFacade from '@/Components/Common/YouTubeFacade';
 
 /**
  * Homepage hero video.
  *
- * Was: a 19 MB `public/assets/images/video.mp4` shipped in the repo, loaded
- *      on every homepage visit. That single file was ~1/3 of the total repo
- *      size and pushed the mobile LCP well past 4s.
+ * Resolution order (first non-empty wins):
+ *   1. Admin override from `/api/site-media?key=hero_video`
+ *      (edited in /admin/media → Site Media section)
+ *   2. `NEXT_PUBLIC_HOME_HERO_VIDEO_ID` env var
+ *   3. Nothing (component renders null)
  *
- * Now: a YouTube facade — the video lives on the Vyra Herbals YouTube
- *      channel (unlisted or public — see docs/SYSTEM_LITERACY.md), we ship
- *      a ~40 KB poster thumbnail, and the real iframe only loads when the
- *      user actually presses play.
- *
- * Setup:
- *   1. Upload the marketing video to YouTube (Studio → Create → Upload).
- *   2. Set visibility to Unlisted (or Public — both work; Public earns
- *      backlinks that feed SEO — see the "Founder-story digital PR" phase
- *      in the SEO audit).
- *   3. Copy the video ID (11 characters after `v=` in the URL).
- *   4. Paste it into NEXT_PUBLIC_HOME_HERO_VIDEO_ID in Vercel env vars.
- *   5. Nothing else — no code deploy required.
+ * The admin override lives in Supabase's `site_settings` table under key
+ * `media_hero_video`; blanking the field there falls back to the env var.
  */
 
-const VIDEO_ID = process.env.NEXT_PUBLIC_HOME_HERO_VIDEO_ID || '';
+const ENV_FALLBACK_ID = process.env.NEXT_PUBLIC_HOME_HERO_VIDEO_ID || '';
+
+// Extract an 11-char YouTube ID from a raw ID or full URL.
+function toYouTubeId(raw: string): string {
+  if (!raw) return '';
+  const s = raw.trim();
+  if (/^[a-zA-Z0-9_-]{11}$/.test(s)) return s;
+  const short = s.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+  if (short) return short[1];
+  const watch = s.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+  if (watch) return watch[1];
+  const embed = s.match(/\/embed\/([a-zA-Z0-9_-]{11})/);
+  if (embed) return embed[1];
+  return '';
+}
 
 const Video: React.FC = () => {
-  if (!VIDEO_ID) {
-    // Nothing to render if the env var isn't set — better than a broken embed.
+  const [videoId, setVideoId] = useState<string>(toYouTubeId(ENV_FALLBACK_ID));
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/site-media?key=hero_video', { cache: 'no-store' });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (cancelled) return;
+        const id = toYouTubeId(json?.url || '');
+        if (id) setVideoId(id);
+      } catch {
+        // Fall back silently to the env value already in state.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (!videoId) {
     return null;
   }
   return (
     <div className="video-sec pb-4">
       <YouTubeFacade
-        videoId={VIDEO_ID}
-        title="Vyra Herbals — how our herbal hair oil is made"
+        videoId={videoId}
+        title="Vyra Herbals — 100% natural handmade herbal hair oil, made in India"
       />
     </div>
   );

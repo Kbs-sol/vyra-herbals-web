@@ -65,11 +65,11 @@ const CONCERNS: Record<string, ConcernContent> = {
   'hair-fall': {
     slug: 'hair-fall',
     displayName: 'Hair Fall',
-    title: 'Herbal Hair Oil for Hair Fall — Natural Ayurvedic Solution | Vyra Herbals',
-    description: 'Stop hair fall the herbal way. Vyra\'s 9-herb Ayurvedic hair oil with rosemary, neem, curry leaves and hibiscus reduces breakage, strengthens roots and promotes regrowth. Chemical-free, ISO & GMP certified. Free shipping across India.',
-    h1: 'Herbal Hair Oil for Hair Fall — What Actually Works',
+    title: '100% Natural Hair Oil for Hair Fall — Handmade Herbal Solution | Vyra Herbals',
+    description: 'Stop hair fall the natural way. Vyra\'s 100% natural handmade 9-herb hair oil with rosemary, neem, curry leaves and hibiscus reduces breakage, strengthens roots and promotes regrowth. Chemical-free, sulphate-free, paraben-free. ISO & GMP certified. Free shipping across India.',
+    h1: 'Natural Herbal Hair Oil for Hair Fall — What Actually Works',
     quickAnswer:
-      'Hair fall between 50-100 strands a day is normal; more usually signals scalp weakness, nutritional gaps, or hormonal changes. Vyra Herbals\' herbal hair oil combines rosemary (a 2015 clinical trial found it rivals 2% minoxidil), neem (anti-inflammatory), curry leaves (protein), and 6 other Ayurvedic herbs to strengthen roots and reduce breakage without sulphates or parabens.',
+      'Hair fall between 50-100 strands a day is normal; more usually signals scalp weakness, nutritional gaps, or hormonal changes. Vyra Herbals\' 100% natural handmade hair oil combines rosemary (a 2015 clinical trial found it rivals 2% minoxidil), neem (anti-inflammatory), curry leaves (protein), and 6 other traditional herbs to strengthen roots and reduce breakage without sulphates, parabens or synthetic chemicals.',
     guide: [
       {
         heading: 'Why does hair fall happen?',
@@ -93,7 +93,18 @@ const CONCERNS: Record<string, ConcernContent> = {
       { question: 'What shampoo should I pair with the hair oil?', answer: 'A sulphate-free shampoo. Vyra\'s Herbal Shampoo pairs specifically with the oil (same herb base). The oil + shampoo combo is ₹529 vs ₹350 for oil alone.' },
     ],
     productHandles: ['hair-oil-100ml', 'hair-oil-200ml', 'herbal-hair-oil', 'oil-shampoo-combo', 'hair-care-kit'],
-    keywords: ['hair oil for hair fall', 'herbal hair oil', 'ayurvedic hair oil', 'rosemary hair oil', 'stop hair fall naturally', 'postpartum hair fall'],
+    keywords: [
+      'hair oil for hair fall',
+      'natural hair oil for hair fall',
+      'handmade hair oil for hair fall',
+      'herbal hair oil',
+      'home-made hair oil for hair fall',
+      'chemical-free hair oil',
+      'rosemary hair oil',
+      'stop hair fall naturally',
+      'postpartum hair fall',
+      'ayurvedic hair oil', // retained low priority for long-tail traffic
+    ],
     howTo: {
       name: 'How to apply herbal hair oil to reduce hair fall',
       description:
@@ -137,9 +148,9 @@ const CONCERNS: Record<string, ConcernContent> = {
   'hair-growth': {
     slug: 'hair-growth',
     displayName: 'Hair Growth',
-    title: 'Rosemary Leaves & Ayurvedic Hair Growth Oil — Vyra Herbals',
-    description: 'Grow thicker, longer hair with Vyra\'s rosemary-based herbal treatment. 9 Ayurvedic herbs, proven ingredients, chemical-free. ISO 9001:2015 & GMP certified. Free shipping across India.',
-    h1: 'Herbal Hair Growth — The Ayurvedic Approach',
+    title: 'Rosemary Leaves & 100% Natural Hair Growth Oil — Vyra Herbals',
+    description: 'Grow thicker, longer hair with Vyra\'s rosemary-based handmade herbal treatment. 9 natural herbs, proven ingredients, chemical-free, sulphate-free. ISO 9001:2015 & GMP certified. Free shipping across India.',
+    h1: 'Natural Herbal Hair Growth — A Handmade, Chemical-Free Approach',
     quickAnswer:
       'Healthy hair grows about 1.25 cm (0.5 inch) per month. Speed depends on scalp circulation, nutrition, and reducing breakage — not on any single product. Vyra\'s rosemary-based herbal system supports faster visible growth by improving scalp blood flow, preventing breakage, and nourishing follicles. Expect visible thickness in 3-4 months.',
     guide: [
@@ -165,7 +176,16 @@ const CONCERNS: Record<string, ConcernContent> = {
       { question: 'Do I need to eat differently for faster hair growth?', answer: 'Yes. Aim for 1g protein per kg body weight, 18mg iron for women / 8mg for men, vitamin D 600-2000 IU, and biotin from eggs/nuts. Deficiencies in any of these will flatline growth regardless of what oil you use.' },
     ],
     productHandles: ['rosemary-leaves', 'hair-oil-100ml', 'hair-oil-200ml', 'herbal-hair-mask-powder', 'hair-care-kit'],
-    keywords: ['rosemary leaves for hair growth', 'hair growth oil', 'ayurvedic hair growth', 'grow hair faster naturally', 'herbal hair regrowth'],
+    keywords: [
+      'rosemary leaves for hair growth',
+      'natural hair growth oil',
+      'hair growth oil',
+      'handmade hair growth oil',
+      'grow hair faster naturally',
+      'herbal hair regrowth',
+      'chemical-free hair growth',
+      'ayurvedic hair growth', // retained low priority for long-tail traffic
+    ],
     howTo: {
       name: 'How to use rosemary leaves for hair growth',
       description:
@@ -299,9 +319,18 @@ const CONCERNS: Record<string, ConcernContent> = {
       { question: 'Can I use a scalp massager on wet hair?', answer: 'Yes — silicone massagers are safe on wet or dry hair. Use them during shampooing (in-shower) or on dry hair with oil for a longer session.' },
     ],
     productHandles: ['scalp-massager', 'shampoo-scalp-massager-combo', 'hair-oil-100ml', 'herbal-shampoo-200ml', 'neem-combs-combo-2'],
-    keywords: ['scalp care', 'scalp massager for hair growth', 'scalp exfoliation', 'healthy scalp routine', 'ayurvedic scalp treatment'],
+    keywords: [
+      'scalp care',
+      'natural scalp care routine',
+      'chemical-free scalp treatment',
+      'scalp massager for hair growth',
+      'scalp exfoliation',
+      'healthy scalp routine',
+      'herbal scalp treatment',
+      'ayurvedic scalp treatment', // retained low priority for long-tail traffic
+    ],
     howTo: {
-      name: 'How to build a weekly Ayurvedic scalp care routine',
+      name: 'How to build a weekly natural herbal scalp care routine',
       description:
         'A weekly scalp routine using Vyra Herbals oil, shampoo, scalp massager, and neem comb — designed to keep the scalp healthy, exfoliated, and free of product build-up.',
       totalTime: 'PT2H30M',

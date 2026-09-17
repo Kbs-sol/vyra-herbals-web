@@ -200,11 +200,13 @@ const nextConfig: NextConfig = {
       { source: '/product.html', destination: '/', permanent: true },
       // Legacy blog URLs
       { source: '/blog/:slug', destination: '/blogs/:slug', permanent: true },
-      // Case-normalise the concern slugs (people paste them in Title Case).
-      { source: '/concern/Hair-Fall', destination: '/concern/hair-fall', permanent: true },
-      { source: '/concern/Hair-Growth', destination: '/concern/hair-growth', permanent: true },
-      { source: '/concern/Dandruff', destination: '/concern/dandruff', permanent: true },
-      { source: '/concern/Scalp-Care', destination: '/concern/scalp-care', permanent: true },
+      // NOTE: Do NOT add case-normalising redirects for /concern/* here.
+      // Next.js's path-to-regexp matcher on Vercel treats source paths
+      // case-INsensitively, so `{ source: '/concern/Hair-Fall', destination:
+      // '/concern/hair-fall' }` matches its own target and triggers
+      // ERR_TOO_MANY_REDIRECTS on the very URL it was meant to protect.
+      // The correct URLs are already lowercase; a Title-Case hit will simply
+      // 404, which is the safe outcome.
     ];
   },
 

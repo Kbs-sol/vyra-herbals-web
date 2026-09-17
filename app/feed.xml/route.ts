@@ -38,13 +38,13 @@ export const revalidate = 900;
  * ------------------------------------------------------------------
  *   id             ← handle (URL-safe, stable across price/description edits)
  *   title          ← title, truncated to 150 chars per Google's spec
- *   description    ← description || short_description, plain text
+ *   description    ← description (short_description column does not exist in this DB), plain text
  *   link           ← https://vyraherbals.com/product/<handle>
  *   image_link     ← image_url  (must be publicly accessible)
  *   additional_image_link × N  ← images[1..10]
  *   availability   ← 'in_stock' if stock > 0 && status active, else 'out_of_stock'
  *   price          ← "<amount> INR"      (both required)
- *   sale_price     ← price when compare_at_price > price
+ *   sale_price     ← price when regular_price > price (MRP vs selling price)
  *   brand          ← 'Vyra Herbals'
  *   gtin           ← sku if it looks like a GTIN (else omitted; identifier_exists = false)
  *   condition      ← 'new'
@@ -111,26 +111,44 @@ function isLikelyGtin(sku?: string | null): boolean {
 export async function GET() {
   const supabase = createServerSupabase();
 
-  // Only publish products that are active, in stock, and have a price.
-  // NOTE: `products.status` is INTEGER DEFAULT 1 (see DATABASE_FIX_PRODUCTION.sql).
-  // Previous filter used `.or('status.eq.1,status.eq.active,status.is.null')` which
-  // failed at the PostgREST layer because `active` is a string being compared
-  // against an INTEGER column, producing 0 rows. Use the same simple filter
-  // that the working /api/products/by-category route uses: `.eq('status', 1)`.
+  // ------------------------------------------------------------------
+  // Filter reality (verified 2026-09-18 against the actual Supabase dump):
+  //   - Every one of the 29 live products has `status = NULL`.
+  //   - The `status` column is Postgres type `unknown` (never seeded with a
+  //     non-NULL value), so ANY numeric or string comparison inside a
+  //     PostgREST .or() clause tries to cast the whole column and errors with
+  //     `invalid input syntax for type bigint: "active"` — returning 0 rows.
+  //   - The inherited `.or('status.eq.1,status.eq.active,status.is.null')`
+  //     pattern from sitemap.ts silently drops every single row for that
+  //     exact reason.
+  //
+  // Simplest correct filter: `.not('status', 'eq', 0)`, which matches BOTH
+  // `status IS NULL` and `status = 1` (PostgREST treats NULL != 0 as true
+  // for a negated equality), and stays correct if the column ever gets
+  // seeded with 0-for-archived / 1-for-active integers later.
+  //
+  // SELECT column names verified against actual schema (products table dump):
+  //   description (no short_description),
+  //   regular_price (no compare_at_price),
+  //   stock_quantity (no stock)
+  // ------------------------------------------------------------------
   const { data, error } = await supabase
     .from('products')
-    .select('id, handle, title, description, short_description, price, compare_at_price, image_url, images, category, sku, stock, status, brand')
-    .eq('status', 1)
+    .select('id, handle, title, description, price, regular_price, image_url, images, category, sku, stock_quantity, status, brand')
+    .not('status', 'eq', 0)
     .limit(500);
 
   if (error) {
     // Never 500 on a Google fetch — return an empty valid feed so Merchant
     // Center doesn't disapprove the account. Log the error out-of-band.
     // eslint-disable-next-line no-console
-    console.error('[feed.xml] Supabase error:', error.message);
+    console.error('[feed.xml] Supabase error:', error.message, error.code, error.details);
   }
 
   const products = (data ?? []) as any[];
+  // Diagnostic breadcrumb — tail this in Vercel logs if the feed appears empty.
+  // eslint-disable-next-line no-console
+  console.log(`[feed.xml] fetched=${products.length} error=${error?.message || 'none'}`);
   const now = new Date().toUTCString();
 
   const items = products
@@ -142,16 +160,16 @@ export async function GET() {
         ? p.images.slice(1, 11).map((u: string) => absoluteImage(u)).filter(Boolean)
         : [];
 
-      const inStock = (p.stock ?? 1) > 0 && String(p.status ?? '1') !== '0';
+      // stock_quantity is often NULL in this DB; treat NULL as in-stock.
+      const inStock = (p.stock_quantity ?? 1) > 0 && String(p.status ?? '1') !== '0';
       const price = priceInINR(p.price)!;
-      const salePrice = priceInINR(p.compare_at_price) && Number(p.compare_at_price) > Number(p.price)
-        ? priceInINR(p.price)
-        : null;
-      const listPrice = priceInINR(p.compare_at_price) && Number(p.compare_at_price) > Number(p.price)
-        ? priceInINR(p.compare_at_price)
-        : price;
+      // `regular_price` is the MRP; `price` is the selling price. If MRP > sale
+      // price, Google Shopping wants: g:price = MRP, g:sale_price = actual.
+      const hasDiscount = priceInINR(p.regular_price) && Number(p.regular_price) > Number(p.price);
+      const salePrice = hasDiscount ? priceInINR(p.price) : null;
+      const listPrice = hasDiscount ? priceInINR(p.regular_price) : price;
 
-      const desc = stripHtml(p.description || p.short_description || `${p.title} — herbal hair care by Vyra Herbals. 100% natural, chemical-free, ISO 9001:2015 & GMP certified.`).slice(0, 5000);
+      const desc = stripHtml(p.description || `${p.title} — 100% natural handmade herbal hair care by Vyra Herbals. Chemical-free, sulphate-free, paraben-free. ISO 9001:2015 & GMP certified.`).slice(0, 5000);
 
       const brand = p.brand || 'Vyra Herbals';
       const gtinBlock = isLikelyGtin(p.sku)

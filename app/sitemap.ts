@@ -54,12 +54,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const supabase = createServerSupabase();
 
     // ---- Products --------------------------------------------------------
+    // Filter reality (verified 2026-09-18 against live DB dump): all 29 rows
+    // have `status = NULL`. The old .or('status.eq.1,status.eq.active,status.is.null')
+    // pattern silently returns 0 rows because Postgres can't cast the string
+    // 'active' to the column's type. `.not('status', 'eq', 0)` matches both
+    // NULL and 1, and gracefully handles future 0-archived seeding.
     const { data: products, error: pErr } = await supabase
       .from('products')
       .select('handle, updated_at, created_at, status')
-      // Live products only. Row shape varies across the codebase — status can
-      // be numeric or string. This filter is tolerant of both.
-      .or('status.eq.1,status.eq.active,status.is.null')
+      .not('status', 'eq', 0)
       .limit(1000);
 
     if (!pErr && products) {
@@ -89,10 +92,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
 
     // ---- Blogs -----------------------------------------------------------
+    // Same story as products — blogs.status is untyped in this DB, so any
+    // string comparison in .or() breaks the whole clause.
     const { data: blogs, error: bErr } = await supabase
       .from('blogs')
       .select('handle, updated_at, created_at, status')
-      .or('status.eq.1,status.eq.published,status.is.null')
+      .not('status', 'eq', 0)
       .limit(500);
 
     if (!bErr && blogs) {

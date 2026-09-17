@@ -37,7 +37,7 @@ const BlogSection = () => {
                 <div className="section-header">
                     <div className="title-wrap">
                         <span className="subtitle">LATEST STORIES</span>
-                        <h2 className="title">Herbal Wisdom & Ayurveda</h2>
+                        <h2 className="title">Natural Herbal Wisdom & Hair Care Tips</h2>
                     </div>
                     <Link href="/blogs" className="view-all">
                         View All Articles <span>→</span>
@@ -69,7 +69,7 @@ const BlogSection = () => {
                                         </div>
                                         <h3 className="card-title">{blog.title}</h3>
                                         <p className="card-excerpt">
-                                            {blog.excerpt || 'Discover nature\'s profound healing power through our latest Ayurvedic insights and wellness tips.'}
+                                            {blog.excerpt || 'Discover nature\'s profound healing power through our latest natural hair-care insights and handmade herbal wellness tips.'}
                                         </p>
                                         <div className="card-footer">
                                             <span className="read-more">Read Story</span>
