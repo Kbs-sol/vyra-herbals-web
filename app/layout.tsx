@@ -11,7 +11,8 @@ import ConditionalLayout from '@/Components/Common/ConditionalLayout';
 import { ToastContainer } from 'react-toastify';
 import JsonLd from '@/Components/Shared/JsonLd';
 import AnalyticsLoader from '@/Components/Common/AnalyticsLoader';
-import ConsentBanner from '@/Components/Common/ConsentBanner';
+// ConsentBanner intentionally removed — owner opted for cookies to fire
+// directly (no banner). See AnalyticsLoader.tsx for the removed gating.
 import { organizationJsonLd, websiteJsonLd, localBusinessJsonLd, SITE_URL, BRAND_DEFAULT_DESCRIPTION } from '@/utils/seo';
 import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
@@ -44,26 +45,44 @@ const openSans = Open_Sans({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: 'Vyra Herbals | Herbal Hair Care — Ayurvedic, ISO & GMP Certified',
+    default: 'Vyra Herbals — 100% Natural Herbal Hair Oil, Shampoo & Hair Care | Chemical-Free, Handmade in India',
     // %s comes from child `title` strings (e.g. product name). Non-overriding
     // pages fall back to `default`.
     template: '%s',
   },
   description: BRAND_DEFAULT_DESCRIPTION,
-  keywords: ['herbal hair oil', 'natural shampoo', 'ayurvedic hair care', 'rosemary hair oil', 'chemical free', 'sulphate free shampoo', 'GMP certified', 'ISO 9001:2015'],
+  keywords: [
+    // High-intent primary keywords (updated Sep 2026 — see IMPROVEMENTS §6)
+    'natural hair oil',
+    'herbal hair oil',
+    'handmade hair oil',
+    'home-made hair oil for hair fall',
+    '100% natural hair care',
+    'chemical-free shampoo',
+    'chemical-free hair care India',
+    'sulphate-free shampoo India',
+    'paraben-free shampoo',
+    'rosemary hair oil',
+    'natural hair growth oil',
+    // Retained long-tail cultural signals — kept low in the list on purpose.
+    'herbal hair care',
+    'ayurvedic hair care',
+    'GMP certified hair oil',
+    'ISO 9001:2015 hair care',
+  ],
   icons: { icon: '/assets/images/vyra_favicon.jpg' },
   openGraph: {
     type: 'website',
     locale: 'en_IN',
     url: SITE_URL,
     siteName: 'Vyra Herbals',
-    title: 'Vyra Herbals | Herbal Hair Care — Ayurvedic, ISO & GMP Certified',
+    title: 'Vyra Herbals — 100% Natural Herbal Hair Oil, Shampoo & Hair Care | Chemical-Free, Handmade in India',
     description: BRAND_DEFAULT_DESCRIPTION,
     images: [{ url: '/assets/images/banner/og-image.jpg', width: 1200, height: 630 }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Vyra Herbals | Herbal Hair Care',
+    title: 'Vyra Herbals — 100% Natural Herbal Hair Care',
     description: BRAND_DEFAULT_DESCRIPTION,
   },
   robots: {
@@ -134,10 +153,6 @@ export default function RootLayout({
         <Suspense fallback={null}>
           <AnalyticsLoader />
         </Suspense>
-        {/* DPDP Act 2023 consent banner — renders once until the visitor
-         * chooses accept or reject. Wired to Google Consent Mode v2 and
-         * Meta Pixel's `fbq('consent', ...)`. */}
-        <ConsentBanner />
 
         <AuthProvider>
           <CartProvider>

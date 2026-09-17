@@ -1,5 +1,5 @@
 {
-  "name": "Vyra Herbals — Ayurvedic Hair Care",
+  "name": "Vyra Herbals — 100% Natural Herbal Hair Care",
   "short_name": "Vyra Herbals",
   "description": "Herbal hair care and skincare made with 100% natural, plant-based ingredients. ISO 9001:2015 & GMP certified. Free shipping across India.",
   "start_url": "/",
@@ -52,7 +52,7 @@
       "src": "/assets/images/banner/og-image.jpg",
       "sizes": "1200x630",
       "type": "image/jpeg",
-      "label": "Vyra Herbals — Ayurvedic hair care"
+      "label": "Vyra Herbals — 100% natural herbal hair care"
     }
   ]
 }

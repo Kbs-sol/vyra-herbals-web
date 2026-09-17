@@ -81,7 +81,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   }
   return {
     title: 'Blog — Vyra Herbals',
-    description: 'Ayurvedic hair-care insights and how-to guides from Vyra Herbals.',
+    description: 'Natural, handmade herbal hair-care insights and how-to guides from Vyra Herbals.',
     alternates: { canonical: `${SITE_URL}/blogs/${encodeURIComponent(slug)}` },
   };
 }
@@ -136,7 +136,7 @@ export default async function BlogDetail({ params }: { params: Promise<{ slug: s
 
           <div className="blog-detail-info">
             <h1>{blog.title}</h1>
-            <p className="subtitle">{blog.excerpt || 'Ayurvedic insights for your wellness journey.'}</p>
+            <p className="subtitle">{blog.excerpt || 'Natural herbal hair-care insights for your wellness journey.'}</p>
             <p className="author">By {authorName}</p>
           </div>
         </header>

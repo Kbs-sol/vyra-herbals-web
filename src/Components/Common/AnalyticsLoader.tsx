@@ -84,15 +84,9 @@ export default function AnalyticsLoader() {
   return (
     <>
       {/* --------------------------------------------------------------------
-       * Google Consent Mode v2 — MUST run BEFORE any analytics tag.
-       * Default = denied for ad_* + analytics_storage. This makes the initial
-       * page-view GA4 event "cookieless" until the user opts in via the DPDP
-       * banner (which just sets vh_consent=granted and calls
-       * `gtag('consent', 'update', ...)`).
-       *
-       * `wait_for_update` gives the banner ~500ms to fire before Google Ads
-       * assumes denied — this is the recommended pattern from Google's
-       * Consent Mode v2 docs.
+       * Consent bootstrap — owner opted for cookies to fire directly without
+       * a consent banner. We still push a `gtag('consent', 'default', ...)` so
+       * downstream Google tags don't complain, but every bucket is `granted`.
        * ------------------------------------------------------------------ */}
       <Script id="consent-default" strategy="beforeInteractive">
         {`
@@ -100,30 +94,13 @@ export default function AnalyticsLoader() {
           function gtag(){dataLayer.push(arguments);}
           window.gtag = gtag;
           gtag('consent', 'default', {
-            ad_storage: 'denied',
-            ad_user_data: 'denied',
-            ad_personalization: 'denied',
-            analytics_storage: 'denied',
+            ad_storage: 'granted',
+            ad_user_data: 'granted',
+            ad_personalization: 'granted',
+            analytics_storage: 'granted',
             functionality_storage: 'granted',
             security_storage: 'granted',
-            wait_for_update: 500,
           });
-          gtag('set', 'ads_data_redaction', true);
-          gtag('set', 'url_passthrough', true);
-          // Read prior consent from a first-party cookie. If the visitor
-          // consented on a previous visit, upgrade all four storage buckets
-          // immediately so the first page_view is measured properly.
-          try {
-            var m = document.cookie.match(/(?:^|;\\s*)vh_consent=([^;]+)/);
-            if (m && decodeURIComponent(m[1]) === 'granted') {
-              gtag('consent', 'update', {
-                ad_storage: 'granted',
-                ad_user_data: 'granted',
-                ad_personalization: 'granted',
-                analytics_storage: 'granted',
-              });
-            }
-          } catch(e) {}
         `}
       </Script>
 
@@ -168,15 +145,12 @@ export default function AnalyticsLoader() {
       ) : null}
 
       {/* -------- Meta Pixel (organic/audience) --------
-       * Notes on this snippet:
-       *   1. `fbq('consent', 'revoke')` gates ALL events (including PageView)
-       *      until the DPDP banner grants it. The banner code below re-issues
-       *      `fbq('consent', 'grant')` when the user opts in.
-       *   2. We call `fbq('init', pid, {}, { agent: 'plnextjs' })` so Meta's
-       *      Events Manager UI shows the traffic as "Next.js" rather than
-       *      "unknown web integration". Useful when debugging.
-       *   3. The initial PageView carries an `eventID` so a CAPI-side page-view
-       *      (fired opportunistically from /api/events/meta) can dedupe.
+       * `fbq('consent', 'grant')` is fired inline so PageView + all subsequent
+       * events count immediately (no banner gating).
+       * `fbq('init', pid, {}, { agent: 'plnextjs' })` — labels Events Manager
+       * traffic as Next.js for easier debugging.
+       * The initial PageView carries a stable `eventID` so a CAPI-side
+       * page-view (fired opportunistically from /api/events/meta) can dedupe.
        * ------------------------------------------------------------------ */}
       {META_PIXEL_ID ? (
         <Script id="meta-pixel" strategy="afterInteractive">
@@ -188,14 +162,7 @@ export default function AnalyticsLoader() {
             t.src=v;s=b.getElementsByTagName(e)[0];
             s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
 
-            /* Default consent = revoked until DPDP banner grants it. */
-            var hasConsent = false;
-            try {
-              var m = document.cookie.match(/(?:^|;\\s*)vh_consent=([^;]+)/);
-              hasConsent = m && decodeURIComponent(m[1]) === 'granted';
-            } catch(e){}
-            if (!hasConsent) fbq('consent', 'revoke');
-
+            fbq('consent', 'grant');
             fbq('init', '${META_PIXEL_ID}', {}, { agent: 'plnextjs' });
             ${META_ADS_PIXEL_ID ? `fbq('init', '${META_ADS_PIXEL_ID}', {}, { agent: 'plnextjs' });` : ''}
             fbq('track', 'PageView', {}, { eventID: 'pv_init_' + Date.now().toString(36) });

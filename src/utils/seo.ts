@@ -22,8 +22,11 @@ import type { Metadata } from 'next';
 
 export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_ORIGIN || 'https://vyraherbals.com').replace(/\/$/, '');
 export const SITE_NAME = 'Vyra Herbals';
+// Primary brand descriptor — leads with intent-heavy keywords: "natural",
+// "herbal", "handmade", "chemical-free". "Ayurvedic" retained only in cultural
+// long-tail slots, not as the primary positioning.
 export const BRAND_DEFAULT_DESCRIPTION =
-  'Premium herbal hair care & skincare made from 100% natural ingredients. ISO 9001:2015 & GMP certified. Free shipping across India.';
+  '100% natural, handmade herbal hair care from Vyra Herbals — chemical-free, sulphate-free, paraben-free. Made fresh in India, ISO 9001:2015 & GMP certified. Free shipping across India.';
 export const DEFAULT_OG_IMAGE = `${SITE_URL}/assets/images/banner/og-image.jpg`;
 
 // The founder — used in BlogPosting.author and Organization.founder.
@@ -256,19 +259,19 @@ function categoryCopy(name: string): { title: string; description: string } {
   const key = name.toLowerCase().replace(/\s+/g, '');
   const map: Record<string, { title: string; description: string }> = {
     hairoil: {
-      title: 'Herbal Hair Oil for Hair Fall & Growth — 100% Natural | Vyra Herbals',
+      title: 'Natural Herbal Hair Oil for Hair Fall & Growth — 100% Handmade | Vyra Herbals',
       description:
-        'Shop Ayurvedic hair oil with rosemary, neem & 9 herbs. Reduces hair fall, promotes regrowth. ISO & GMP certified. Free shipping across India.',
+        'Shop 100% natural handmade hair oil with rosemary, neem & 9 herbs. Chemical-free, sulphate-free, paraben-free. Reduces hair fall, promotes regrowth. ISO & GMP certified. Free shipping across India.',
     },
     shampoo: {
-      title: 'Herbal Shampoo — Sulphate & Paraben Free for All Hair Types | Vyra Herbals',
+      title: 'Chemical-Free Herbal Shampoo — Sulphate & Paraben Free | Vyra Herbals',
       description:
-        'Gentle Ayurvedic shampoo that cleanses without stripping natural oils. Chemical-free, made in India. Free shipping.',
+        'Gentle natural herbal shampoo that cleanses without stripping oils. 100% chemical-free, sulphate-free, paraben-free. Handmade in India. Free shipping.',
     },
     hairmask: {
-      title: 'Herbal Hair Mask Powder — Deep Nourishment & Repair | Vyra Herbals',
+      title: 'Natural Herbal Hair Mask Powder — Deep Nourishment & Repair | Vyra Herbals',
       description:
-        'Ayurvedic hair mask powder blended with herbs to strengthen roots, repair damage and add shine. 100% natural. Free shipping.',
+        '100% natural handmade hair mask powder blended with fresh herbs to strengthen roots, repair damage and add shine. Chemical-free. Free shipping.',
     },
     rosemaryleaves: {
       title: 'Rosemary Leaves for Hair Growth — 100% Pure Dried Herb | Vyra Herbals',
@@ -286,16 +289,16 @@ function categoryCopy(name: string): { title: string; description: string } {
         'Handmade neem wood comb: reduces static, eases detangling and pairs perfectly with hair oiling.',
     },
     combo: {
-      title: 'Herbal Hair Care Combos — Complete Ayurvedic Kits | Vyra Herbals',
+      title: 'Natural Herbal Hair Care Combos — Complete Handmade Kits | Vyra Herbals',
       description:
-        'Save more with curated hair-care combos — oil, shampoo and tools bundled for a full herbal routine.',
+        'Save more with curated hair-care combos — oil, shampoo and tools bundled for a full chemical-free natural herbal routine.',
     },
   };
   const canned = map[key];
   if (canned) return canned;
   return {
-    title: `${name} — Herbal Care by Vyra Herbals`,
-    description: `Explore Ayurvedic ${name.toLowerCase()} from Vyra Herbals — chemical-free formulations, ISO 9001:2015 & GMP certified. Free shipping across India.`,
+    title: `${name} — Natural Herbal Care by Vyra Herbals`,
+    description: `Explore 100% natural handmade ${name.toLowerCase()} from Vyra Herbals — chemical-free, sulphate-free formulations, ISO 9001:2015 & GMP certified. Free shipping across India.`,
   };
 }
 
@@ -326,7 +329,7 @@ export function organizationJsonLd() {
       jobTitle: FOUNDER.jobTitle,
       image: FOUNDER.image,
       description:
-        'Sahera Banu founded Vyra Herbals in 2023 after a personal hair-loss journey, formulating Ayurvedic hair oil, shampoo, and hair masks with 9 traditional herbs including rosemary, neem, and bhringraj.',
+        'Vyra Herbals was founded in 2023 after a personal hair-loss journey, formulating 100% natural, handmade herbal hair oil, chemical-free shampoo, and hair masks with 9 traditional herbs including rosemary, neem, and bhringraj — drawing on India\'s Ayurvedic heritage but chemical-free by modern standards.',
     },
     foundingDate: '2023',
     foundingLocation: {
@@ -334,14 +337,19 @@ export function organizationJsonLd() {
       name: 'Hyderabad, Telangana, India',
     },
     knowsAbout: [
-      'Ayurvedic hair care',
+      'Natural hair care',
       'Herbal hair oil',
+      'Handmade hair oil',
+      'Chemical-free shampoo',
+      'Sulphate-free shampoo',
+      'Paraben-free hair care',
       'Rosemary hair care',
       'Natural hair growth remedies',
-      'Sulphate-free shampoo',
       'Hair fall treatment',
       'Dandruff treatment',
       'Scalp health',
+      // Long-tail cultural signal retained so "ayurvedic" queries still match.
+      'Ayurvedic hair care',
     ],
     naics: '446120', // Cosmetics, Beauty Supplies, and Perfume Stores
     description: BRAND_DEFAULT_DESCRIPTION,
