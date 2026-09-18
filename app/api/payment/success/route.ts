@@ -85,6 +85,38 @@ export async function POST(req: Request) {
             }
         }
 
+        // ---- PAYMENT IS GENUINE — Check for WhatsApp Draft Orders ----
+        const { data: pendingOrder } = await supabase
+            .from('orders')
+            .select('*')
+            .eq('txn_id', txnid)
+            .eq('source', 'whatsapp')
+            .in('status', ['pending', 'placed'])
+            .maybeSingle();
+
+        if (pendingOrder) {
+            if (pendingOrder.status === 'pending') {
+                // Finalize the WhatsApp order directly
+                await supabase.from('orders').update({
+                    status: 'placed'
+                }).eq('id', pendingOrder.id);
+                
+                await supabase.from('transactions').update({
+                    status: 'success',
+                    order_id: pendingOrder.order_id,
+                    payment_method: 'online'
+                }).eq('id', Number(txnid));
+
+                // Send notifications
+                const { notifyOrderPlaced, notifyPaymentConfirmed } = await import('@/services/communications/integration/orderNotifications');
+                // The order object needs the updated status for notifications to process correctly
+                const finalizedOrder = { ...pendingOrder, status: 'placed' };
+                await notifyOrderPlaced(finalizedOrder);
+                await notifyPaymentConfirmed(finalizedOrder);
+            }
+            return NextResponse.redirect(`${appUrl}/order-placed/${pendingOrder.id}`, 303);
+        }
+
         // ---- PAYMENT IS GENUINE — create the durable order -------------------
         const result = await finalizeOrderFromSession(supabase, txnid, {
             paymentAmount: (data.amount as any) ?? null,

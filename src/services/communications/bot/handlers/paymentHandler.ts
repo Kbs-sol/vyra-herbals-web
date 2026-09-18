@@ -150,12 +150,11 @@ export async function handleCodCheckout(from: string, session: WhatsAppSession) 
 
   const db = getSupabaseAdmin();
 
-  // Mark order as COD + placed
-  await db.from('orders').update({
+  const { data: updatedOrder } = await db.from('orders').update({
     payment_method: 'cod',
     status: 'placed',
     source: 'whatsapp',
-  }).eq('id', draftOrderId);
+  }).eq('id', draftOrderId).select('*').single();
 
   // Clear WhatsApp cart
   await db.from('whatsapp_cart_items').delete().eq('phone', from);
@@ -166,4 +165,9 @@ export async function handleCodCheckout(from: string, session: WhatsAppSession) 
   });
 
   await sendText(from, `✅ *Cash on Delivery Order Placed!*\n\nOrder #${draftOrderId} confirmed.\n\nPay \u20b9${session.context?.cart_total ?? ''} when your package arrives.\n\nWe'll send you tracking details once shipped. Type *Track Order* anytime.`);
+
+  if (updatedOrder) {
+    const { notifyOrderPlaced } = await import('@/services/communications/integration/orderNotifications');
+    await notifyOrderPlaced(updatedOrder);
+  }
 }

@@ -16,25 +16,17 @@ const CheckoutPage = () => {
         setMounted(true);
     }, []);
 
-    // Checkout is the authentication boundary: guests browse and build a cart
-    // freely, and are asked to sign in only here. This page needs its own guard
-    // because it renders <Checkout show /> directly, bypassing the check inside
-    // Checkout.handleCheckout that covers the "Proceed to Checkout" button.
-    //
-    // Waiting on `authLoading` is essential — AuthContext starts with loading:true
-    // while it restores the session, so redirecting before it resolves would bounce
-    // already-signed-in users to /login on a cold load.
+    // Checkout uses OTPModal for auth. We no longer redirect to /login here.
+    // However, if the page mounts and there's no user, we might want to pop up the OTP modal instantly.
+    // The Checkout component handles its own display logic.
     useEffect(() => {
-        if (!authLoading && !user) {
-            router.replace(`/login?next=${encodeURIComponent('/checkout')}`);
-        }
+        // Nothing needed here anymore; OTPModal is triggered when they interact.
     }, [authLoading, user, router]);
 
     if (!mounted) return null;
 
-    // Render nothing while auth resolves or while the redirect above is in flight,
-    // so a guest never sees the address form they aren't allowed to submit.
-    if (authLoading || !user) return null;
+    // Render while auth resolves so a guest sees the checkout UI (which might pop OTP)
+    if (authLoading) return null;
 
     // IMPORTANT: do NOT conditionally swap the rendered tree based on cartItems.
     // The cart can briefly be empty during a refetch/transition, and any swap

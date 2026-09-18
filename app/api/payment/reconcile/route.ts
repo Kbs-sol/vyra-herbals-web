@@ -86,6 +86,36 @@ const reconcileOne = async (supabase: any, txn: any): Promise<ReconcileOutcome> 
     return { txnid, status: 'pending', reason: `Easebuzz status=${verify.status}` };
   }
 
+  // Check if it's a WhatsApp Draft Order
+  const { data: pendingOrder } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('txn_id', txnid)
+    .eq('source', 'whatsapp')
+    .in('status', ['pending', 'placed'])
+    .maybeSingle();
+
+  if (pendingOrder) {
+    if (pendingOrder.status === 'pending') {
+      await supabase.from('orders').update({
+        status: 'placed'
+      }).eq('id', pendingOrder.id);
+      
+      await supabase.from('transactions').update({
+        status: 'success',
+        order_id: pendingOrder.order_id,
+        payment_method: 'online'
+      }).eq('id', Number(txnid));
+
+      const { notifyOrderPlaced, notifyPaymentConfirmed } = await import('@/services/communications/integration/orderNotifications');
+      const finalizedOrder = { ...pendingOrder, status: 'placed' };
+      await notifyOrderPlaced(finalizedOrder);
+      await notifyPaymentConfirmed(finalizedOrder);
+      return { txnid, status: 'created', order_id: pendingOrder.order_id || pendingOrder.id };
+    }
+    return { txnid, status: 'already_exists', order_id: pendingOrder.order_id || pendingOrder.id };
+  }
+
   const result = await finalizeOrderFromSession(supabase, txnid, {
     paymentAmount: verify.amount ?? txn.amount,
     paymentMethod: 'online',

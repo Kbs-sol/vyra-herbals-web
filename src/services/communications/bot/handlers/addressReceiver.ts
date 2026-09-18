@@ -150,6 +150,14 @@ export async function handleConfirmAddress(from: string, session: WhatsAppSessio
 
     const total = itemsJson.reduce((s: number, i: any) => s + i.price * i.quantity, 0);
 
+    const phoneExtracted = address?.match(/\d{10}/)?.[0] || from.replace(/^91/, '');
+    const addressLines = address?.split('\n') || [];
+    let fullName = 'WhatsApp User';
+    if (addressLines[0] && !/\d/.test(addressLines[0])) {
+         fullName = addressLines[0].trim();
+    }
+    const shippingData = { phone: phoneExtracted, fullName, address };
+
     const { data: newOrder } = await db
       .from('orders')
       .insert([{
@@ -159,6 +167,7 @@ export async function handleConfirmAddress(from: string, session: WhatsAppSessio
         total_amount: total,
         payment_method: 'online',
         shipping_address: address,
+        shipping_data: shippingData,
       }])
       .select('id, total_amount')
       .single();
@@ -167,7 +176,15 @@ export async function handleConfirmAddress(from: string, session: WhatsAppSessio
       draftOrderId = newOrder.id;
     }
   } else if (address) {
-    await db.from('orders').update({ shipping_address: address }).eq('id', draftOrderId);
+    const phoneExtracted = address?.match(/\d{10}/)?.[0] || from.replace(/^91/, '');
+    const addressLines = address?.split('\n') || [];
+    let fullName = 'WhatsApp User';
+    if (addressLines[0] && !/\d/.test(addressLines[0])) {
+         fullName = addressLines[0].trim();
+    }
+    const shippingData = { phone: phoneExtracted, fullName, address };
+
+    await db.from('orders').update({ shipping_address: address, shipping_data: shippingData }).eq('id', draftOrderId);
   }
 
   // Get order total

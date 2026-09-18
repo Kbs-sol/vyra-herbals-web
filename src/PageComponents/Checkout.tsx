@@ -13,6 +13,7 @@ import Cart from "./Cart";
 import CartItem from "../Components/Shared/CartItem";
 import BillSummary from "../Components/Shared/BillSummary";
 import CouponInput from "../Components/Shared/CouponInput";
+import OTPModal from "../Components/Shared/OTPModal";
 import { useAuth } from "../Components/Contexts/AuthContext";
 import { useCart } from "../Components/Contexts/CartContext";
 import { supabase } from "@/utils/supabaseClient";
@@ -97,6 +98,7 @@ const Checkout = ({
   }, [formData]);
 
   const [showModal, setShowModal] = useState(false);
+  const [showOTPModal, setShowOTPModal] = useState(false);
   const [disableBtn, setDisableBtn] = useState(false);
   const [totalPriceOfCartProducts, setTotalPriceOfCartProducts] = useState(0);
   const [transactionPrice, setTransactionPrice] = useState(0);
@@ -252,21 +254,34 @@ const Checkout = ({
         .from('user_addresses')
         .select('*')
         .eq('user_id', user.id)
-        .order('is_default', { ascending: false })
-        .order('created_at', { ascending: false });
+        .order('is_default', { ascending: false });
 
-      if (error && error.code !== '42P01') {
-        console.error("Error fetching addresses:", error);
+      if (error) {
+        console.error("Failed to fetch saved addresses:", error);
       } else if (data && data.length > 0) {
         setSavedAddresses(data);
-        // Pre-select default address if needed
         const defaultAddr = data.find(a => a.is_default) || data[0];
-        if (!formData.fullName && !formData.phone) {
-          handleAddressSelection(defaultAddr.id, data);
+        // Only overwrite if the user hasn't explicitly selected one
+        if (!selectedAddressId) {
+          setSelectedAddressId(String(defaultAddr.id));
+          setFormData({
+            fullName: defaultAddr.full_name || '',
+            phone: defaultAddr.phone || '',
+            email: formData.email || '',
+            houseNumber: defaultAddr.house_number || '',
+            area: defaultAddr.area || '',
+            landmark: defaultAddr.landmark || '',
+            pincode: defaultAddr.pincode || '',
+            city: defaultAddr.city || '',
+            state: defaultAddr.state || '',
+            country: defaultAddr.country || 'India',
+          });
+          // GoKwik style: Auto skip straight to summary for returning users
+          setShowOrderSummary(true);
         }
       }
     } catch (e) {
-      console.error(e);
+      console.error("Failed to fetch saved addresses:", e);
     } finally {
       setLoadingAddresses(false);
     }
@@ -364,10 +379,15 @@ const Checkout = ({
 
   useEffect(() => {
     if (typeof show === 'boolean') {
-      setShowModal(show);
-      if (show) setIsModalOpenedPreviously(true);
+      if (show && !user) {
+        setShowOTPModal(true);
+      } else {
+        setShowModal(show);
+        if (show) setIsModalOpenedPreviously(true);
+      }
     }
-  }, [show]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [show, user?.id]);
 
   useEffect(() => {
     const handlePop = () => {
@@ -501,26 +521,13 @@ const Checkout = ({
   };
 
   const handleCheckout = () => {
-    // This is the app's authentication boundary. Browsing and adding to the cart
-    // are open to guests; signing in is only required to place an order.
     if (!user) {
-      toast.error("You have to login first", {
-        position: "bottom-center",
-        autoClose: 1000,
-      });
-      // A cart checkout resumes at /checkout, so signing in continues the order
-      // rather than dropping the shopper back on the cart to click again. A direct
-      // "Buy Now" must return to the product page instead: its line item lives in
-      // this component's props and /checkout renders with product={null}, so
-      // sending a direct buy there would silently lose the selected item.
-      const returnTo = isDirectBuy
-        ? window.location.pathname + window.location.search
-        : '/checkout';
-      router.push(`/login?next=${encodeURIComponent(returnTo)}`);
+      setShowOTPModal(true);
       return;
     }
     const currentPath = window.location.pathname + window.location.search;
     sessionStorage.setItem("checkout_prev_path", currentPath);
+
     if (!isModalOpenedPreviously && window.location.pathname !== '/checkout') window.history.pushState({}, "", "/checkout");
     else if (window.location.pathname !== '/checkout') window.history.replaceState({}, "", "/checkout");
     
@@ -540,8 +547,23 @@ const Checkout = ({
     setTimeout(() => {
       setShowModal(true);
       setIsModalOpenedPreviously(true);
+      if (savedAddresses && savedAddresses.length > 0) {
+        setShowOrderSummary(true);
+      }
       setDisableBtn(false);
     }, 100);
+  };
+
+  const handleOTPSuccess = () => {
+    setShowOTPModal(false);
+    setShowModal(true);
+    setIsModalOpenedPreviously(true);
+  };
+
+  const handleOTPGuest = () => {
+    setShowOTPModal(false);
+    setShowModal(true);
+    setIsModalOpenedPreviously(true);
   };
 
   const loadScript = (src) => {
@@ -1063,6 +1085,13 @@ const Checkout = ({
       >
         {cartItems && cartItems.length > 0 ? "Proceed to Checkout" : "Buy Now"}
       </Button>
+
+      <OTPModal 
+        show={showOTPModal} 
+        onHide={() => setShowOTPModal(false)} 
+        onSuccess={handleOTPSuccess}
+        onGuest={handleOTPGuest}
+      />
     </StyledCheckout>
   );
 };

@@ -97,6 +97,10 @@ export async function POST(request: NextRequest) {
     }
 
     body.images = images;
+    body.created_at = new Date().toISOString();
+    body.updated_at = new Date().toISOString();
+    if (body.view_count === undefined) body.view_count = 0;
+    if (body.quantity === undefined) body.quantity = body.stock_quantity || null;
 
     const { data, error } = await supabase
       .from('products')
@@ -159,6 +163,10 @@ export async function PUT(request: NextRequest) {
     }
 
     updateData.images = images;
+    updateData.updated_at = new Date().toISOString();
+    if (updateData.stock_quantity !== undefined && updateData.quantity === undefined) {
+      updateData.quantity = updateData.stock_quantity;
+    }
 
     const { data, error } = await supabase
       .from('products')

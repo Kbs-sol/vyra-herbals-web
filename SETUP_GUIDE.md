@@ -1,213 +1,103 @@
-# Vyra Herbals — Complete System Setup & Operations Guide 🌿
+# Vyra Herbals - Complete Setup Guide
 
-This guide covers everything you need to configure, operate, and verify the Vyra Herbals e-commerce platform, including the **WhatsApp Conversational Bot**, **Anonymous/Guest Cart System**, **Automated Notification Engine**, and **Supabase Cron Triggers**.
+This guide covers the end-to-end setup of the Vyra Herbals e-commerce platform, including local development, database configuration, and production deployment.
 
----
+## 1. Prerequisites
 
-## 1. Architecture Overview
+Before you begin, ensure you have the following installed and set up:
+- **Node.js** (v18 or higher) & **npm**
+- **Git**
+- **Supabase Account**: For PostgreSQL database and authentication.
+- **Easebuzz Account**: Merchant account for the payment gateway.
+- **Message Central / WhatsApp API**: For WhatsApp automation and bot services.
+- **Vercel Account**: Recommended for hosting the Next.js application.
 
-```
-+-----------------------------------------------------------------------------------+
-|                                 VYRA HERBALS                                      |
-+-----------------------------------------------------------------------------------+
-|                                                                                   |
-|  [ Web Storefront ]                 [ WhatsApp Conversational Bot ]               |
-|   • Next.js 14 App Router            • Meta Cloud API Webhook                     |
-|   • Anonymous Cart (anon_carts)      • Multi-State Machine (botEngine.ts)         |
-|   • Seamless Merge on Login          • Browse -> Categories -> Summary -> Pay     |
-|   • Easebuzz / COD Checkout          • Saved Address Re-use                       |
-|                                                                                   |
-|                                         ^                                         |
-|                                         |                                         |
-|  [ Automation & Cron Engine ]           |                                         |
-|   • Supabase pg_cron (10-min tick) -----+                                         |
-|   • /api/cron/scheduled-communications                                            |
-|   • 3-Hour Registration Follow-Up                                                 |
-|   • WhatsApp Event Dispatcher & Message Queue                                     |
-|                                                                                   |
-|  [ Admin Intelligence ]                                                           |
-|   • /admin/customer-intelligence                                                  |
-|   • Abandoned Carts, Wishlists, Delivered, Past Buyers                            |
-|   • CSV Lead Importer & Audience Segmentation                                     |
-+-----------------------------------------------------------------------------------+
+## 2. Installation
+
+Clone the repository and install the required dependencies:
+
+```bash
+# Navigate to the project directory
+cd icarry-vyra-complete
+
+# Install dependencies
+npm install
 ```
 
----
+## 3. Environment Variables
 
-## 2. WhatsApp Conversational Bot Flow
+The project requires several environment variables to function properly. 
+Create a `.env.local` file in the root of the project (for local development) and add the following keys. 
 
-The WhatsApp bot is designed for frictionless mobile shopping without requiring customers to download an app or register an account.
-
-### Customer Interaction Flow:
-1. **Initiation (`"Hi"`, `"Hello"`, or `"Menu"`):**
-   - The bot fetches the customer's name from `users` (if registered) or addresses them naturally.
-   - Responds with:
-     > *"Hey {Name}! Welcome to Vyra Herbals 🌿\nShop 100% pure ayurvedic & herbal products — all right here in chat.\nHave a look around, no sign-up needed."*
-   - Sends interactive list button: **Menu**.
-
-2. **Menu List:**
-   - **Shop**:
-     - `Shop Products` (*Buy products outright*)
-     - `My Orders` (*Track your orders*)
-   - **Help**:
-     - `Track My Order` (*Live shipment tracking via iCarry*)
-     - `Support` (*Direct human handoff / customer support*)
-
-3. **Category Selection (`Shop Products`):**
-   - Displays interactive list: **Shop by category**
-   - Categories: *All Products, Hair Oil, Shampoo, Kits, Combos, Scalp Massager, Neem Combs, Hair Mask Powder, Rosemary Leaves*.
-
-4. **Product Selection:**
-   - Shows active products in the selected category:
-     > `Title (max 24 chars)`
-     > `₹{price} (was ₹{regular_price}) · {category}`
-   - Automatically handles null or unlimited stock in the database.
-
-5. **Order Summary (Immediate Checkout Screen):**
-   - The moment a customer taps any product, it updates `whatsapp_cart_items` and renders the exact order summary:
-     ```
-     📦 Order summary
-     • Vyra Herbal Hair Oil × 1 — ₹499
-     Total due: ₹499
-     ```
-   - Action Buttons:
-     - `[Confirm & Pay]`
-     - `[Browse More]`
-     - `[Main Menu]`
-
-6. **Address Collection & Confirmation:**
-   - Tapping `[Confirm & Pay]` checks if the customer has an existing address from past orders:
-     - **Saved Address**: Prompts `[Deliver Here]` or `[Add New Address]`.
-     - **New Customer**: Sends `[Add Address]` button.
-   - Customer replies with their address. The bot validates the format and sends confirmation buttons:
-     - `[Confirm Address]`
-     - `[Edit Address]`
-
-7. **Payment Options:**
-   - Tapping `[Confirm Address]` creates a draft order in the `orders` table (`source: 'whatsapp'`) and offers:
-     - `[Pay Online]` -> Generates instant Easebuzz checkout link (`/checkout/pay?order_id=...&source=whatsapp`).
-     - `[Pay on Delivery]` -> Converts order to COD and notifies the fulfillment team.
-     - `[Main Menu]`
-
----
-
-## 3. Web Anonymous / Guest Cart System
-
-Guests can browse and add items to cart before logging in without losing their cart on reload or clearing cache.
-
-### How It Works:
-- **Device Fingerprint**: `src/utils/deviceFingerprint.ts` computes an anonymous hash of non-identifying browser attributes (resolution, timezone, language, canvas hash).
-- **HTTP-Only Cookie**: `app/api/cart/anon/init/route.ts` creates or retrieves a row in `anon_carts` and sets a secure, HTTP-only `anon_device_id` cookie (90-day expiry).
-- **CRUD Operations**: Handled securely on the backend via `/api/cart/anon` (GET, POST, PATCH, DELETE).
-- **Login Merge**: When the guest logs in or completes OTP verification, `app/api/cart/merge/route.ts` moves items from `anon_carts` into the user's permanent `cart` table in Supabase and clears the cookie.
-- **Stock Guard**: Evaluates inventory gracefully. If `stock_quantity` is null in the database, it treats the product as active with unlimited availability. Stock alerts only show if an item is physically low or out of stock.
-
----
-
-## 4. WhatsApp Automation & Supabase Cron Setup
-
-The automated notification pipeline handles welcome follow-ups, order status updates, and delivery confirmations.
-
-### Step-by-Step Supabase `pg_cron` Activation:
-To run the automated message processor every 10 minutes, execute this SQL in your **Supabase Dashboard > SQL Editor**:
-
-```sql
--- 1. Ensure extensions are active
-CREATE EXTENSION IF NOT EXISTS pg_cron;
-CREATE EXTENSION IF NOT EXISTS pg_net;
-
--- 2. Safely unschedule existing jobs without throwing errors if they don't exist
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'process-message-queue-hourly') THEN
-    PERFORM cron.unschedule('process-message-queue-hourly');
-  END IF;
-
-  IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'process-message-queue-10min') THEN
-    PERFORM cron.unschedule('process-message-queue-10min');
-  END IF;
-END $$;
-
--- 3. Schedule the 10-minute processor
-SELECT cron.schedule(
-  'process-message-queue-10min',
-  '*/10 * * * *',
-  $cron$
-    SELECT net.http_post(
-      url     := 'https://vyraherbals.com/api/cron/scheduled-communications?token=05d2360f74057ec232d2ab41b01031d9b0093a96b8143f73f6152a32a845fc3d',
-      body    := '{}',
-      headers := '{"Content-Type":"application/json","Authorization":"Bearer 05d2360f74057ec232d2ab41b01031d9b0093a96b8143f73f6152a32a845fc3d"}'::jsonb
-    );
-  $cron$
-);
-
--- 4. Verify the active cron job
-SELECT jobid, jobname, schedule, active FROM cron.job;
-```
-
-### Automatic 3-Hour Registration Trigger:
-- When a customer registers on the website, a scheduled task is inserted into `message_queue` with `scheduled_for = NOW() + INTERVAL '3 hours'`.
-- Every 10 minutes, the cron job hits `/api/cron/scheduled-communications`, picks up any pending jobs whose `scheduled_for <= NOW()`, and sends the approved Meta template.
-
----
-
-## 5. Required Environment Variables
-
-Ensure the following keys are set in your **Vercel Project Settings > Environment Variables** and `.env.local`:
+*Note: For production, these exact keys must be added directly into your Vercel project settings.*
 
 ```env
-# App URL
-NEXT_PUBLIC_APP_URL=https://vyraherbals.com
+# ----------------------------------------
+# 1. SUPABASE (Database & Auth)
+# ----------------------------------------
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=https://<your-project>.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
-SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>
+# ----------------------------------------
+# 2. EASEBUZZ (Payment Gateway)
+# ----------------------------------------
+EASEBUZZ_KEY=your_easebuzz_merchant_key
+EASEBUZZ_SALT=your_easebuzz_salt
+EASEBUZZ_ENV=test # Change to 'prod' for production
 
-# Cron Security Token
-CRON_SECRET=05d2360f74057ec232d2ab41b01031d9b0093a96b8143f73f6152a32a845fc3d
+# ----------------------------------------
+# 3. WHATSAPP / MESSAGE CENTRAL
+# ----------------------------------------
+MESSAGE_CENTRAL_API_KEY=your_mc_api_key
+WHATSAPP_PHONE_NUMBER_ID=your_whatsapp_number_id
 
-# Meta WhatsApp Cloud API
-WHATSAPP_TOKEN=<your-meta-system-user-token>
-WHATSAPP_PHONE_NUMBER_ID=<your-phone-number-id>
-WHATSAPP_BUSINESS_ACCOUNT_ID=<your-waba-id>
-WHATSAPP_WEBHOOK_VERIFY_TOKEN=<your-webhook-verify-token>
-
-# Easebuzz Payment Gateway
-EASEBUZZ_KEY=<your-merchant-key>
-EASEBUZZ_SALT=<your-merchant-salt>
-EASEBUZZ_ENV=prod
-
-# iCarry Shipping
-ICARRY_API_KEY=<your-icarry-key>
+# ----------------------------------------
+# 4. APP CONFIGURATION
+# ----------------------------------------
+NEXT_PUBLIC_APP_URL=http://localhost:3000 # Change to your actual domain in production
+CRON_SECRET=your_secure_cron_secret_string # Used for securing background cron jobs
 ```
 
----
+## 4. Database Setup (Supabase)
 
-## 6. Meta WhatsApp Webhook Configuration
+Your Supabase PostgreSQL database needs the correct schema. 
 
-1. Log in to [Meta for Developers](https://developers.facebook.com/).
-2. Navigate to your WhatsApp App > **Configuration**.
-3. Set **Callback URL**:
-   ```
-   https://vyraherbals.com/api/webhooks/whatsapp
-   ```
-4. Set **Verify Token**: Must match your `WHATSAPP_WEBHOOK_VERIFY_TOKEN`.
-5. Under **Webhook Fields**, subscribe to:
-   - `messages`
+1. Go to your Supabase project dashboard.
+2. Navigate to the **SQL Editor**.
+3. Run the migration scripts located in the `supabase/migrations/` and `database/migrations/` folders in sequential order.
+4. Ensure the following core tables are created:
+   - `users` & `user_addresses` (Authentication and profiles)
+   - `products`, `categories`, `ingredients` (Catalog)
+   - `orders`, `transactions`, `order_sessions` (Checkout)
+   - `carts`, `anon_carts`, `abandoned_carts` (Cart tracking)
+   - `communications_log`, `whatsapp_bot_sessions` (WhatsApp Bot)
+   - `historical_leads` (Lead Generation)
+5. **Row Level Security (RLS)**: Ensure RLS policies are enabled where necessary so clients can only read/write their own data, while the Service Role Key handles admin tasks.
 
----
+## 5. Running the Application Locally
 
-## 7. Operational Testing & Verification Checklist
+Start the development server:
 
-| Test Case | Expected Behavior |
-| :--- | :--- |
-| **Guest Add-to-Cart** | Open browser in incognito mode. Add any product to cart. The cart counter updates, and navigating to `/cart` shows items without errors or missing stock warnings. |
-| **Cart Merge on Login** | Add item as guest, click Login / Enter OTP. After verification, guest items appear in user's permanent cart. |
-| **WhatsApp Bot "Hi"** | Send "Hi" from a test phone to your WhatsApp Business number. Bot responds with welcome text and the `Menu` list button. |
-| **Browse & Order via Chat** | Tap `Menu` -> `Shop Products` -> select category -> tap product -> order summary renders with `[Confirm & Pay]`. |
-| **Address & Payment Link** | Tap `Confirm & Pay`, send address text, tap `Confirm Address`, choose `Pay Online` -> instant Easebuzz payment link arrives. |
-| **Supabase Cron Tick** | In Supabase SQL editor: `SELECT * FROM cron.job_run_details ORDER BY start_time DESC LIMIT 5;` -> Verify exit code is 0 / `status = 'succeeded'`. |
+```bash
+npm run dev
+```
 
----
-*Maintained by Vyra Herbals Engineering Team.*
+The storefront will be accessible at `http://localhost:3000`.
+The admin dashboard will be accessible at `http://localhost:3000/admin/login`.
+
+## 6. Production Deployment (Vercel)
+
+The recommended hosting platform for this Next.js app is Vercel.
+
+1. Push your code to a GitHub, GitLab, or Bitbucket repository.
+2. Log in to Vercel and click **Add New... > Project**.
+3. Import your repository.
+4. In the **Environment Variables** section, copy and paste all the keys from your `.env.local` file.
+5. Click **Deploy**.
+6. Once deployed, update your `NEXT_PUBLIC_APP_URL` in Vercel to match your new production domain.
+
+## 7. Post-Deployment Checks
+- **Webhooks**: Configure Easebuzz to send successful payment webhooks to `https://your-domain.com/api/payment/success`.
+- **WhatsApp Webhooks**: Point your Message Central/WhatsApp webhook URL to `https://your-domain.com/api/webhooks/whatsapp`.
+- **Cron Jobs**: Vercel handles cron jobs via `vercel.json`. Ensure your `CRON_SECRET` is set in Vercel so the automated abandoned cart recoveries can fire securely.
