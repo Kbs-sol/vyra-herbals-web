@@ -31,6 +31,10 @@
   },
   "crons": [
     {
+      "path": "/api/cron/process-message-queue",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/cron/scheduled-communications",
       "schedule": "0 10 * * *"
     },
