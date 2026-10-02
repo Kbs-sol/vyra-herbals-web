@@ -45,7 +45,7 @@ const SCENARIOS: TestScenario[] = [
     id: 'shop_browse',
     name: 'Browse Shop',
     description: 'Verify test products appear in the shop when activated.',
-    icon: '🛍️',
+    icon: '',
     category: 'storefront',
     testUrl: '/shop',
     notes: 'Activate test products first, then open the shop. They should appear.',
@@ -54,7 +54,7 @@ const SCENARIOS: TestScenario[] = [
     id: 'product_page',
     name: 'Product Detail Page',
     description: 'Open a test product page and check images, reviews, Add to Cart button.',
-    icon: '📦',
+    icon: '',
     category: 'storefront',
     testUrl: '/product/vyra-test-product-a',
     notes: 'Checks product page rendering, price display, MRP vs sale price badge.',
@@ -63,7 +63,7 @@ const SCENARIOS: TestScenario[] = [
     id: 'add_to_cart',
     name: 'Add to Cart (Guest)',
     description: 'Add a test product to cart without logging in. Checks anonymous cart.',
-    icon: '🛒',
+    icon: '',
     category: 'cart',
     testUrl: '/product/vyra-test-product-a',
     notes: 'Click "Add to Cart". Check cart icon count updates and cart drawer shows the item.',
@@ -72,7 +72,7 @@ const SCENARIOS: TestScenario[] = [
     id: 'cart_qty',
     name: 'Cart Quantity Update',
     description: 'Update quantity and remove items from cart.',
-    icon: '🔢',
+    icon: '',
     category: 'cart',
     testUrl: '/cart',
     notes: 'Increase, decrease quantity. Hit remove. Cart total should update.',
@@ -81,7 +81,7 @@ const SCENARIOS: TestScenario[] = [
     id: 'checkout_online',
     name: 'Online Payment Checkout',
     description: 'Go through the full checkout with Easebuzz. Use UPI sandbox.',
-    icon: '💳',
+    icon: '',
     category: 'payment',
     testUrl: '/cart',
     notes: 'Add test product → Checkout → Pay ₹1 with UPI test mode. Verify order appears in admin.',
@@ -91,7 +91,7 @@ const SCENARIOS: TestScenario[] = [
     id: 'checkout_cod',
     name: 'COD Checkout',
     description: 'Place a Cash on Delivery order (₹1 advance expected).',
-    icon: '💵',
+    icon: '',
     category: 'payment',
     testUrl: '/cart',
     notes: 'Add test product → Checkout → Select COD → Pay ₹1 advance. Verify order in admin.',
@@ -100,7 +100,7 @@ const SCENARIOS: TestScenario[] = [
     id: 'create_test_order_online',
     name: 'Create Dummy Online Order',
     description: 'Creates a fake "Payment Received" order instantly — no real payment.',
-    icon: '⚡',
+    icon: '',
     category: 'payment',
     apiAction: 'create_order_online',
     actionLabel: 'Create Test Order (Online)',
@@ -110,7 +110,7 @@ const SCENARIOS: TestScenario[] = [
     id: 'create_test_order_cod',
     name: 'Create Dummy COD Order',
     description: 'Creates a fake COD order instantly — no real money involved.',
-    icon: '⚡',
+    icon: '',
     category: 'payment',
     apiAction: 'create_order_cod',
     actionLabel: 'Create Test Order (COD)',
@@ -120,7 +120,7 @@ const SCENARIOS: TestScenario[] = [
     id: 'wishlist',
     name: 'Wishlist',
     description: 'Add a test product to wishlist, remove it, verify it persists after reload.',
-    icon: '❤️',
+    icon: '',
     category: 'storefront',
     testUrl: '/product/vyra-test-product-b',
     notes: 'Must be logged in. Add to wishlist → go to /wishlist → verify item appears → remove.',
@@ -129,7 +129,7 @@ const SCENARIOS: TestScenario[] = [
     id: 'coupon',
     name: 'Coupon Code',
     description: 'Apply a coupon at checkout. Verify discount applies correctly.',
-    icon: '🎟️',
+    icon: '',
     category: 'payment',
     testUrl: '/cart',
     notes: 'Create a test coupon in Admin → Coupons first. Then apply at checkout.',
@@ -138,7 +138,7 @@ const SCENARIOS: TestScenario[] = [
     id: 'whatsapp_menu',
     name: 'WhatsApp Menu',
     description: 'Send "hi" to the business WhatsApp. Main menu should appear.',
-    icon: '💬',
+    icon: '',
     category: 'whatsapp',
     notes: 'Open WhatsApp and send "hi". Should receive the main menu with categories.',
   },
@@ -146,7 +146,7 @@ const SCENARIOS: TestScenario[] = [
     id: 'whatsapp_catalog',
     name: 'WhatsApp Catalog Order',
     description: 'Browse products via WhatsApp bot and place a ₹1 test order.',
-    icon: '📱',
+    icon: '',
     category: 'whatsapp',
     notes: 'Use the WhatsApp bot to browse, add to cart, enter address, and pay. Verify in admin orders.',
     warning: 'Test products must be active for the bot to find them.',
@@ -155,7 +155,7 @@ const SCENARIOS: TestScenario[] = [
     id: 'whatsapp_tracking',
     name: 'WhatsApp Order Tracking',
     description: 'Send "Track Order" to WhatsApp. Should show recent orders with tracking link.',
-    icon: '📍',
+    icon: '',
     category: 'whatsapp',
     notes: 'Tapping "Track on iCarry ↗" should open iCarry tracking in browser.',
   },
@@ -163,7 +163,7 @@ const SCENARIOS: TestScenario[] = [
     id: 'admin_orders',
     name: 'Admin Orders View',
     description: 'Verify test orders appear in the Admin → Orders tab with correct data.',
-    icon: '🗂️',
+    icon: '',
     category: 'admin',
     testUrl: '/admin/orders',
     notes: 'Filter by source or search by TEST- prefix. Check all columns display correctly.',
@@ -172,7 +172,7 @@ const SCENARIOS: TestScenario[] = [
     id: 'admin_price_update',
     name: 'Admin Price Update',
     description: 'Update test product price in admin. Verify it reflects in shop without errors.',
-    icon: '🏷️',
+    icon: '',
     category: 'admin',
     testUrl: '/admin/products',
     notes: 'Edit "Test Product A", change price to 50, save. No bigint errors should appear.',
@@ -181,7 +181,7 @@ const SCENARIOS: TestScenario[] = [
     id: 'admin_status_toggle',
     name: 'Admin Product Status Toggle',
     description: 'Set a test product to Draft and verify it disappears from shop.',
-    icon: '👁️',
+    icon: '',
     category: 'admin',
     testUrl: '/admin/products',
     notes: 'Set status = Draft on Test Product A → visit /shop → confirm it\'s gone.',
@@ -190,7 +190,7 @@ const SCENARIOS: TestScenario[] = [
     id: 'icarry_shipment',
     name: 'iCarry Shipment Creation',
     description: 'Create a test order then manually trigger shipment sync to test iCarry API.',
-    icon: '🚚',
+    icon: '',
     category: 'shipping',
     testUrl: '/admin/orders',
     notes: 'Find a test order → click "Sync Shipment". Check that AWB is assigned or error is logged.',
@@ -200,7 +200,7 @@ const SCENARIOS: TestScenario[] = [
     id: 'notifications',
     name: 'WhatsApp Notification Trigger',
     description: 'Trigger an order notification to a test phone number.',
-    icon: '🔔',
+    icon: '',
     category: 'whatsapp',
     testUrl: '/admin/whatsapp',
     notes: 'Go to Admin → WhatsApp → use broadcast or direct message to send to your own number.',
@@ -306,13 +306,13 @@ export default function TestLabPage() {
   const activeProductCount = testProducts.filter((p) => p.status === 1).length;
 
   return (
-    <AdminLayoutWrapper pageTitle="🧪 Test Lab">
+    <AdminLayoutWrapper pageTitle="Test Lab">
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '1.5rem 1rem' }}>
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <div style={{ marginBottom: '1.5rem' }}>
           <h1 style={{ fontSize: '1.6rem', fontWeight: 700, color: '#111', margin: 0 }}>
-            🧪 Test Lab
+            Test Lab
           </h1>
           <p style={{ color: '#6b7280', marginTop: '0.3rem', fontSize: '0.95rem' }}>
             Test any feature safely without touching live production products or prices.
@@ -355,8 +355,8 @@ export default function TestLabPage() {
           <div>
             <div style={{ fontWeight: 700, fontSize: '1rem', color: testModeActive ? '#854d0e' : '#374151' }}>
               {testModeActive
-                ? `⚠️ Test Mode is ACTIVE — ${activeProductCount} product(s) visible in shop`
-                : '✅ Test Mode is OFF — customers see nothing'}
+                ? `Test Mode is ACTIVE — ${activeProductCount} product(s) visible in shop`
+                : 'Test Mode is OFF — customers see nothing'}
             </div>
             <div style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: '0.2rem' }}>
               {testModeActive
@@ -376,7 +376,7 @@ export default function TestLabPage() {
                   opacity: actionLoading ? 0.6 : 1,
                 }}
               >
-                {actionLoading === 'seed' ? '⏳ Seeding…' : '🌱 Seed Test Products'}
+                {actionLoading === 'seed' ? 'Seeding…' : 'Seed Test Products'}
               </button>
             ) : (
               <>
@@ -392,8 +392,8 @@ export default function TestLabPage() {
                   }}
                 >
                   {actionLoading === 'toggle'
-                    ? '⏳ Updating…'
-                    : testModeActive ? '🔴 Turn Off Test Mode' : '🟢 Turn On Test Mode'}
+                    ? 'Updating…'
+                    : testModeActive ? 'Turn Off Test Mode' : 'Turn On Test Mode'}
                 </button>
               </>
             )}

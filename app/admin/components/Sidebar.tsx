@@ -174,7 +174,7 @@ const menuItems = [
     ),
   },
   {
-    name: 'Test Lab 🧪',
+    name: 'Test Lab',
     href: '/admin/test-lab',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
