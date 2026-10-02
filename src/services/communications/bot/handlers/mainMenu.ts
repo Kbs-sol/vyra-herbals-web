@@ -24,9 +24,9 @@ export async function handleMainMenu(from: string, session: WhatsAppSession) {
       type: 'button',
       header: { type: 'text', text: '🌿 Vyra Herbals' },
       body: {
-        text: `Hey ${customerName}! Welcome to *Vyra Herbals* 🌿\n\nShop 100% pure ayurvedic & herbal products — right here in chat.\n\nTap an option below to get started:`
+        text: `Hey ${customerName}! Welcome to *Vyra Herbals* 🌿\n\nShop 100% pure herbal products — right here in chat.\n\nTap an option below to get started:`
       },
-      footer: { text: 'Natural • Ayurvedic • Trusted' },
+      footer: { text: 'Natural • Herbal • Trusted' },
       action: {
         buttons: [
           { type: 'reply', reply: { id: 'SHOP_PRODUCTS', title: '🛍️ Shop Products' } },
