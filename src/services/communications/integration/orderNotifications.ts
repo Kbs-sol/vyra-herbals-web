@@ -65,6 +65,8 @@ export async function notifyOrderPlaced(order: any): Promise<void> {
     const shipping = readShippingData(order);
     const customerName = String(shipping.fullName || shipping.name || shipping.first_name || '').trim() || 'Customer';
 
+    const awbId = String(order.awb_code || order.tracking_id || '').trim();
+
     await automationEngine.emit(
       {
         type: 'ORDER_PLACED',
@@ -75,7 +77,8 @@ export async function notifyOrderPlaced(order: any): Promise<void> {
         total_amount: money(order.total_amount),
         payment_method: order.payment_method === 'cod' ? 'cod' : 'online',
         items: toOrderItems(order.items),
-        tracking_id: order.tracking_id,
+        tracking_id: awbId,
+        awb_code: awbId,
       },
       'api'
     );

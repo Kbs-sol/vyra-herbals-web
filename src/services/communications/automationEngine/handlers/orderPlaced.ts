@@ -19,11 +19,12 @@ export class OrderPlacedHandler extends BaseEventHandler<OrderPlacedEvent> {
     }
 
     const template = getTemplate('ORDER_PLACED');
+    const awbId = String(event.awb_code || event.tracking_id || '').trim();
 
     const values: Record<string, string | number> = {
       customer_name: (event.customer_name && event.customer_name !== 'Customer') ? event.customer_name : (event.customer_phone || 'Customer'),
       total_amount: event.total_amount ? Number(event.total_amount).toFixed(2) : '0.00',
-      tracking_id: event.tracking_id || 'Pending',
+      tracking_id: awbId || 'Processing',
     };
 
     // The owner uploaded a photo to the Meta template manager for ORDER_PLACED, making it a
@@ -37,7 +38,7 @@ export class OrderPlacedHandler extends BaseEventHandler<OrderPlacedEvent> {
       provider: 'whatsapp',
       template_name: template.name,
       parameters: pickOrdered(values, template.parameterOrder),
-      button_parameters: [event.tracking_id || 'Pending'],
+      button_parameters: [awbId || 'track'],
       // ...(headerImageUrl ? { header_image_url: headerImageUrl } : {}),
       dedupe_key: event.dedupe_key ?? `ORDER_PLACED:${event.order_id}`,
     };

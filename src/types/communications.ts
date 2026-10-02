@@ -51,6 +51,7 @@ export interface OrderPlacedEvent extends BaseEvent {
   payment_method: 'cod' | 'online';
   items: OrderItem[];
   tracking_id?: string;
+  awb_code?: string;
 }
 
 export interface PaymentConfirmedEvent extends BaseEvent {

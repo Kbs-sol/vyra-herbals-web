@@ -139,9 +139,18 @@ export async function POST(req: Request) {
                 }
 
                 // iCarry courier booking
+                let orderForNotify = finalizedOrder;
                 try {
                     const { syncOrderShipment } = await import('@/utils/orderShipment');
-                    await syncOrderShipment(supabase, finalizedOrder);
+                    const syncRes = await syncOrderShipment(supabase, finalizedOrder);
+                    if (syncRes && syncRes.success) {
+                        orderForNotify = {
+                            ...finalizedOrder,
+                            awb_code: syncRes.awb_code,
+                            tracking_id: syncRes.awb_code || syncRes.trackingId,
+                            shipment_id: syncRes.shipmentId,
+                        };
+                    }
                 } catch (shipErr) {
                     console.error('[WhatsApp Payment Success] iCarry sync error:', shipErr);
                 }
@@ -149,9 +158,9 @@ export async function POST(req: Request) {
                 // Send notifications
                 try {
                     const { notifyOrderPlaced, notifyPaymentConfirmed } = await import('@/services/communications/integration/orderNotifications');
-                    await notifyOrderPlaced(finalizedOrder);
+                    await notifyOrderPlaced(orderForNotify);
                     if (!isCod) {
-                        await notifyPaymentConfirmed(finalizedOrder);
+                        await notifyPaymentConfirmed(orderForNotify);
                     }
                 } catch (notifErr) {
                     console.error('[WhatsApp Payment Success] notification error:', notifErr);
