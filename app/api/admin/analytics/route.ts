@@ -74,7 +74,12 @@ export async function GET(request: NextRequest) {
       .select('*', { count: 'exact', head: true })
       .neq('items', '[]');
       
-    // Historical Leads
+    // Wishlist Leads (Warm Leads)
+    const { count: wishlistCount } = await supabase
+      .from('wishlist')
+      .select('*', { count: 'exact', head: true });
+
+    // Historical Leads (Cold Leads)
     const { count: historicalCount } = await supabase
       .from('historical_leads')
       .select('*', { count: 'exact', head: true });
@@ -94,7 +99,7 @@ export async function GET(request: NextRequest) {
       },
       leads: {
         hot: (abandonedCount || 0) + (anonCount || 0), // Guest carts + Abandoned
-        warm: 0, 
+        warm: wishlistCount || 0, 
         cold: historicalCount || 0
       },
       totalOrders30Days: orders?.length || 0

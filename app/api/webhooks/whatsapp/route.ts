@@ -3,6 +3,7 @@ import { whatsappClient } from '@/services/communications/providers/whatsapp/cli
 import { verifyWebhookHandshake } from '@/services/communications/providers/whatsapp/webhookHandler';
 import { updateDeliveryStatusByMessageId } from '@/services/communications/logging/messageLogger';
 import { logger } from '@/services/communications/logging/logger';
+import { processIncomingMessages } from '@/services/communications/bot/botEngine';
 
 export const runtime = 'nodejs'; // crypto signature verification needs the Node runtime, not edge
 
@@ -98,16 +99,11 @@ export async function POST(req: Request) {
     }
 
     if (filteredMessages.length > 0) {
-      // Process asynchronously so we don't block the 200 OK response to Meta
-      import('@/services/communications/bot/botEngine')
-        .then(({ processIncomingMessages }) => {
-          processIncomingMessages(filteredMessages).catch((err) => {
-            logger.error('whatsapp_bot_processing_error', { error: err.message });
-          });
-        })
-        .catch((err) => {
-          logger.error('whatsapp_bot_import_error', { error: err.message });
-        });
+      try {
+        await processIncomingMessages(filteredMessages);
+      } catch (err: any) {
+        logger.error('whatsapp_bot_processing_error', { error: err.message });
+      }
     }
   }
 

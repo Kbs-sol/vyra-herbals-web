@@ -42,12 +42,34 @@ async function processSingleMessage(msg: any) {
       listReplyId = msg.interactive.list_reply?.id || '';
     }
   } else if (msg.type === 'order') {
+    try {
+      const { logChatMessage } = await import('./chatLogger');
+      await logChatMessage({
+        phone_number: from,
+        direction: 'inbound',
+        message_type: 'order',
+        body: '🛒 Sent Order / Catalog Cart',
+        raw_payload: msg.order,
+      });
+    } catch {}
     await handleOrderReceived(from, msg.order, session);
     return;
   }
 
   const replyId = interactiveReplyId || listReplyId;
   const normalizedText = textBody.toLowerCase();
+
+  // Log inbound message for Admin Live Chat
+  try {
+    const { logChatMessage } = await import('./chatLogger');
+    await logChatMessage({
+      phone_number: from,
+      direction: 'inbound',
+      message_type: msg.type || 'text',
+      body: textBody || replyId || 'Interactive Selection',
+      raw_payload: msg,
+    });
+  } catch {}
 
   // --- HUMAN HANDOFF: bot goes completely silent ---
   if (session.state === 'HUMAN_HANDOFF') {
@@ -57,7 +79,10 @@ async function processSingleMessage(msg: any) {
 
   // --- GLOBAL KEYWORD INTERCEPTORS ---
 
-  if (['hi','hello','hii','hy','hey','menu','start'].includes(normalizedText) || replyId === 'MAIN_MENU') {
+  const GREETING_WORDS = ['hi', 'hello', 'hii', 'hiii', 'hy', 'hey', 'heyy', 'menu', 'start', 'namaste', 'hola', 'good morning', 'good afternoon', 'good evening', 'vyra'];
+  const isGreeting = GREETING_WORDS.some(w => normalizedText === w || normalizedText.startsWith(w + ' ') || normalizedText.endsWith(' ' + w));
+
+  if (isGreeting || replyId === 'MAIN_MENU') {
     // DON'T clear cart context when returning to menu
     await updateSession(from, { state: 'BROWSING', context: { ...session.context } });
     await handleMainMenu(from, { ...session, state: 'BROWSING', context: { ...session.context } });
@@ -79,7 +104,12 @@ async function processSingleMessage(msg: any) {
     return;
   }
 
-  if (replyId === 'SHOP_PRODUCTS' || replyId === 'BROWSE_MORE' || ['shop products', 'products', 'shop'].includes(normalizedText)) {
+  if (
+    replyId === 'SHOP_PRODUCTS' || 
+    replyId === 'BROWSE_MORE' || 
+    replyId === 'VIEW_CATALOG' ||
+    ['shop', 'products', 'buy', 'catalog', 'items'].some(w => normalizedText === w || normalizedText.includes(w))
+  ) {
     await handleShopByCategory(from, session);
     return;
   }
@@ -89,7 +119,7 @@ async function processSingleMessage(msg: any) {
     return;
   }
 
-  if (replyId === 'TRACK_ORDER' || normalizedText === 'track order') {
+  if (replyId === 'TRACK_ORDER' || normalizedText === 'track order' || normalizedText === 'track') {
     await handleTracking(from, session);
     return;
   }
@@ -192,7 +222,7 @@ async function processSingleMessage(msg: any) {
       break;
 
     default:
-      await sendText(from, `I didn't quite understand that. \n\nType *Menu* to browse our products or *Help* to speak with our team. 🌿`);
+      await handleMainMenu(from, session);
       break;
   }
 }

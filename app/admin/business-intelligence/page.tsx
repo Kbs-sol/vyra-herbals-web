@@ -175,8 +175,11 @@ export default function BusinessIntelligencePage() {
                 <p className="text-muted small mb-4">
                   Users who added items to their cart and entered their phone number, or initiated a checkout but did not complete payment.
                 </p>
-                <div className="mt-auto">
-                  <Button variant="outline-danger" className="w-100 fw-bold" onClick={() => handleBroadcast('abandoned')}>
+                <div className="mt-auto d-flex flex-column gap-2">
+                  <Button variant="danger" className="w-100 fw-bold" onClick={() => router.push('/admin/customer-intelligence?tab=abandoned')}>
+                    View Hot Leads List ({data.leads.hot}) &rarr;
+                  </Button>
+                  <Button variant="outline-danger" className="w-100 fw-bold btn-sm" onClick={() => handleBroadcast('abandoned')}>
                     Broadcast Recovery Campaign
                   </Button>
                 </div>
@@ -193,8 +196,11 @@ export default function BusinessIntelligencePage() {
                 <p className="text-muted small mb-4">
                   Users with items in their wishlist but no recent purchases, or users who interacted with the WhatsApp bot but dropped off.
                 </p>
-                <div className="mt-auto">
-                  <Button variant="outline-warning" className="w-100 fw-bold text-dark" onClick={() => handleBroadcast('wishlist')}>
+                <div className="mt-auto d-flex flex-column gap-2">
+                  <Button variant="warning" className="w-100 fw-bold text-dark" onClick={() => router.push('/admin/customer-intelligence?tab=wishlist')}>
+                    View Warm Leads List ({data.leads.warm}) &rarr;
+                  </Button>
+                  <Button variant="outline-warning" className="w-100 fw-bold text-dark btn-sm" onClick={() => handleBroadcast('wishlist')}>
                     Send Nurture Campaign
                   </Button>
                 </div>
@@ -211,8 +217,11 @@ export default function BusinessIntelligencePage() {
                 <p className="text-muted small mb-4">
                   Historical leads imported via CSV or past customers who haven't returned in over 90 days.
                 </p>
-                <div className="mt-auto">
-                  <Button variant="outline-info" className="w-100 fw-bold text-dark" onClick={() => handleBroadcast('historical')}>
+                <div className="mt-auto d-flex flex-column gap-2">
+                  <Button variant="info" className="w-100 fw-bold text-dark" onClick={() => router.push('/admin/customer-intelligence?tab=leads')}>
+                    View Cold Leads List ({data.leads.cold}) &rarr;
+                  </Button>
+                  <Button variant="outline-info" className="w-100 fw-bold text-dark btn-sm" onClick={() => handleBroadcast('historical')}>
                     Send Reactivation Campaign
                   </Button>
                 </div>

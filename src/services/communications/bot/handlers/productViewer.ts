@@ -9,7 +9,7 @@ export async function handleProductViewer(from: string, productId: number, sessi
     .from('products')
     .select('id, title, price, regular_price, description, benefits, stock_quantity, quantity, status')
     .eq('id', productId)
-    .eq('status', 1)
+    .or('status.eq.1,status.is.null,status.eq.active')
     .maybeSingle();
 
   if (!product) {
@@ -22,8 +22,9 @@ export async function handleProductViewer(from: string, productId: number, sessi
     return;
   }
 
-  const stock = product.stock_quantity ?? product.quantity ?? 0;
-  const isOos = stock < 1;
+  const hasExplicitStock = product.stock_quantity !== null && product.stock_quantity !== undefined;
+  const stock = hasExplicitStock ? Number(product.stock_quantity) : (product.quantity !== null && product.quantity !== undefined ? Number(product.quantity) : 999);
+  const isOos = hasExplicitStock && stock < 1;
   
   // Check if already in cart
   const { data: inCart } = await db
@@ -46,7 +47,7 @@ export async function handleProductViewer(from: string, productId: number, sessi
 
   const stockText = isOos
     ? '\n\n\u274c *Currently Out of Stock*'
-    : stock <= 5
+    : (hasExplicitStock && stock <= 5)
       ? `\n\n\u26a0\ufe0f Only ${stock} left in stock!`
       : '';
 

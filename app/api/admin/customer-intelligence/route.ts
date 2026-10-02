@@ -26,8 +26,7 @@ export async function GET(request: NextRequest) {
       let abandonedQuery = supabase
         .from('abandoned_carts')
         .select('*')
-        .eq('status', 'open')
-        .lt('last_activity_at', new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString());
+        .eq('status', 'open');
       
       const { data: abandonedData, error: abandonedError } = await abandonedQuery;
       if (abandonedError) throw abandonedError;
@@ -36,7 +35,6 @@ export async function GET(request: NextRequest) {
       let anonQuery = supabase
         .from('anon_carts')
         .select('*')
-        .lt('last_updated', new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString())
         .neq('items', '[]');
       
       const { data: anonData, error: anonError } = await anonQuery;
@@ -66,7 +64,7 @@ export async function GET(request: NextRequest) {
           id,
           created_at,
           user_id,
-          users ( name, phone, created_at ),
+          users ( name, email, phone, created_at ),
           products ( title )
         `);
       
@@ -81,9 +79,10 @@ export async function GET(request: NextRequest) {
         const productObj: any = Array.isArray(item.products) ? item.products[0] : item.products;
         const phone = userObj?.phone || 'Unknown';
         const name = userObj?.name || 'Unknown';
+        const email = userObj?.email || '-';
         if (search) {
           const lowerSearch = search.toLowerCase();
-          if (!phone.toLowerCase().includes(lowerSearch) && !name.toLowerCase().includes(lowerSearch)) {
+          if (!phone.toLowerCase().includes(lowerSearch) && !name.toLowerCase().includes(lowerSearch) && !email.toLowerCase().includes(lowerSearch)) {
             continue;
           }
         }
@@ -91,6 +90,7 @@ export async function GET(request: NextRequest) {
           userMap.set(uid, {
             user_id: uid,
             name: name,
+            email: email,
             phone: phone,
             signup_date: userObj?.created_at,
             product_names: []
@@ -112,18 +112,15 @@ export async function GET(request: NextRequest) {
         .from('orders')
         .select(`
           id, created_at, tracking_id, awb_code,
-          users!inner ( name, phone )
+          users!inner ( name, email, phone )
         `)
         .in('status', ['delivered', 'Delivered']);
       
       // PostgREST doesn't support complex text search well on joins, so fetch and filter or use filter on joined
       if (search) {
-        query = query.or(`users.name.ilike.%${search}%,users.phone.ilike.%${search}%`);
+        query = query.or(`users.name.ilike.%${search}%,users.phone.ilike.%${search}%,users.email.ilike.%${search}%`);
       }
-      // Or just fetch all and filter since we might need custom logic
-      // Note: Supabase JS syntax for filtering joined tables requires nested syntax, which is tricky.
-      // Let's just fetch without search and filter in memory since we are paginating in memory for others anyway to be safe, or just do DB level filtering.
-      // Let's do DB level for delivered
+
       const { data: dData, error } = await query.order('created_at', { ascending: false });
       if (error) throw error;
       
@@ -133,12 +130,17 @@ export async function GET(request: NextRequest) {
         awb_code: o.awb_code,
         created_at: o.created_at,
         name: o.users?.name || 'Unknown',
+        email: o.users?.email || '-',
         phone: o.users?.phone || 'Unknown'
       }));
 
       if (search) {
         const lowerSearch = search.toLowerCase();
-        mapped = mapped.filter(item => item.name.toLowerCase().includes(lowerSearch) || item.phone.toLowerCase().includes(lowerSearch));
+        mapped = mapped.filter(item => 
+          item.name.toLowerCase().includes(lowerSearch) || 
+          item.phone.toLowerCase().includes(lowerSearch) ||
+          item.email.toLowerCase().includes(lowerSearch)
+        );
       }
 
       count = mapped.length;
@@ -147,7 +149,7 @@ export async function GET(request: NextRequest) {
     } else if (tab === 'registered') {
       const { data: usersData, error: usersError } = await supabase
         .from('users')
-        .select('id, name, phone, created_at')
+        .select('id, name, email, phone, created_at')
         .eq('role', 1);
       
       if (usersError) throw usersError;
@@ -170,6 +172,7 @@ export async function GET(request: NextRequest) {
 
       let mapped = (usersData || []).map(u => ({
         name: u.name || 'Unknown',
+        email: u.email || '-',
         phone: u.phone || 'Unknown',
         created_at: u.created_at,
         order_count: orderStats.get(u.id)?.order_count || 0,
@@ -178,7 +181,11 @@ export async function GET(request: NextRequest) {
 
       if (search) {
         const lowerSearch = search.toLowerCase();
-        mapped = mapped.filter(item => item.name.toLowerCase().includes(lowerSearch) || item.phone.toLowerCase().includes(lowerSearch));
+        mapped = mapped.filter(item => 
+          item.name.toLowerCase().includes(lowerSearch) || 
+          item.phone.toLowerCase().includes(lowerSearch) ||
+          item.email.toLowerCase().includes(lowerSearch)
+        );
       }
 
       mapped.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());

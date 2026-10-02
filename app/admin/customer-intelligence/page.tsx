@@ -154,12 +154,23 @@ export default function CustomerIntelligencePage() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  // Initialize active tab from URL query param (e.g. ?tab=wishlist or ?tab=leads)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabParam = urlParams.get('tab');
+      if (tabParam && ['abandoned', 'wishlist', 'delivered', 'registered', 'leads'].includes(tabParam)) {
+        setActiveTab(tabParam as any);
+      }
+    }
+  }, []);
+
   const renderTableHead = () => {
     switch (activeTab) {
-      case 'abandoned': return <tr><th>Phone</th><th>Cart Type</th><th>Cart Value / Items</th><th>Last Updated</th><th>Actions</th></tr>;
-      case 'wishlist': return <tr><th>Name</th><th>Phone</th><th>Signup Date</th><th>Wishlist Items</th><th>Actions</th></tr>;
-      case 'delivered': return <tr><th>Order ID</th><th>Name</th><th>Phone</th><th>Tracking / AWB</th><th>Delivery Date</th><th>Actions</th></tr>;
-      case 'registered': return <tr><th>Name</th><th>Phone</th><th>Signup Date</th><th>Total Orders</th><th>LTV</th><th>Actions</th></tr>;
+      case 'abandoned': return <tr><th>Phone / Identifier</th><th>Cart Type</th><th>Cart Value / Items</th><th>Last Updated</th><th>Actions</th></tr>;
+      case 'wishlist': return <tr><th>Name</th><th>Email</th><th>Phone</th><th>Signup Date</th><th>Wishlist Items</th><th>Actions</th></tr>;
+      case 'delivered': return <tr><th>Order ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Tracking / AWB</th><th>Delivery Date</th><th>Actions</th></tr>;
+      case 'registered': return <tr><th>Name</th><th>Email</th><th>Phone</th><th>Signup Date</th><th>Total Orders</th><th>LTV</th><th>Actions</th></tr>;
       case 'leads': return <tr><th>Name</th><th>Phone</th><th>Orders</th><th>Segment</th><th>Category</th><th>Import Date</th><th>Actions</th></tr>;
     }
   };
@@ -169,9 +180,9 @@ export default function CustomerIntelligencePage() {
       case 'abandoned':
         return (
           <tr key={i}>
-            <td>{row.phone}</td>
-            <td>{row.type === 'abandoned' ? 'Registered User Cart' : 'Anonymous Cart'}</td>
-            <td>{row.type === 'abandoned' ? `₹${row.cart_total}` : `${row.items?.length || 0} items`}</td>
+            <td><strong>{row.phone}</strong></td>
+            <td>{row.type === 'abandoned' ? 'Registered User Cart' : 'Anonymous Guest Cart'}</td>
+            <td>{row.type === 'abandoned' ? `₹${row.cart_total}` : `${row.items?.length || 0} items (${row.items?.map((it: any) => it.title).join(', ') || 'Cart items'})`}</td>
             <td>{new Date(row.last_activity_at || row.last_updated).toLocaleString('en-IN')}</td>
             <td><button className="view-btn" onClick={() => setSelectedCustomer(row)}>View Details</button></td>
           </tr>
@@ -179,7 +190,8 @@ export default function CustomerIntelligencePage() {
       case 'wishlist':
         return (
           <tr key={i}>
-            <td>{row.name}</td>
+            <td><strong>{row.name}</strong></td>
+            <td>{row.email || '-'}</td>
             <td>{row.phone}</td>
             <td>{new Date(row.signup_date).toLocaleDateString('en-IN')}</td>
             <td>{row.product_names?.join(', ') || '-'}</td>
@@ -190,7 +202,8 @@ export default function CustomerIntelligencePage() {
         return (
           <tr key={i}>
             <td>#{row.order_id}</td>
-            <td>{row.name}</td>
+            <td><strong>{row.name}</strong></td>
+            <td>{row.email || '-'}</td>
             <td>{row.phone}</td>
             <td>{row.tracking_id || row.awb_code || '-'}</td>
             <td>{new Date(row.created_at).toLocaleDateString('en-IN')}</td>
@@ -200,7 +213,8 @@ export default function CustomerIntelligencePage() {
       case 'registered':
         return (
           <tr key={i}>
-            <td>{row.name}</td>
+            <td><strong>{row.name}</strong></td>
+            <td>{row.email || '-'}</td>
             <td>{row.phone}</td>
             <td>{new Date(row.created_at).toLocaleDateString('en-IN')}</td>
             <td>{row.order_count}</td>
@@ -211,7 +225,7 @@ export default function CustomerIntelligencePage() {
       case 'leads':
         return (
           <tr key={i}>
-            <td>{row.full_name}</td>
+            <td><strong>{row.full_name}</strong></td>
             <td>{row.mobile_number}</td>
             <td>{row.total_orders}</td>
             <td><span className="tier-badge" style={{backgroundColor: '#e0f2fe', color: '#0284c7'}}>{row.segment}</span></td>
@@ -317,8 +331,11 @@ export default function CustomerIntelligencePage() {
                   {(selectedCustomer.name || selectedCustomer.full_name || 'U').charAt(0).toUpperCase()}
                 </div>
                 <div className="profile-info">
-                  <h3>{selectedCustomer.name || selectedCustomer.full_name || 'Unknown'}</h3>
-                  <p>{selectedCustomer.phone || selectedCustomer.mobile_number}</p>
+                  <h3 style={{ margin: 0 }}>{selectedCustomer.name || selectedCustomer.full_name || 'Customer Profile'}</h3>
+                  <p style={{ margin: '4px 0', color: '#4b5563' }}><strong>Phone:</strong> {selectedCustomer.phone || selectedCustomer.mobile_number || 'N/A'}</p>
+                  {selectedCustomer.email && selectedCustomer.email !== '-' && (
+                    <p style={{ margin: '4px 0', color: '#4b5563' }}><strong>Email:</strong> {selectedCustomer.email}</p>
+                  )}
                 </div>
               </div>
               <div className="detail-section" style={{ marginTop: '20px' }}>

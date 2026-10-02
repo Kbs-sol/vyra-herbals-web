@@ -196,7 +196,8 @@ export async function handleConfirmAddress(from: string, session: WhatsAppSessio
 
   const totalAmount = order?.total_amount ?? session.context?.cart_total ?? 0;
 
-  const paymentLink = `${process.env.NEXT_PUBLIC_APP_URL}/checkout/pay?order_id=${draftOrderId}&source=whatsapp`;
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://vyraherbals.com').replace(/\/+$/, '');
+  const paymentLink = `${appUrl}/checkout/pay?order_id=${draftOrderId}&source=whatsapp`;
 
   await updateSession(from, {
     state: 'AWAITING_PAYMENT',

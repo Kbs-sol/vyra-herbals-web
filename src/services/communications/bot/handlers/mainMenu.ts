@@ -15,62 +15,39 @@ export async function handleMainMenu(from: string, session: WhatsAppSession) {
 
   const customerName = user?.name ? user.name.trim().split(' ')[0] : 'there';
 
-  // 1. Send Welcome Text (Image 1)
-  await whatsappClient.sendRaw({
-    messaging_product: 'whatsapp',
-    to: from,
-    type: 'text',
-    text: {
-      body: `Hey ${customerName}! Welcome to *Vyra Herbals* 🌿\n\nShop 100% pure ayurvedic & herbal products — all right here in chat.\n\nHave a look around, no sign-up needed.`
-    }
-  });
-
-  // 2. Send Interactive Menu List (Images 1 & 2)
-  await whatsappClient.sendRaw({
+  // Send single interactive message with prominent quick-action buttons
+  const res = await whatsappClient.sendRaw({
     messaging_product: 'whatsapp',
     to: from,
     type: 'interactive',
     interactive: {
-      type: 'list',
-      header: { type: 'text', text: 'Vyra Herbals' },
-      body: { text: 'What would you like to do?' },
-      action: {
-        button: 'Menu',
-        sections: [
-          {
-            title: 'Shop',
-            rows: [
-              {
-                id: 'SHOP_PRODUCTS',
-                title: 'Shop Products',
-                description: 'Buy products outright',
-              },
-              {
-                id: 'MY_ORDERS',
-                title: 'My Orders',
-                description: 'Track your orders',
-              },
-            ],
-          },
-          {
-            title: 'Help',
-            rows: [
-              {
-                id: 'TRACK_ORDER',
-                title: 'Track My Order',
-                description: 'Live shipment tracking',
-              },
-              {
-                id: 'CUSTOMER_SUPPORT',
-                title: 'Support',
-                description: 'Get in touch with us',
-              },
-            ],
-          },
-        ],
+      type: 'button',
+      header: { type: 'text', text: '🌿 Vyra Herbals' },
+      body: {
+        text: `Hey ${customerName}! Welcome to *Vyra Herbals* 🌿\n\nShop 100% pure ayurvedic & herbal products — right here in chat.\n\nTap an option below to get started:`
       },
-    },
+      footer: { text: 'Natural • Ayurvedic • Trusted' },
+      action: {
+        buttons: [
+          { type: 'reply', reply: { id: 'SHOP_PRODUCTS', title: '🛍️ Shop Products' } },
+          { type: 'reply', reply: { id: 'TRACK_ORDER', title: '📦 Track Order' } },
+          { type: 'reply', reply: { id: 'CUSTOMER_SUPPORT', title: '💬 Support' } },
+        ]
+      }
+    }
   });
+
+  // Fallback to text if interactive format is rejected
+  if (!res.success) {
+    await whatsappClient.sendRaw({
+      messaging_product: 'whatsapp',
+      to: from,
+      type: 'text',
+      text: {
+        body: `Hey ${customerName}! Welcome to *Vyra Herbals* 🌿\n\nReply with:\n• *Shop* to view products\n• *Track* to track orders\n• *Support* to talk to our team`
+      }
+    });
+  }
 }
 
 export async function handleShopByCategory(from: string, session: WhatsAppSession) {

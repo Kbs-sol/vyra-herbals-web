@@ -392,7 +392,12 @@ export default function WhatsAppMarketingPage() {
 
           {activeTab === 'bot' && (
             <div>
-              <h2 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '16px' }}>Active Bot Conversations</h2>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <h2 style={{ fontSize: '20px', fontWeight: 600, margin: 0 }}>Active Bot Conversations</h2>
+                <a href="/admin/chats" style={{ padding: '8px 16px', background: '#075e54', color: '#fff', textDecoration: 'none', borderRadius: '6px', fontWeight: 600, fontSize: '14px' }}>
+                  💬 Open WhatsApp Live Chat Window &rarr;
+                </a>
+              </div>
               {sessions.filter(s => s.state === 'HUMAN_HANDOFF').length > 0 && (
                 <div style={{ padding: '12px', background: '#fee2e2', color: '#991b1b', borderRadius: '8px', marginBottom: '16px' }}>
                   <strong>Needs Attention:</strong> Some customers are waiting for a human agent.
