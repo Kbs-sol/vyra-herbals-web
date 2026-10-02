@@ -18,24 +18,32 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
  * are NEVER visible to real customers regardless of status.
  */
 
-function getAdminPhone(): string {
-  return (process.env.ADMIN_WHATSAPP_PHONE || '').replace(/\D/g, '');
+function getAdminPhones(): string[] {
+  // Supports a single number or a comma-separated list:
+  // ADMIN_WHATSAPP_PHONE=919XXXXXXXXX,919YYYYYYYYY
+  const raw = process.env.ADMIN_WHATSAPP_PHONE || '';
+  return raw
+    .split(',')
+    .map((p) => p.replace(/\D/g, '').trim())
+    .filter(Boolean);
 }
 
 function normalizePhone(phone: string): string {
   return phone.replace(/\D/g, '');
 }
 
-/** Returns true if the sender is the configured admin WhatsApp number. */
+/** Returns true if the sender is one of the configured admin WhatsApp numbers. */
 export function isAdminPhone(from: string): boolean {
-  const adminPhone = getAdminPhone();
-  if (!adminPhone) return false;
+  const adminPhones = getAdminPhones();
+  if (adminPhones.length === 0) return false;
   const senderPhone = normalizePhone(from);
-  // Match last 10 digits (handles +91 prefix differences)
-  return (
-    senderPhone === adminPhone ||
-    senderPhone.endsWith(adminPhone.slice(-10)) ||
-    adminPhone.endsWith(senderPhone.slice(-10))
+  const senderLast10 = senderPhone.slice(-10);
+  // Match last 10 digits to handle +91 prefix differences
+  return adminPhones.some(
+    (adminPhone) =>
+      senderPhone === adminPhone ||
+      senderPhone.endsWith(adminPhone.slice(-10)) ||
+      adminPhone.endsWith(senderLast10)
   );
 }
 
