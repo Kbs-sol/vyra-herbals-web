@@ -180,6 +180,12 @@ export const finalizeOrderFromSession = async (
       if (result.success) {
         const resObj = result as any;
         trackingId = resObj.awb_code || resObj.trackingId || '';
+        if (resObj.awb_code) {
+          inserted.awb_code = resObj.awb_code;
+        }
+        if (resObj.shipmentId) {
+          inserted.shipment_id = resObj.shipmentId;
+        }
       }
       else console.warn(`[finalizeOrderFromSession] iCarry sync incomplete for order ${inserted.id}: ${result.message}`);
     } catch (syncErr) {
@@ -191,6 +197,9 @@ export const finalizeOrderFromSession = async (
 
   if (inserted && trackingId) {
     inserted.tracking_id = trackingId;
+    if (!inserted.awb_code && !trackingId.startsWith('ORD-') && trackingId !== String(inserted.id)) {
+      inserted.awb_code = trackingId;
+    }
   }
 
   // Update the transactions row to reflect the confirmed payment.

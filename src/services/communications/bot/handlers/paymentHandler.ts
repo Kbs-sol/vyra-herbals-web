@@ -108,7 +108,7 @@ export async function handlePaymentCheck(from: string, session: WhatsAppSession)
   const db = getSupabaseAdmin();
   const { data: order } = await db
     .from('orders')
-    .select('id, status, payment_method, total_amount, transaction_price, txn_id')
+    .select('id, status, payment_method, total_amount, transaction_price, txn_id, awb_code, tracking_id')
     .eq('id', draftOrderId)
     .maybeSingle();
 
@@ -139,17 +139,23 @@ export async function handlePaymentCheck(from: string, session: WhatsAppSession)
     // Clear WhatsApp cart
     await db.from('whatsapp_cart_items').delete().eq('phone', from);
 
+    const rawAwb = String(order.awb_code || order.tracking_id || '').trim();
+    const awb = (!rawAwb.startsWith('ORD-') && rawAwb !== String(draftOrderId)) ? rawAwb : '';
+    const trackingInfo = awb
+      ? `\n\n• *AWB / Tracking ID:* \`${awb}\`\n👉 Track on iCarry: https://www.icarry.in/track-shipment?awb=${encodeURIComponent(awb)}`
+      : `\n\nWe'll send you tracking details as soon as it ships! Type *Track Order* anytime to check status.`;
+
     if (order.payment_method === 'cod') {
       const advancePaid = order.transaction_price || 50;
       const balance = Math.max(0, (order.total_amount || 0) - advancePaid);
       await sendText(
         from,
-        `✅ *Advance Payment Confirmed!*\n\nYour Cash on Delivery order #${draftOrderId} has been placed. 📦\n\n• Advance Paid: ₹${advancePaid}\n• Balance to pay courier on delivery: *₹${balance}*\n\nWe'll send you tracking details as soon as it ships! Type *Track Order* anytime to check status.`
+        `✅ *Advance Payment Confirmed!*\n\nYour Cash on Delivery order #${draftOrderId} has been placed. 📦\n\n• Advance Paid: ₹${advancePaid}\n• Balance to pay courier on delivery: *₹${balance}*${trackingInfo}`
       );
     } else {
       await sendText(
         from,
-        `✅ *Payment Confirmed! Thank you!*\n\nYour order #${draftOrderId} has been placed. 📦\n\nWe'll send you tracking details as soon as it ships! Type *Track Order* anytime to check status.`
+        `✅ *Payment Confirmed! Thank you!*\n\nYour order #${draftOrderId} has been placed. 📦${trackingInfo}`
       );
     }
   } else {

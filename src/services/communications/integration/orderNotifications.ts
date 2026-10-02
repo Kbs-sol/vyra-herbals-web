@@ -65,7 +65,34 @@ export async function notifyOrderPlaced(order: any): Promise<void> {
     const shipping = readShippingData(order);
     const customerName = String(shipping.fullName || shipping.name || shipping.first_name || '').trim() || 'Customer';
 
-    const awbId = String(order.awb_code || order.tracking_id || '').trim();
+    let awbId = String(order.awb_code || '').trim();
+
+    // If order in memory didn't have awb_code, check the DB row (iCarry sync might have just populated it)
+    if (!awbId && order.id) {
+      try {
+        const { getSupabaseAdmin } = await import('@/lib/supabaseAdmin');
+        const { data: dbOrder } = await getSupabaseAdmin()
+          .from('orders')
+          .select('awb_code, tracking_id')
+          .eq('id', order.id)
+          .maybeSingle();
+        if (dbOrder?.awb_code) {
+          awbId = String(dbOrder.awb_code).trim();
+        } else if (
+          dbOrder?.tracking_id &&
+          !String(dbOrder.tracking_id).startsWith('ORD-') &&
+          String(dbOrder.tracking_id) !== String(order.id)
+        ) {
+          awbId = String(dbOrder.tracking_id).trim();
+        }
+      } catch (dbErr) {
+        console.warn(`[notifyOrderPlaced] failed to fetch awb_code from db for order ${order.id}:`, dbErr);
+      }
+    }
+
+    if (!awbId && order.tracking_id && !String(order.tracking_id).startsWith('ORD-') && String(order.tracking_id) !== String(order.id)) {
+      awbId = String(order.tracking_id).trim();
+    }
 
     await automationEngine.emit(
       {
@@ -185,7 +212,7 @@ export async function notifyDeliveryStatusChanged(
         dedupe_key: `DELIVERY_STATUS_UPDATED:${order.id}:${status}`,
         customer_phone: String(shipping.phone ?? ''),
         new_status: status,
-        tracking_id: String(order.tracking_id ?? order.awb_code ?? '').trim(),
+        tracking_id: String(order.awb_code ?? order.tracking_id ?? '').trim(),
       },
       source
     );

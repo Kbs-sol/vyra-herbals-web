@@ -74,13 +74,13 @@ export async function handleTracking(from: string, session: WhatsAppSession) {
       text += `• Courier: ${o.courier_name}\n`;
     }
 
-    if (awb) {
+    if (awb && !awb.startsWith('ORD-') && awb !== String(o.id)) {
       text += `• *AWB / Tracking ID:* \`${awb}\`\n`;
-      text += `👉 Track: https://vyraherbals.com/track-order\n`;
+      text += `👉 Track on iCarry: https://www.icarry.in/track-shipment?awb=${encodeURIComponent(awb)}\n`;
       if (o.courier_name?.toLowerCase().includes('xpressbees')) {
-        text += `👉 Xpressbees: https://www.xpressbees.com/track?awb=${awb}\n`;
+        text += `👉 Xpressbees: https://www.xpressbees.com/track?awb=${encodeURIComponent(awb)}\n`;
       } else if (o.courier_name?.toLowerCase().includes('delhivery')) {
-        text += `👉 Delhivery: https://www.delhivery.com/track/package/${awb}\n`;
+        text += `👉 Delhivery: https://www.delhivery.com/track/package/${encodeURIComponent(awb)}\n`;
       }
     } else {
       text += `• *AWB / Tracking:* Being assigned by courier\n`;

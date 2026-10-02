@@ -220,6 +220,12 @@ export async function POST(req: Request) {
     let trackingId = '';
     if (shipmentSync.success) {
       trackingId = shipmentSync.awb_code || shipmentSync.trackingId || '';
+      if ((shipmentSync as any).awb_code) {
+        order.awb_code = (shipmentSync as any).awb_code;
+      }
+      if ((shipmentSync as any).shipmentId) {
+        order.shipment_id = (shipmentSync as any).shipmentId;
+      }
     }
 
     // 3. Record coupon usage (after order is durably created)
@@ -248,6 +254,9 @@ export async function POST(req: Request) {
     // Attach tracking ID so the combined ORDER_PLACED message can use it
     if (trackingId) {
       order.tracking_id = trackingId;
+      if (!order.awb_code && !trackingId.startsWith('ORD-') && trackingId !== String(order?.id)) {
+        order.awb_code = trackingId;
+      }
     }
     await notifyOrderPlaced(order);
 
