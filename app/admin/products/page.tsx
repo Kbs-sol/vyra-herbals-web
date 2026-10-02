@@ -28,7 +28,7 @@ export default function ProductsPage() {
   const [isDeletingCat, setIsDeletingCat] = useState(false);
 
   const [formData, setFormData] = useState({
-      status: 'active',
+      status: 1 as number | string,
       brand: 'Vyra Herbals',
       stock_quantity: '100',
       keywords: '',
@@ -268,7 +268,7 @@ export default function ProductsPage() {
   const openAddModal = () => {
     setEditingProduct(null);
     setFormData({
-      status: 'active',
+      status: 1,
       brand: 'Vyra Herbals',
       stock_quantity: '100',
       keywords: '',
@@ -297,7 +297,7 @@ export default function ProductsPage() {
   const openEditModal = (product: Product) => {
       setEditingProduct(product);
       setFormData({
-        status: product.status || 'active',
+        status: product.status !== undefined && product.status !== null ? Number(product.status) : 1,
         brand: product.brand || 'Vyra Herbals',
         stock_quantity: product.stock_quantity?.toString() || '100',
         keywords: product.keywords || '',
@@ -342,6 +342,7 @@ export default function ProductsPage() {
           : sanitizedImages;
       const payload = {
           ...formData,
+          status: parseInt(String(formData.status), 10) || 1,
           stock_quantity: parseInt(formData.stock_quantity) || 0,
           keywords: formData.keywords,
           coupon: formData.coupon,
@@ -622,12 +623,12 @@ export default function ProductsPage() {
                         <label>Status</label>
                         <select
                           value={formData.status}
-                          onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                          onChange={(e) => setFormData({ ...formData, status: parseInt(e.target.value, 10) })}
                           style={{ width: '100%', padding: '0.5rem', border: '1px solid #ddd', borderRadius: '4px' }}
                         >
-                          <option value="active">Active</option>
-                          <option value="draft">Draft</option>
-                          <option value="archived">Archived</option>
+                          <option value={1}>Active</option>
+                          <option value={0}>Draft</option>
+                          <option value={2}>Archived</option>
                         </select>
                       </div>
                       <div className="form-group">
