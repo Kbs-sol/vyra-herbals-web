@@ -11,6 +11,7 @@ import { handleCart, handleAddToCart, handleCartQuantity, handleRemoveFromCart, 
 import { handleCheckout, handlePaymentCheck, handleCodCheckout } from './handlers/paymentHandler';
 import { handleHumanHandoff } from './handlers/humanHandoff';
 import { handleCancellation } from './handlers/cancellationHandler';
+import { isTestModeCommand, handleTestModeCommand, isAdminPhone } from './handlers/testModeHandler';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 export async function processIncomingMessages(messages: any[]) {
@@ -71,6 +72,13 @@ async function processSingleMessage(msg: any) {
       raw_payload: msg,
     });
   } catch {}
+
+  // --- ADMIN TEST MODE COMMAND (checked FIRST, before all other routing) ---
+  // Only the phone in ADMIN_WHATSAPP_PHONE env can use this. Others are silently ignored.
+  if (textBody && isTestModeCommand(textBody)) {
+    await handleTestModeCommand(from, textBody);
+    return;
+  }
 
   // --- HUMAN HANDOFF: bot goes silent UNLESS customer wants to return to shopping ---
   if (session.state === 'HUMAN_HANDOFF') {
