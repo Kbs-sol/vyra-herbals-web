@@ -72,9 +72,16 @@ async function processSingleMessage(msg: any) {
     });
   } catch {}
 
-  // --- HUMAN HANDOFF: bot goes completely silent ---
+  // --- HUMAN HANDOFF: bot goes silent UNLESS customer wants to return to shopping ---
   if (session.state === 'HUMAN_HANDOFF') {
-    // Do not reply. Admin must reset session to IDLE.
+    const EXIT_WORDS = ['menu', 'start', 'shop', 'main menu', 'exit', 'hi', 'hello', 'catalog'];
+    const wantsMenu = replyId === 'MAIN_MENU' || EXIT_WORDS.some(w => normalizedText === w || normalizedText.startsWith(w + ' '));
+    if (wantsMenu) {
+      await updateSession(from, { state: 'BROWSING', context: { ...session.context } });
+      await handleMainMenu(from, { ...session, state: 'BROWSING', context: { ...session.context } });
+      return;
+    }
+    // Otherwise do not reply — leave conversation open for human agent
     return;
   }
 
