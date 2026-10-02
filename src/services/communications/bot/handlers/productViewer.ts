@@ -22,9 +22,8 @@ export async function handleProductViewer(from: string, productId: number, sessi
     return;
   }
 
-  const hasExplicitStock = product.stock_quantity !== null && product.stock_quantity !== undefined;
-  const stock = hasExplicitStock ? Number(product.stock_quantity) : (product.quantity !== null && product.quantity !== undefined ? Number(product.quantity) : 999);
-  const isOos = hasExplicitStock && stock < 1;
+  // Stock is treated as unlimited per store settings
+  const stockText = '\n\n✅ *In Stock*';
   
   // Check if already in cart
   const { data: inCart } = await db
@@ -45,12 +44,6 @@ export async function handleProductViewer(from: string, productId: number, sessi
     ? `\n\n✨ *Key Benefits:*\n${product.benefits.substring(0, 200)}${product.benefits.length > 200 ? '...' : ''}`
     : '';
 
-  const stockText = isOos
-    ? '\n\n\u274c *Currently Out of Stock*'
-    : (hasExplicitStock && stock <= 5)
-      ? `\n\n\u26a0\ufe0f Only ${stock} left in stock!`
-      : '';
-
   const inCartText = inCart ? `\n\n🛒 Already in cart: ${inCart.quantity} unit(s)` : '';
 
   const bodyText = [
@@ -60,25 +53,6 @@ export async function handleProductViewer(from: string, productId: number, sessi
     stockText,
     inCartText,
   ].join('');
-
-  if (isOos) {
-    await whatsappClient.sendRaw({
-      messaging_product: 'whatsapp',
-      to: from,
-      type: 'interactive',
-      interactive: {
-        type: 'button',
-        body: { text: bodyText },
-        action: {
-          buttons: [
-            { type: 'reply', reply: { id: 'VIEW_CATALOG', title: '← Back to Products' } },
-            { type: 'reply', reply: { id: 'MAIN_MENU', title: '🏠 Main Menu' } },
-          ]
-        }
-      }
-    });
-    return;
-  }
 
   const buttons: any[] = [
     { type: 'reply', reply: { id: 'ADD_TO_CART', title: inCart ? '➕ Add More' : '🛒 Add to Cart' } },

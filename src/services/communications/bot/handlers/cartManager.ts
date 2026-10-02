@@ -49,11 +49,8 @@ export async function handleCart(from: string, session: WhatsAppSession) {
     if (!product) continue;
     const lineTotal = product.price * item.quantity;
     total += lineTotal;
-    const hasExplicitStock = product.stock_quantity !== null && product.stock_quantity !== undefined;
-    const stock = hasExplicitStock ? Number(product.stock_quantity) : 999;
-    const oosWarning = hasExplicitStock && stock < item.quantity ? ' ⚠️ Low stock' : '';
     const priceChange = product.price !== item.price_at_add ? ` (price updated)` : '';
-    cartText += `*${product.title}*${priceChange}\n${item.quantity} × \u20b9${product.price} = \u20b9${lineTotal}${oosWarning}\n\n`;
+    cartText += `*${product.title}*${priceChange}\n${item.quantity} × \u20b9${product.price} = \u20b9${lineTotal}\n\n`;
   }
   cartText += `*Total: \u20b9${total}*\n\nTap Checkout to place your order.`;
 
