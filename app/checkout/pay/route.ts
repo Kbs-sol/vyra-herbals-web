@@ -37,47 +37,75 @@ export async function GET(req: Request) {
         return NextResponse.redirect(`${appUrl}/order-placed/${order.id}`, 303);
     }
 
-    // 2. We need a transaction ID.
-    // We already generated it? If txn_id exists, use it. Otherwise create a new one.
-    let txnId = order.txn_id;
-    if (!txnId) {
-        const now = Date.now();
-        const generatedId = now * 1000 + Math.floor(Math.random() * 1000);
-        txnId = String(generatedId);
+    // 2. Determine payment method and amount to charge
+    const method = (url.searchParams.get('method') || order.payment_method || 'online').toLowerCase();
+    const isCod = method === 'cod';
 
-        // Sanitize fields for Easebuzz
-        let phone = String(order.shipping_address || '').match(/\d{10}/)?.[0] || '9999999999';
-        // Extract a name if possible, else default
-        let firstname = 'WhatsApp User';
-        const addressLines = String(order.shipping_address || '').split('\n');
-        if (addressLines[0] && !/\d/.test(addressLines[0])) {
-             firstname = addressLines[0].trim().slice(0, 60);
-        }
+    const items = Array.isArray(order.items) ? order.items : [];
+    const itemsTotal = items.reduce(
+        (sum: number, it: any) => sum + (Number(it.price || 0) * Number(it.quantity || 1)),
+        0
+    ) || (Number(order.total_amount) || 0);
 
-        const amount = order.total_amount;
+    let chargeAmount = 0;
+    let finalTotal = 0;
 
-        // Insert into transactions
-        const { error: txnErr } = await supabase.from('transactions').insert([{
-            id: generatedId,
-            user_id: null, // Guest whatsapp order
-            amount,
-            firstname,
-            email: 'whatsapp@vyraherbals.com',
-            phone,
-            productinfo: 'WhatsApp Order',
-            status: 'created',
-            payment_method: 'online',
-            created_at: new Date().toISOString()
-        }]);
-
-        if (txnErr) {
-            console.error('Failed to create transaction for WhatsApp payment:', txnErr);
-            return NextResponse.redirect(`${appUrl}/cart?error=txn_creation_failed`, 303);
-        }
-
-        // Update the order with this txn_id
-        await supabase.from('orders').update({ txn_id: txnId }).eq('id', orderId);
+    if (isCod) {
+        chargeAmount = 50; // COD advance
+        finalTotal = itemsTotal + 50;
+    } else {
+        chargeAmount = itemsTotal;
+        finalTotal = itemsTotal;
     }
+
+    const now = Date.now();
+    const generatedId = now * 1000 + Math.floor(Math.random() * 1000);
+    const txnId = String(generatedId);
+    const nowIso = new Date().toISOString();
+
+    const shippingData = typeof order.shipping_data === 'string'
+        ? JSON.parse(order.shipping_data)
+        : (order.shipping_data || {});
+
+    let phone = shippingData.phone || String(order.shipping_address || '').match(/\d{10}/)?.[0] || '9999999999';
+    let firstname = (shippingData.fullName || 'WhatsApp Customer')
+        .replace(/[^A-Za-z .]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim() || 'WhatsApp Customer';
+    firstname = firstname.slice(0, 60);
+
+    const productinfo = isCod ? 'Vyra COD Advance' : 'WhatsApp Order';
+    const email = 'whatsapp@vyraherbals.com';
+
+    // Insert into transactions
+    const { error: txnErr } = await supabase.from('transactions').insert([{
+        id: generatedId,
+        user_id: null, // Guest whatsapp order
+        amount: chargeAmount,
+        firstname,
+        email,
+        phone,
+        productinfo,
+        status: 'created',
+        payment_method: isCod ? 'cod' : 'online',
+        created_at: nowIso,
+    }]);
+
+    if (txnErr) {
+        console.error('Failed to create transaction for WhatsApp payment:', txnErr);
+        return NextResponse.redirect(`${appUrl}/cart?error=txn_creation_failed`, 303);
+    }
+
+    // Update the order with this txn_id and timestamps
+    await supabase.from('orders').update({
+        txn_id: txnId,
+        payment_method: isCod ? 'cod' : 'online',
+        transaction_price: chargeAmount,
+        total_amount: finalTotal,
+        created_at: order.created_at || nowIso,
+        order_date: order.order_date || nowIso,
+        delivery_status: 'Pending Sync',
+    }).eq('id', orderId);
 
     // 3. Initiate Easebuzz
     const key = (process.env.EASEBUZZ_KEY || '').trim();
@@ -88,18 +116,7 @@ export async function GET(req: Request) {
       ? 'https://pay.easebuzz.in/payment/initiateLink'
       : 'https://testpay.easebuzz.in/payment/initiateLink';
 
-    const formattedAmount = Number(order.total_amount).toFixed(2);
-    const productinfo = 'WhatsApp Order';
-    const email = 'whatsapp@vyraherbals.com';
-    let phone = String(order.shipping_address || '').match(/\d{10}/)?.[0] || '9999999999';
-    let firstname = 'WhatsApp User';
-    const addressLines = String(order.shipping_address || '').split('\n');
-    if (addressLines[0] && !/\d/.test(addressLines[0])) {
-         firstname = addressLines[0].trim().slice(0, 60) || 'WhatsApp User';
-    }
-    
-    // Clean string just in case
-    firstname = firstname.replace(/[^A-Za-z .]/g, '').replace(/\s+/g, ' ').trim() || 'WhatsApp User';
+    const formattedAmount = chargeAmount.toFixed(2);
 
     const hashString = `${key}|${txnId}|${formattedAmount}|${productinfo}|${firstname}|${email}|||||||||||${salt}`;
     const hash = crypto.createHash('sha512').update(hashString).digest('hex');

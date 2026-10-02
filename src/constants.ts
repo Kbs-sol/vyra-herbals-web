@@ -11,4 +11,4 @@ export const COD_Charges: number = 50;
  * paid to the courier. Shared with the server so the checkout page and the
  * payment-integrity check can never disagree about what should be charged.
  */
-export const COD_ADVANCE_PAYMENT: number = 100;
+export const COD_ADVANCE_PAYMENT: number = 50;

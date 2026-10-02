@@ -108,28 +108,63 @@ export async function handlePaymentCheck(from: string, session: WhatsAppSession)
   const db = getSupabaseAdmin();
   const { data: order } = await db
     .from('orders')
-    .select('id, status, payment_method')
+    .select('id, status, payment_method, total_amount, transaction_price, txn_id')
     .eq('id', draftOrderId)
     .maybeSingle();
 
-  // NEVER mark as paid blindly — check actual order status set by Easebuzz webhook
-  const paidStatuses = ['placed', 'confirmed', 'shipped', 'delivered'];
-  if (order && paidStatuses.includes(order.status)) {
+  if (!order) {
+    await sendText(from, 'Order not found. Type *Menu* to start a new order.');
+    return;
+  }
+
+  // Check if order has been finalized or transaction is successful
+  const isFinalized = ['placed', 'confirmed', 'shipped', 'delivered'].includes(order.status);
+  
+  let txnSuccess = false;
+  if (order.txn_id) {
+    const { data: txn } = await db
+      .from('transactions')
+      .select('status')
+      .eq('id', Number(order.txn_id))
+      .maybeSingle();
+    txnSuccess = txn?.status === 'success';
+  }
+
+  if (isFinalized || txnSuccess) {
     await updateSession(from, {
       state: 'ORDER_CONFIRMED',
-      context: { ...session.context }
+      context: { ...session.context, confirmed_order_id: draftOrderId }
     });
-    await sendText(from, `✅ *Payment confirmed! Thank you!*\n\nYour order #${draftOrderId} has been placed. We'll send you tracking details once shipped.\n\nType *Track Order* anytime to check your status.`);
+
     // Clear WhatsApp cart
     await db.from('whatsapp_cart_items').delete().eq('phone', from);
+
+    if (order.payment_method === 'cod') {
+      const advancePaid = order.transaction_price || 50;
+      const balance = Math.max(0, (order.total_amount || 0) - advancePaid);
+      await sendText(
+        from,
+        `✅ *Advance Payment Confirmed!*\n\nYour Cash on Delivery order #${draftOrderId} has been placed. 📦\n\n• Advance Paid: ₹${advancePaid}\n• Balance to pay courier on delivery: *₹${balance}*\n\nWe'll send you tracking details as soon as it ships! Type *Track Order* anytime to check status.`
+      );
+    } else {
+      await sendText(
+        from,
+        `✅ *Payment Confirmed! Thank you!*\n\nYour order #${draftOrderId} has been placed. 📦\n\nWe'll send you tracking details as soon as it ships! Type *Track Order* anytime to check status.`
+      );
+    }
   } else {
+    // Payment not yet verified
+    const isCod = order.payment_method === 'cod';
+    const amountText = isCod ? '₹50 advance payment' : 'payment';
     await whatsappClient.sendRaw({
       messaging_product: 'whatsapp',
       to: from,
       type: 'interactive',
       interactive: {
         type: 'button',
-        body: { text: "We haven't received your payment yet. \u23f3\n\nIf you've already paid, please wait 2-3 minutes and tap the button again. Payments usually reflect within a few minutes.\n\nIf you're having trouble, type *Help* to contact our team." },
+        body: {
+          text: `We haven't received your ${amountText} yet. ⏳\n\nIf you just completed payment, please wait 1-2 minutes for the bank to confirm and tap *Check Again*.\n\nNeed help? Tap *Get Help* to chat with us.`
+        },
         action: {
           buttons: [
             { type: 'reply', reply: { id: 'CHECK_PAYMENT_STATUS', title: '🔄 Check Again' } },
@@ -149,25 +184,65 @@ export async function handleCodCheckout(from: string, session: WhatsAppSession) 
   }
 
   const db = getSupabaseAdmin();
+  const { data: order } = await db
+    .from('orders')
+    .select('id, total_amount, items')
+    .eq('id', draftOrderId)
+    .maybeSingle();
 
-  const { data: updatedOrder } = await db.from('orders').update({
+  if (!order) {
+    await sendText(from, 'Order not found. Type *Menu* to start again.');
+    return;
+  }
+
+  const items = Array.isArray(order.items) ? order.items : [];
+  const itemsTotal = items.reduce(
+    (sum: number, it: any) => sum + (Number(it.price || 0) * Number(it.quantity || 1)),
+    0
+  ) || (order.total_amount || 0);
+
+  const codAdvance = 50;
+  const finalTotal = itemsTotal + codAdvance;
+  const balanceOnDelivery = itemsTotal;
+
+  // Update order with COD method, advance transaction price, and final total
+  await db.from('orders').update({
     payment_method: 'cod',
-    status: 'placed',
-    source: 'whatsapp',
-  }).eq('id', draftOrderId).select('*').single();
+    transaction_price: codAdvance,
+    total_amount: finalTotal,
+  }).eq('id', draftOrderId);
 
-  // Clear WhatsApp cart
-  await db.from('whatsapp_cart_items').delete().eq('phone', from);
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://vyraherbals.com').replace(/\/+$/, '');
+  const codPayLink = `${appUrl}/checkout/pay?order_id=${draftOrderId}&method=cod&source=whatsapp`;
 
   await updateSession(from, {
-    state: 'ORDER_CONFIRMED',
-    context: { ...session.context, cod_selected: true }
+    state: 'AWAITING_PAYMENT',
+    context: {
+      ...session.context,
+      cod_selected: true,
+      payment_method: 'cod',
+      payment_link: codPayLink,
+      payment_link_sent_at: new Date().toISOString(),
+    }
   });
 
-  await sendText(from, `✅ *Cash on Delivery Order Placed!*\n\nOrder #${draftOrderId} confirmed.\n\nPay \u20b9${session.context?.cart_total ?? ''} when your package arrives.\n\nWe'll send you tracking details once shipped. Type *Track Order* anytime.`);
-
-  if (updatedOrder) {
-    const { notifyOrderPlaced } = await import('@/services/communications/integration/orderNotifications');
-    await notifyOrderPlaced(updatedOrder);
-  }
+  await whatsappClient.sendRaw({
+    messaging_product: 'whatsapp',
+    to: from,
+    type: 'interactive',
+    interactive: {
+      type: 'button',
+      header: { type: 'text', text: '💵 COD Advance Payment' },
+      body: {
+        text: `*Cash on Delivery Confirmation*\n\nOrder Total: ₹${finalTotal}\nAdvance to Pay Now: *₹${codAdvance}*\nBalance on Delivery: *₹${balanceOnDelivery}*\n\nTo confirm your COD order, please pay the ₹${codAdvance} booking advance online:\n\n👉 ${codPayLink}\n\nOnce paid, your order will be confirmed and booked on iCarry courier automatically!`
+      },
+      footer: { text: 'Secured by Easebuzz' },
+      action: {
+        buttons: [
+          { type: 'reply', reply: { id: 'CHECK_PAYMENT_STATUS', title: "I've Paid ₹50" } },
+          { type: 'reply', reply: { id: 'PAY_ONLINE', title: 'Pay Full Online' } },
+        ]
+      }
+    }
+  });
 }

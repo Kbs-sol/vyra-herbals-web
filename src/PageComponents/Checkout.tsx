@@ -991,7 +991,7 @@ const Checkout = ({
                       Cash on Delivery
                     </label>
                     <p className="method-info">
-                      (For COD orders, you have to pay a ₹100 advance payment before booking. The remaining amount + ₹50 COD charge can be paid when your
+                      (For COD orders, you pay a ₹{COD_ADVANCE_PAYMENT} advance payment online. The remaining balance + ₹50 COD charge can be paid when your
                       order is delivered)
                     </p>
                   </>

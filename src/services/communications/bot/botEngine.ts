@@ -11,6 +11,7 @@ import { handleCart, handleAddToCart, handleCartQuantity, handleRemoveFromCart, 
 import { handleCheckout, handlePaymentCheck, handleCodCheckout } from './handlers/paymentHandler';
 import { handleHumanHandoff } from './handlers/humanHandoff';
 import { handleCancellation } from './handlers/cancellationHandler';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 export async function processIncomingMessages(messages: any[]) {
   for (const msg of messages) {
@@ -158,6 +159,51 @@ async function processSingleMessage(msg: any) {
   if (replyId === 'ADD_TO_CART') {
     await handleAddToCart(from, session);
     return;
+  }
+
+  // --- GUARD AGAINST STALE BUTTONS ON ALREADY CONFIRMED ORDERS ---
+  const orderRelatedButtons = [
+    'CONFIRM_AND_PAY',
+    'CONFIRM_ADDRESS',
+    'EDIT_ADDRESS',
+    'ADD_ADDRESS',
+    'PAY_ONLINE',
+    'COD_ORDER',
+    'CHECK_PAYMENT_STATUS',
+    'CHECKOUT',
+    'PROCEED_TO_CHECKOUT',
+  ];
+
+  if (orderRelatedButtons.includes(replyId)) {
+    if (session.state === 'ORDER_CONFIRMED') {
+      await sendText(
+        from,
+        `✅ Your order has already been confirmed! 📦\n\nType *Track Order* to check the status or *Menu* to start a new order.`
+      );
+      return;
+    }
+
+    const draftOrderId = session.context?.draft_order_id || session.context?.confirmed_order_id;
+    if (draftOrderId) {
+      const db = getSupabaseAdmin();
+      const { data: existingOrder } = await db
+        .from('orders')
+        .select('id, status, payment_method')
+        .eq('id', draftOrderId)
+        .maybeSingle();
+
+      if (existingOrder && ['placed', 'confirmed', 'shipped', 'delivered'].includes(existingOrder.status)) {
+        await updateSession(from, {
+          state: 'ORDER_CONFIRMED',
+          context: { confirmed_order_id: existingOrder.id }
+        });
+        await sendText(
+          from,
+          `✅ Your order #${existingOrder.id} has already been placed! 📦\n\nType *Track Order* to check its status or *Menu* to shop again.`
+        );
+        return;
+      }
+    }
   }
 
   if (replyId === 'CONFIRM_AND_PAY') {

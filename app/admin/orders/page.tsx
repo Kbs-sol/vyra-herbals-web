@@ -143,8 +143,11 @@ export default function OrdersPage() {
     }).format(amount);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
+  const formatDate = (dateString?: string | null) => {
+    if (!dateString) return '—';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '—';
+    return date.toLocaleDateString('en-IN', {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
@@ -285,7 +288,7 @@ export default function OrdersPage() {
                           {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                         </span>
                       </td>
-                      <td className="date">{formatDate(order.created_at || '')}</td>
+                      <td className="date">{formatDate(order.created_at || order.order_date)}</td>
                       <td>
                         <button 
                           className="view-btn"
