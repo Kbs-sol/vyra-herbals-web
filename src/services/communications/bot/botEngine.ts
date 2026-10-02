@@ -139,7 +139,12 @@ async function processSingleMessage(msg: any) {
     return;
   }
 
-  if (replyId === 'TRACK_ORDER' || normalizedText === 'track order' || normalizedText === 'track') {
+  if (
+    replyId === 'TRACK_ORDER' ||
+    normalizedText === 'track order' ||
+    normalizedText === 'track' ||
+    normalizedText.includes('track')
+  ) {
     await handleTracking(from, session);
     return;
   }

@@ -33,7 +33,7 @@ export type WhatsAppSendPayload =
       to: string;
       type: 'interactive';
       interactive: {
-        type: 'button' | 'list' | 'product_list' | 'catalog_message';
+        type: 'button' | 'list' | 'product_list' | 'catalog_message' | 'cta_url';
         header?: { type: 'text' | 'image'; text?: string; image?: { link: string } };
         body: { text: string };
         footer?: { text: string };
