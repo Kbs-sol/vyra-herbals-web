@@ -15,6 +15,23 @@ export async function handleMainMenu(from: string, session: WhatsAppSession) {
 
   const customerName = user?.name ? user.name.trim().split(' ')[0] : 'there';
 
+  // Check if customer has active items in cart
+  const { data: cartItems } = await db
+    .from('whatsapp_cart_items')
+    .select('id')
+    .eq('phone', from);
+
+  const cartCount = cartItems?.length || 0;
+  const cartNotice = cartCount > 0 ? `\n\n🛒 You have ${cartCount} item(s) in your cart.` : '';
+
+  const buttons: any[] = [
+    { type: 'reply', reply: { id: 'SHOP_PRODUCTS', title: '🛍️ Shop Products' } },
+    ...(cartCount > 0 
+      ? [{ type: 'reply', reply: { id: 'VIEW_CART', title: `🛒 Cart (${cartCount})` } }] 
+      : [{ type: 'reply', reply: { id: 'TRACK_ORDER', title: '📦 Track Order' } }]),
+    { type: 'reply', reply: { id: 'CUSTOMER_SUPPORT', title: '💬 Support' } },
+  ];
+
   // Send single interactive message with prominent quick-action buttons
   const res = await whatsappClient.sendRaw({
     messaging_product: 'whatsapp',
@@ -24,15 +41,11 @@ export async function handleMainMenu(from: string, session: WhatsAppSession) {
       type: 'button',
       header: { type: 'text', text: '🌿 Vyra Herbals' },
       body: {
-        text: `Hey ${customerName}! Welcome to *Vyra Herbals* 🌿\n\nShop 100% pure herbal products — right here in chat.\n\nTap an option below to get started:`
+        text: `Hey ${customerName}! Welcome to *Vyra Herbals* 🌿\n\nShop 100% pure herbal products — right here in chat.${cartNotice}\n\nTap an option below to get started:`
       },
       footer: { text: 'Natural • Herbal • Trusted' },
       action: {
-        buttons: [
-          { type: 'reply', reply: { id: 'SHOP_PRODUCTS', title: '🛍️ Shop Products' } },
-          { type: 'reply', reply: { id: 'TRACK_ORDER', title: '📦 Track Order' } },
-          { type: 'reply', reply: { id: 'CUSTOMER_SUPPORT', title: '💬 Support' } },
-        ]
+        buttons
       }
     }
   });

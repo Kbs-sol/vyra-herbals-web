@@ -7,7 +7,7 @@ import { handleAddressInput, handleConfirmAddress, handlePromptForAddress, handl
 import { handleTracking } from './handlers/tracking';
 import { handleProductBrowser } from './handlers/productBrowser';
 import { handleProductViewer } from './handlers/productViewer';
-import { handleCart, handleAddToCart, handleCartQuantity, handleRemoveFromCart, handleProductSelectedAndShowSummary } from './handlers/cartManager';
+import { handleCart, handleAddToCart, handleCartQuantity, handleRemoveFromCart, handleProductSelectedAndShowSummary, handleManageCart, handleClearCart } from './handlers/cartManager';
 import { handleCheckout, handlePaymentCheck, handleCodCheckout } from './handlers/paymentHandler';
 import { handleHumanHandoff } from './handlers/humanHandoff';
 import { handleCancellation } from './handlers/cancellationHandler';
@@ -101,6 +101,18 @@ async function processSingleMessage(msg: any) {
 
   if (['cart','my cart','view cart','show cart'].includes(normalizedText) || replyId === 'VIEW_CART') {
     await handleCart(from, session);
+    return;
+  }
+
+  const CLEAR_CART_WORDS = ['clear cart', 'delete cart', 'empty cart', 'clear my cart', 'delete my cart', 'remove all', 'empty'];
+  if (CLEAR_CART_WORDS.includes(normalizedText) || replyId === 'CLEAR_CART') {
+    await handleClearCart(from, session);
+    return;
+  }
+
+  const MANAGE_CART_WORDS = ['manage cart', 'edit cart', 'remove item', 'remove from cart', 'delete item', 'remove items'];
+  if (MANAGE_CART_WORDS.includes(normalizedText) || replyId === 'MANAGE_CART' || replyId === 'EDIT_CART') {
+    await handleManageCart(from, session);
     return;
   }
 
