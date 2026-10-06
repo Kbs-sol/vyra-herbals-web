@@ -55,22 +55,30 @@ export async function handleCart(from: string, session: WhatsAppSession) {
   }
   cartText += `*Total: \u20b9${total}*\n\nTap Checkout to place your order, or Edit / Clear to manage items.`;
 
-  await whatsappClient.sendRaw({
+  const res = await whatsappClient.sendRaw({
     messaging_product: 'whatsapp',
     to: from,
     type: 'interactive',
     interactive: {
       type: 'button',
+      header: { type: 'text', text: '🛒 Your Cart' },
       body: { text: cartText.substring(0, 1024) },
       action: {
         buttons: [
-          { type: 'reply', reply: { id: 'CONFIRM_AND_PAY', title: 'Confirm & Pay' } },
-          { type: 'reply', reply: { id: 'CHANGE_QTY', title: '🔢 Change Qty' } },
+          { type: 'reply', reply: { id: 'CHECKOUT', title: '✔️ Checkout' } },
+          { type: 'reply', reply: { id: 'CHANGE_QTY', title: '✏️ Edit / Qty' } },
           { type: 'reply', reply: { id: 'SHOP_PRODUCTS', title: '➕ Add More' } },
         ]
       }
     }
   });
+
+  if (!res.success) {
+    await sendText(
+      from,
+      `${cartText}\n\nReply with:\n• *Checkout* to complete your order\n• *Edit* to change quantities\n• *Shop* to browse more items`
+    );
+  }
 }
 
 export async function handleProductSelectedAndShowSummary(from: string, productId: number, session: WhatsAppSession) {
@@ -122,44 +130,63 @@ export async function handleProductSelectedAndShowSummary(from: string, productI
     itemsSummary += `• ${formatWhatsAppTitle(p.title)} × ${item.quantity} — \u20b9${lineTotal}\n`;
   }
 
-  // If there is an active draft order in progress, keep it synchronized
-  if (session.context?.draft_order_id) {
-    const draftItemsJson = items.map((ci: any) => ({
-      id: ci.product_id,
-      title: ci.products?.title ?? 'Product',
-      quantity: ci.quantity,
-      price: ci.products?.price ?? ci.price_at_add,
-    }));
-    await db.from('orders').update({
-      items: draftItemsJson,
-      total_amount: total,
-      transaction_price: total,
-    }).eq('id', session.context.draft_order_id);
+  // If there is an active draft order in progress, check if it's already finalized
+  let activeDraftId = session.context?.draft_order_id;
+  if (activeDraftId) {
+    const { data: existingOrd } = await db
+      .from('orders')
+      .select('status')
+      .eq('id', activeDraftId)
+      .maybeSingle();
+
+    if (existingOrd && ['placed', 'confirmed', 'shipped', 'delivered', 'cancelled'].includes(existingOrd.status)) {
+      activeDraftId = null; // Stale order from previous session; reset for a fresh order
+    } else {
+      const draftItemsJson = items.map((ci: any) => ({
+        id: ci.product_id,
+        title: ci.products?.title ?? 'Product',
+        quantity: ci.quantity,
+        price: ci.products?.price ?? ci.price_at_add,
+      }));
+      await db.from('orders').update({
+        items: draftItemsJson,
+        total_amount: total,
+        transaction_price: total,
+      }).eq('id', activeDraftId);
+    }
   }
 
   const summaryText = `📦 *Order summary*\n\n${itemsSummary}\n*Total due: \u20b9${total}*`;
 
   await updateSession(from, {
     state: 'BUILDING_CART',
-    context: { ...session.context, selected_product_id: productId, cart_total: total }
+    context: { ...session.context, selected_product_id: productId, cart_total: total, draft_order_id: activeDraftId }
   });
 
-  await whatsappClient.sendRaw({
+  const sendResult = await whatsappClient.sendRaw({
     messaging_product: 'whatsapp',
     to: from,
     type: 'interactive',
     interactive: {
       type: 'button',
+      header: { type: 'text', text: '📦 Order Summary' },
       body: { text: summaryText.substring(0, 1024) },
       action: {
         buttons: [
-          { type: 'reply', reply: { id: 'CONFIRM_AND_PAY', title: 'Confirm & Pay' } },
-          { type: 'reply', reply: { id: 'CHANGE_QTY', title: '🔢 Change Qty' } },
+          { type: 'reply', reply: { id: 'CHECKOUT', title: '✔️ Checkout' } },
+          { type: 'reply', reply: { id: 'CHANGE_QTY', title: '✏️ Edit / Qty' } },
           { type: 'reply', reply: { id: 'SHOP_PRODUCTS', title: '➕ Add More' } },
         ]
       }
     }
   });
+
+  if (!sendResult.success) {
+    await sendText(
+      from,
+      `${summaryText}\n\nReply with:\n• *Checkout* to complete your order\n• *Edit* or a number (e.g. 2, 3) to change quantity\n• *Shop* to add more items`
+    );
+  }
 }
 
 export async function handleAddToCart(from: string, session: WhatsAppSession) {

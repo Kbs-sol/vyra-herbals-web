@@ -133,7 +133,7 @@ export async function handlePaymentCheck(from: string, session: WhatsAppSession)
   if (isFinalized || txnSuccess) {
     await updateSession(from, {
       state: 'ORDER_CONFIRMED',
-      context: { ...session.context, confirmed_order_id: draftOrderId }
+      context: { ...session.context, draft_order_id: null, confirmed_order_id: draftOrderId }
     });
 
     // Clear WhatsApp cart

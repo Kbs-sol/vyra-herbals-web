@@ -231,38 +231,65 @@ async function processSingleMessage(msg: any) {
   ];
 
   if (orderRelatedButtons.includes(replyId)) {
-    if (session.state === 'ORDER_CONFIRMED') {
-      await sendText(
-        from,
-        `✅ Your order has already been confirmed! 📦\n\nType *Track Order* to check the status or *Menu* to start a new order.`
-      );
-      return;
-    }
+    // Check if customer has active cart items
+    const db = getSupabaseAdmin();
+    const { data: currentCart } = await db
+      .from('whatsapp_cart_items')
+      .select('id')
+      .eq('phone', from);
 
-    const draftOrderId = session.context?.draft_order_id || session.context?.confirmed_order_id;
-    if (draftOrderId) {
-      const db = getSupabaseAdmin();
-      const { data: existingOrder } = await db
-        .from('orders')
-        .select('id, status, payment_method')
-        .eq('id', draftOrderId)
-        .maybeSingle();
+    const hasCartItems = (currentCart || []).length > 0;
 
-      if (existingOrder && ['placed', 'confirmed', 'shipped', 'delivered'].includes(existingOrder.status)) {
-        await updateSession(from, {
-          state: 'ORDER_CONFIRMED',
-          context: { confirmed_order_id: existingOrder.id }
-        });
+    // Only block if they DON'T have active cart items
+    if (!hasCartItems) {
+      if (session.state === 'ORDER_CONFIRMED') {
         await sendText(
           from,
-          `✅ Your order #${existingOrder.id} has already been placed! 📦\n\nType *Track Order* to check its status or *Menu* to shop again.`
+          `✅ Your order has already been confirmed! 📦\n\nType *Track Order* to check the status or *Menu* to start a new order.`
         );
         return;
+      }
+
+      const draftOrderId = session.context?.draft_order_id || session.context?.confirmed_order_id;
+      if (draftOrderId) {
+        const { data: existingOrder } = await db
+          .from('orders')
+          .select('id, status, payment_method')
+          .eq('id', draftOrderId)
+          .maybeSingle();
+
+        if (existingOrder && ['placed', 'confirmed', 'shipped', 'delivered'].includes(existingOrder.status)) {
+          await updateSession(from, {
+            state: 'ORDER_CONFIRMED',
+            context: { confirmed_order_id: existingOrder.id }
+          });
+          await sendText(
+            from,
+            `✅ Your order #${existingOrder.id} has already been placed! 📦\n\nType *Track Order* to check its status or *Menu* to shop again.`
+          );
+          return;
+        }
+      }
+    } else {
+      // Customer has active items in cart! Reset any stale confirmed state from previous orders
+      if (session.state === 'ORDER_CONFIRMED') {
+        await updateSession(from, {
+          state: 'BUILDING_CART',
+          context: { ...session.context, draft_order_id: null }
+        });
+        session.state = 'BUILDING_CART';
+        session.context.draft_order_id = null;
       }
     }
   }
 
-  if (replyId === 'CONFIRM_AND_PAY') {
+  if (
+    replyId === 'CONFIRM_AND_PAY' || 
+    replyId === 'CHECKOUT' || 
+    replyId === 'PROCEED_TO_CHECKOUT' ||
+    normalizedText === 'checkout' ||
+    normalizedText === 'confirm and pay'
+  ) {
     await handlePromptForAddress(from, session);
     return;
   }
@@ -274,11 +301,6 @@ async function processSingleMessage(msg: any) {
 
   if (replyId === 'PAY_ONLINE') {
     await handlePayOnline(from, session);
-    return;
-  }
-
-  if (replyId === 'CHECKOUT' || replyId === 'PROCEED_TO_CHECKOUT') {
-    await handlePromptForAddress(from, session);
     return;
   }
 

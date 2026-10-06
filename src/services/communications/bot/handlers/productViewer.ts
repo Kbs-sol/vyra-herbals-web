@@ -56,11 +56,9 @@ export async function handleProductViewer(from: string, productId: number, sessi
 
   const buttons: any[] = [
     { type: 'reply', reply: { id: 'ADD_TO_CART', title: inCart ? '➕ Add More' : '🛒 Add to Cart' } },
+    { type: 'reply', reply: { id: 'CHECKOUT', title: '✔️ Checkout' } },
     { type: 'reply', reply: { id: 'VIEW_CATALOG', title: '← More Products' } },
   ];
-  if (inCart) {
-    buttons.push({ type: 'reply', reply: { id: 'CHECKOUT', title: '✔️ Checkout' } });
-  }
 
   await whatsappClient.sendRaw({
     messaging_product: 'whatsapp',
