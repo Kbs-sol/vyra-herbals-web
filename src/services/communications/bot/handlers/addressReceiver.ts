@@ -307,9 +307,28 @@ export async function handleConfirmAddress(from: string, session: WhatsAppSessio
       draftOrderId = newOrder.id;
     }
   } else if (address) {
+    // If draft order already exists, ensure items and totals reflect the latest cart
+    const { data: cartItems } = await db
+      .from('whatsapp_cart_items')
+      .select('product_id, quantity, price_at_add, products(id, title, price)')
+      .eq('phone', from);
+
+    let total = 0;
+    let itemsJson: any[] = [];
+    if (cartItems && cartItems.length > 0) {
+      itemsJson = cartItems.map((ci: any) => ({
+        id: ci.product_id,
+        title: ci.products?.title ?? 'Product',
+        quantity: ci.quantity,
+        price: ci.products?.price ?? ci.price_at_add,
+      }));
+      total = itemsJson.reduce((s: number, i: any) => s + i.price * i.quantity, 0);
+    }
+
     await db.from('orders').update({
       shipping_address: address,
       shipping_data: parsedShipping,
+      ...(itemsJson.length > 0 ? { items: itemsJson, total_amount: total, transaction_price: total } : {}),
       created_at: nowIso,
       order_date: nowIso,
     }).eq('id', draftOrderId);

@@ -7,7 +7,7 @@ import { handleAddressInput, handleConfirmAddress, handlePromptForAddress, handl
 import { handleTracking } from './handlers/tracking';
 import { handleProductBrowser } from './handlers/productBrowser';
 import { handleProductViewer } from './handlers/productViewer';
-import { handleCart, handleAddToCart, handleCartQuantity, handleRemoveFromCart, handleProductSelectedAndShowSummary, handleManageCart, handleClearCart } from './handlers/cartManager';
+import { handleCart, handleAddToCart, handleCartQuantity, handleRemoveFromCart, handleProductSelectedAndShowSummary, handleManageCart, handleClearCart, handleSelectQuantityPrompt, handleSetQuantity } from './handlers/cartManager';
 import { handleCheckout, handlePaymentCheck, handleCodCheckout } from './handlers/paymentHandler';
 import { handleHumanHandoff } from './handlers/humanHandoff';
 import { handleCancellation } from './handlers/cancellationHandler';
@@ -126,10 +126,46 @@ async function processSingleMessage(msg: any) {
     return;
   }
 
-  const MANAGE_CART_WORDS = ['manage cart', 'edit cart', 'remove item', 'remove from cart', 'delete item', 'remove items'];
-  if (MANAGE_CART_WORDS.includes(normalizedText) || replyId === 'MANAGE_CART' || replyId === 'EDIT_CART') {
-    await handleManageCart(from, session);
+  const MANAGE_CART_WORDS = ['manage cart', 'edit cart', 'remove item', 'remove from cart', 'delete item', 'remove items', 'change qty', 'change quantity', 'qty', 'quantity'];
+  if (
+    MANAGE_CART_WORDS.includes(normalizedText) || 
+    replyId === 'MANAGE_CART' || 
+    replyId === 'EDIT_CART' || 
+    replyId === 'CHANGE_QTY'
+  ) {
+    await handleSelectQuantityPrompt(from, session.context?.selected_product_id, session);
     return;
+  }
+
+  if (replyId.startsWith('CHOOSE_QTY_')) {
+    const productId = parseInt(replyId.replace('CHOOSE_QTY_', ''), 10);
+    if (!isNaN(productId)) {
+      await handleSelectQuantityPrompt(from, productId, session);
+      return;
+    }
+  }
+
+  if (replyId.startsWith('SET_QTY_')) {
+    const parts = replyId.split('_');
+    const productId = parseInt(parts[2], 10);
+    const qty = parseInt(parts[3], 10);
+    if (!isNaN(productId) && !isNaN(qty)) {
+      await handleSetQuantity(from, productId, qty, session);
+      return;
+    }
+  }
+
+  // Natural language quantity detection (e.g. "2", "3", "qty 2", "make it 2", "2 bottles", "3 packs")
+  if (session.state === 'BUILDING_CART' || session.state === 'VIEWING_PRODUCT') {
+    const qtyPattern = /^(?:(?:qty|quantity|make\s*it|set\s*qty|set\s*quantity|need|want|order)\s*)?([1-9]|10)(?:\s*(?:bottles?|packs?|units?|pieces?|pcs?|box|boxes))?$/i;
+    const match = normalizedText.match(qtyPattern);
+    if (match) {
+      const parsedQty = parseInt(match[1], 10);
+      if (!isNaN(parsedQty) && parsedQty >= 1 && parsedQty <= 10) {
+        await handleSetQuantity(from, session.context?.selected_product_id, parsedQty, session);
+        return;
+      }
+    }
   }
 
   if (

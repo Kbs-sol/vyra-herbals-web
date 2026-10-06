@@ -64,9 +64,9 @@ export async function handleCart(from: string, session: WhatsAppSession) {
       body: { text: cartText.substring(0, 1024) },
       action: {
         buttons: [
-          { type: 'reply', reply: { id: 'CHECKOUT', title: '✔️ Checkout' } },
-          { type: 'reply', reply: { id: 'MANAGE_CART', title: '🗑️ Edit / Clear' } },
-          { type: 'reply', reply: { id: 'SHOP_PRODUCTS', title: '➕ Browse More' } },
+          { type: 'reply', reply: { id: 'CONFIRM_AND_PAY', title: 'Confirm & Pay' } },
+          { type: 'reply', reply: { id: 'CHANGE_QTY', title: '🔢 Change Qty' } },
+          { type: 'reply', reply: { id: 'SHOP_PRODUCTS', title: '➕ Add More' } },
         ]
       }
     }
@@ -109,7 +109,7 @@ export async function handleProductSelectedAndShowSummary(from: string, productI
     });
   }
 
-  // 3. Fetch all cart items to build order summary (Image 5)
+  // 3. Fetch all cart items to build order summary
   const items = await getCartItems(db, from);
 
   let total = 0;
@@ -120,6 +120,21 @@ export async function handleProductSelectedAndShowSummary(from: string, productI
     const lineTotal = p.price * item.quantity;
     total += lineTotal;
     itemsSummary += `• ${formatWhatsAppTitle(p.title)} × ${item.quantity} — \u20b9${lineTotal}\n`;
+  }
+
+  // If there is an active draft order in progress, keep it synchronized
+  if (session.context?.draft_order_id) {
+    const draftItemsJson = items.map((ci: any) => ({
+      id: ci.product_id,
+      title: ci.products?.title ?? 'Product',
+      quantity: ci.quantity,
+      price: ci.products?.price ?? ci.price_at_add,
+    }));
+    await db.from('orders').update({
+      items: draftItemsJson,
+      total_amount: total,
+      transaction_price: total,
+    }).eq('id', session.context.draft_order_id);
   }
 
   const summaryText = `📦 *Order summary*\n\n${itemsSummary}\n*Total due: \u20b9${total}*`;
@@ -139,8 +154,8 @@ export async function handleProductSelectedAndShowSummary(from: string, productI
       action: {
         buttons: [
           { type: 'reply', reply: { id: 'CONFIRM_AND_PAY', title: 'Confirm & Pay' } },
-          { type: 'reply', reply: { id: 'MANAGE_CART', title: '🗑️ Edit / Clear' } },
-          { type: 'reply', reply: { id: 'BROWSE_MORE', title: 'Browse More' } },
+          { type: 'reply', reply: { id: 'CHANGE_QTY', title: '🔢 Change Qty' } },
+          { type: 'reply', reply: { id: 'SHOP_PRODUCTS', title: '➕ Add More' } },
         ]
       }
     }
@@ -184,7 +199,10 @@ export async function handleCartQuantity(from: string, productId: number, action
   await handleCart(from, session);
 }
 
-export async function handleManageCart(from: string, session: WhatsAppSession) {
+/**
+ * Interactive quantity selector list
+ */
+export async function handleSelectQuantityPrompt(from: string, targetProductId?: number, session?: WhatsAppSession) {
   const db = getSupabaseAdmin();
   const items = await getCartItems(db, from);
 
@@ -195,7 +213,7 @@ export async function handleManageCart(from: string, session: WhatsAppSession) {
       type: 'interactive',
       interactive: {
         type: 'button',
-        body: { text: '🛒 Your cart is currently empty.' },
+        body: { text: '🛒 Your cart is currently empty.\n\nBrowse our products and add something!' },
         action: {
           buttons: [
             { type: 'reply', reply: { id: 'SHOP_PRODUCTS', title: '🛍️ Shop Products' } },
@@ -207,23 +225,75 @@ export async function handleManageCart(from: string, session: WhatsAppSession) {
     return;
   }
 
-  const actionRows = [
-    {
-      id: 'CLEAR_CART',
-      title: '🗑️ Clear Entire Cart',
-      description: 'Remove all items and start over',
-    }
-  ];
+  // Determine which product to change quantity for
+  let selectedItem = targetProductId ? items.find((i: any) => i.product_id === targetProductId) : null;
+  
+  // If exactly 1 item in cart, select it directly
+  if (!selectedItem && items.length === 1) {
+    selectedItem = items[0];
+  }
 
-  const removeRows = items.slice(0, 9).map((item: any) => {
-    const p = item.products;
-    const shortTitle = p?.title ? formatWhatsAppTitle(p.title) : 'Product';
-    const rowTitle = `❌ ${shortTitle}`.substring(0, 24);
-    const lineTotal = (p?.price ?? 0) * item.quantity;
+  // If multiple items and target unknown, prompt user to pick which item to edit
+  if (!selectedItem) {
+    const itemRows = items.slice(0, 8).map((item: any) => {
+      const p = item.products;
+      const shortTitle = p?.title ? formatWhatsAppTitle(p.title) : 'Product';
+      const lineTotal = (p?.price ?? 0) * item.quantity;
+      return {
+        id: `CHOOSE_QTY_${item.product_id}`,
+        title: `${shortTitle}`.substring(0, 24),
+        description: `Current Qty: ${item.quantity} · Total: \u20b9${lineTotal}`,
+      };
+    });
+
+    await whatsappClient.sendRaw({
+      messaging_product: 'whatsapp',
+      to: from,
+      type: 'interactive',
+      interactive: {
+        type: 'list',
+        header: { type: 'text', text: '🔢 Select Item' },
+        body: { text: 'Which item would you like to change quantity for?' },
+        footer: { text: 'Type Menu to return to menu' },
+        action: {
+          button: 'Select Item',
+          sections: [
+            {
+              title: 'Items in Cart',
+              rows: itemRows,
+            },
+            {
+              title: 'Cart Actions',
+              rows: [
+                {
+                  id: 'CLEAR_CART',
+                  title: '🗑️ Clear Entire Cart',
+                  description: 'Remove all items and start over',
+                }
+              ]
+            }
+          ]
+        }
+      }
+    });
+    return;
+  }
+
+  // Show quantity options for the selected product
+  const p = selectedItem.products;
+  const pId = selectedItem.product_id;
+  const price = p?.price ?? selectedItem.price_at_add ?? 0;
+  const shortTitle = p?.title ? formatWhatsAppTitle(p.title) : 'Product';
+  const currentQty = selectedItem.quantity;
+
+  const quantities = [1, 2, 3, 4, 5, 6, 8, 10];
+  const qtyRows = quantities.map((qty) => {
+    const isCurrent = qty === currentQty;
+    const title = `${qty} ${qty === 1 ? 'Unit' : 'Units'} ${isCurrent ? '✓' : ''}`.trim();
     return {
-      id: `REMOVE_${item.product_id}`,
-      title: rowTitle,
-      description: `Qty: ${item.quantity} · \u20b9${lineTotal}`,
+      id: `SET_QTY_${pId}_${qty}`,
+      title: title.substring(0, 24),
+      description: `\u20b9${price * qty} (\u20b9${price} each)${isCurrent ? ' · Selected' : ''}`.substring(0, 72),
     };
   });
 
@@ -233,24 +303,147 @@ export async function handleManageCart(from: string, session: WhatsAppSession) {
     type: 'interactive',
     interactive: {
       type: 'list',
-      header: { type: 'text', text: '🛒 Manage Your Cart' },
-      body: { text: 'Tap an item to remove it, or choose "Clear Entire Cart":' },
+      header: { type: 'text', text: '🔢 Select Quantity' },
+      body: {
+        text: `Choose quantity for *${shortTitle}*:\n\n_Tip: You can also just type a number (e.g. 2, 3) in chat!_`
+      },
       footer: { text: 'Type Menu to return to menu' },
       action: {
-        button: 'Manage Items',
+        button: 'Choose Quantity',
         sections: [
           {
-            title: 'Cart Actions',
-            rows: actionRows,
+            title: `Quantity (${shortTitle})`.substring(0, 24),
+            rows: qtyRows,
           },
           {
-            title: 'Remove Item',
-            rows: removeRows,
-          },
+            title: 'Remove',
+            rows: [
+              {
+                id: `REMOVE_${pId}`,
+                title: '❌ Remove Item',
+                description: `Remove ${shortTitle} from your cart`,
+              }
+            ]
+          }
         ]
       }
     }
   });
+}
+
+/**
+ * Sets explicit quantity for a product in cart
+ */
+export async function handleSetQuantity(
+  from: string,
+  productId: number | undefined,
+  quantity: number,
+  session: WhatsAppSession
+) {
+  const db = getSupabaseAdmin();
+  const items = await getCartItems(db, from);
+
+  if (items.length === 0) {
+    await sendText(from, '🛒 Your cart is currently empty. Type *Menu* to browse products.');
+    return;
+  }
+
+  // Resolve target product ID
+  let targetId = productId;
+  if (!targetId) {
+    if (items.length === 1) {
+      targetId = items[0].product_id;
+    } else if (session.context?.selected_product_id) {
+      targetId = session.context.selected_product_id;
+    }
+  }
+
+  if (!targetId) {
+    await handleSelectQuantityPrompt(from, undefined, session);
+    return;
+  }
+
+  if (quantity <= 0) {
+    await handleRemoveFromCart(from, targetId, session);
+    return;
+  }
+
+  const validQty = Math.max(1, Math.min(MAX_QTY, quantity));
+  const existingItem = items.find((i: any) => i.product_id === targetId);
+
+  if (existingItem) {
+    await db.from('whatsapp_cart_items').update({ quantity: validQty }).eq('id', existingItem.id);
+  } else {
+    const { data: prod } = await db
+      .from('products')
+      .select('id, price')
+      .eq('id', targetId)
+      .maybeSingle();
+
+    await db.from('whatsapp_cart_items').insert({
+      phone: from,
+      product_id: targetId,
+      quantity: validQty,
+      price_at_add: prod?.price ?? 0,
+    });
+  }
+
+  // Refresh cart items to build updated summary
+  const updatedItems = await getCartItems(db, from);
+
+  let total = 0;
+  let itemsSummary = '';
+  for (const item of updatedItems) {
+    const p = item.products;
+    if (!p) continue;
+    const lineTotal = p.price * item.quantity;
+    total += lineTotal;
+    itemsSummary += `• ${formatWhatsAppTitle(p.title)} × ${item.quantity} — \u20b9${lineTotal}\n`;
+  }
+
+  // Sync active draft order if exists
+  if (session.context?.draft_order_id) {
+    const draftItemsJson = updatedItems.map((ci: any) => ({
+      id: ci.product_id,
+      title: ci.products?.title ?? 'Product',
+      quantity: ci.quantity,
+      price: ci.products?.price ?? ci.price_at_add,
+    }));
+    await db.from('orders').update({
+      items: draftItemsJson,
+      total_amount: total,
+      transaction_price: total,
+    }).eq('id', session.context.draft_order_id);
+  }
+
+  const summaryText = `✅ *Quantity updated to ${validQty}!*\n\n📦 *Order summary*\n\n${itemsSummary}\n*Total due: \u20b9${total}*`;
+
+  await updateSession(from, {
+    state: 'BUILDING_CART',
+    context: { ...session.context, selected_product_id: targetId, cart_total: total }
+  });
+
+  await whatsappClient.sendRaw({
+    messaging_product: 'whatsapp',
+    to: from,
+    type: 'interactive',
+    interactive: {
+      type: 'button',
+      body: { text: summaryText.substring(0, 1024) },
+      action: {
+        buttons: [
+          { type: 'reply', reply: { id: 'CONFIRM_AND_PAY', title: 'Confirm & Pay' } },
+          { type: 'reply', reply: { id: 'CHANGE_QTY', title: '🔢 Change Qty' } },
+          { type: 'reply', reply: { id: 'SHOP_PRODUCTS', title: '➕ Add More' } },
+        ]
+      }
+    }
+  });
+}
+
+export async function handleManageCart(from: string, session: WhatsAppSession) {
+  // Delegate to interactive quantity and item manager
+  await handleSelectQuantityPrompt(from, undefined, session);
 }
 
 export async function handleClearCart(from: string, session: WhatsAppSession) {
