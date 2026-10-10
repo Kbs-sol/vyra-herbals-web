@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServerSupabase } from '@/utils/supabaseClient';
+import { getLiveProducts } from '@/utils/catalogue';
 import { SITE_URL, BRAND_DEFAULT_DESCRIPTION, FOUNDER } from '@/utils/seo';
 
 // Force dynamic — API routes touch Supabase / cookies; static analysis at build time would try
@@ -51,13 +51,8 @@ export async function GET() {
   // transient errors.
   let products: ProductLine[] = [];
   try {
-    const supabase = createServerSupabase();
-    const { data } = await supabase
-      .from('products')
-      .select('handle, title, price, category')
-      .or('status.eq.1,status.eq.active,status.is.null')
-      .limit(50);
-    products = (data ?? []) as ProductLine[];
+    const { products: live } = await getLiveProducts(100);
+    products = live.map((p) => ({ handle: p.handle, title: p.title, price: p.price, category: p.category }));
   } catch (e) {
     // eslint-disable-next-line no-console
     console.error('[llms.txt] product fetch failed:', (e as Error).message);

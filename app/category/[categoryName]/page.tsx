@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { createServerSupabase } from '@/utils/supabaseClient';
+import { getLiveProducts } from '@/utils/catalogue';
 import {
   breadcrumbJsonLd,
   buildCategoryMetadata,
@@ -47,29 +47,20 @@ async function fetchCategory(rawSlug: string): Promise<{
   try {
     const decoded = decodeURIComponent(rawSlug);
     const humanised = categorySlugToName(decoded);
-    const supabase = createServerSupabase();
 
-    // Case-insensitive category match. Some products store `Hair Oil`,
-    // some `hair oil`, some the URL-safe `hair-oil` — support all.
-    const patterns = [decoded, humanised, humanised.replace(/\s+/g, '-')];
-    const orClauses = patterns.map((p) => `category.ilike.${p}`).join(',');
+    // Case-insensitive match against every spelling the DB might hold
+    // (`Hair Oil`, `hair oil`, URL-safe `hair-oil`). Filtering is done in JS
+    // because PostgREST filters on products.status silently return 0 rows.
+    const norm = (v: string) => v.toLowerCase().replace(/[-_\s]+/g, ' ').trim();
+    const wanted = new Set([decoded, humanised].map(norm));
+    const { products: all } = await getLiveProducts(500);
+    const data = all.filter((p) => p.category && wanted.has(norm(p.category))).slice(0, 200);
 
-    const { data, error } = await supabase
-      .from('products')
-      .select('id, handle, title, image_url, price, category')
-      .or(orClauses)
-      .or('status.eq.1,status.eq.active,status.is.null')
-      .limit(200);
-
-    if (error) {
-      console.error('[category] fetch failed:', error.message);
-      return null;
-    }
-    if (!data || data.length === 0) return null;
+    if (data.length === 0) return null;
 
     // Use whichever spelling the DB actually stored for the human name.
     const displayName = (data.find((r) => r.category)?.category as string) || humanised;
-    return { name: displayName, slug: rawSlug, products: data as CategoryDataRow[] };
+    return { name: displayName, slug: rawSlug, products: data as unknown as CategoryDataRow[] };
   } catch (e) {
     console.error('[category] unexpected error:', (e as Error).message);
     return null;
