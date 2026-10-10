@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServerSupabase } from '@/utils/supabaseClient';
+import { getLiveProducts } from '@/utils/catalogue';
 import { SITE_URL } from '@/utils/seo';
 
 // Force dynamic — API routes touch Supabase / cookies; static analysis at build time would try
@@ -42,7 +42,7 @@ export const revalidate = 900;
  *   link           ← https://vyraherbals.com/product/<handle>
  *   image_link     ← image_url  (must be publicly accessible)
  *   additional_image_link × N  ← images[1..10]
- *   availability   ← 'in_stock' if stock > 0 && status active, else 'out_of_stock'
+ *   availability   ← 'in_stock' if stock_quantity is null or > 0, else 'out_of_stock'
  *   price          ← "<amount> INR"      (both required)
  *   sale_price     ← price when regular_price > price (MRP vs selling price)
  *   brand          ← 'Vyra Herbals'
@@ -109,46 +109,20 @@ function isLikelyGtin(sku?: string | null): boolean {
 }
 
 export async function GET() {
-  const supabase = createServerSupabase();
-
   // ------------------------------------------------------------------
-  // Filter reality (verified 2026-09-18 against the actual Supabase dump):
-  //   - Every one of the 29 live products has `status = NULL`.
-  //   - The `status` column is Postgres type `unknown` (never seeded with a
-  //     non-NULL value), so ANY numeric or string comparison inside a
-  //     PostgREST .or() clause tries to cast the whole column and errors with
-  //     `invalid input syntax for type bigint: "active"` — returning 0 rows.
-  //   - The inherited `.or('status.eq.1,status.eq.active,status.is.null')`
-  //     pattern from sitemap.ts silently drops every single row for that
-  //     exact reason.
+  // `products.status` is Postgres type `unknown` and every row is NULL, so ANY
+  // PostgREST filter on it (.eq / .neq / .not / .or) errors out and silently
+  // returns 0 rows. getLiveProducts() mirrors the working API routes:
+  // select('*') with NO status filter, drop archived rows in JS, and fall
+  // back to the static 29-product snapshot if Supabase fails / is empty.
   //
-  // Simplest correct filter: `.not('status', 'eq', 0)`, which matches BOTH
-  // `status IS NULL` and `status = 1` (PostgREST treats NULL != 0 as true
-  // for a negated equality), and stays correct if the column ever gets
-  // seeded with 0-for-archived / 1-for-active integers later.
-  //
-  // SELECT column names verified against actual schema (products table dump):
-  //   description (no short_description),
-  //   regular_price (no compare_at_price),
-  //   stock_quantity (no stock)
+  // Real column names: description, regular_price, stock_quantity.
   // ------------------------------------------------------------------
-  const { data, error } = await supabase
-    .from('products')
-    .select('id, handle, title, description, price, regular_price, image_url, images, category, sku, stock_quantity, status, brand')
-    .not('status', 'eq', 0)
-    .limit(500);
-
-  if (error) {
-    // Never 500 on a Google fetch — return an empty valid feed so Merchant
-    // Center doesn't disapprove the account. Log the error out-of-band.
-    // eslint-disable-next-line no-console
-    console.error('[feed.xml] Supabase error:', error.message, error.code, error.details);
-  }
-
-  const products = (data ?? []) as any[];
+  const { products: liveProducts, source } = await getLiveProducts(500);
+  const products = liveProducts as any[];
   // Diagnostic breadcrumb — tail this in Vercel logs if the feed appears empty.
   // eslint-disable-next-line no-console
-  console.log(`[feed.xml] fetched=${products.length} error=${error?.message || 'none'}`);
+  console.log(`[feed.xml] items=${products.length} source=${source}`);
   const now = new Date().toUTCString();
 
   const items = products
@@ -161,7 +135,7 @@ export async function GET() {
         : [];
 
       // stock_quantity is often NULL in this DB; treat NULL as in-stock.
-      const inStock = (p.stock_quantity ?? 1) > 0 && String(p.status ?? '1') !== '0';
+      const inStock = (p.stock_quantity ?? 1) > 0;
       const price = priceInINR(p.price)!;
       // `regular_price` is the MRP; `price` is the selling price. If MRP > sale
       // price, Google Shopping wants: g:price = MRP, g:sale_price = actual.

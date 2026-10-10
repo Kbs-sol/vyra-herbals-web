@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next';
-import { createServerSupabase } from '@/utils/supabaseClient';
+import { getLiveProducts, getLiveBlogs } from '@/utils/catalogue';
 import { SITE_URL } from '@/utils/seo';
 
 /**
@@ -51,37 +51,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const routes: Route[] = [...STATIC_ROUTES];
 
   try {
-    const supabase = createServerSupabase();
-
     // ---- Products --------------------------------------------------------
-    // Filter reality (verified 2026-09-18 against live DB dump): all 29 rows
-    // have `status = NULL`. The old .or('status.eq.1,status.eq.active,status.is.null')
-    // pattern silently returns 0 rows because Postgres can't cast the string
-    // 'active' to the column's type. `.not('status', 'eq', 0)` matches both
-    // NULL and 1, and gracefully handles future 0-archived seeding.
-    const { data: products, error: pErr } = await supabase
-      .from('products')
-      .select('handle, updated_at, created_at, status')
-      .not('status', 'eq', 0)
-      .limit(1000);
-
-    if (!pErr && products) {
-      for (const p of products) {
-        if (!p.handle) continue;
-        routes.push({
-          url: `${SITE_URL}/product/${encodeURIComponent(p.handle)}`,
-          lastModified: p.updated_at ? new Date(p.updated_at) : p.created_at ? new Date(p.created_at) : new Date(),
-          changeFrequency: 'weekly',
-          priority: 0.9,
-        });
-      }
+    // select('*') + JS filter: PostgREST filters on products.status (type
+    // `unknown`, all NULL) silently return 0 rows. Falls back to the static
+    // snapshot so the sitemap never loses its product URLs.
+    const { products } = await getLiveProducts(1000);
+    for (const p of products) {
+      routes.push({
+        url: `${SITE_URL}/product/${encodeURIComponent(p.handle)}`,
+        lastModified: p.updated_at ? new Date(p.updated_at) : p.created_at ? new Date(p.created_at) : new Date(),
+        changeFrequency: 'weekly',
+        priority: 0.9,
+      });
     }
 
     // ---- Categories ------------------------------------------------------
-    // The site derives categories from the `category` column on products, not
-    // a separate table. Distinct-scan the field and emit /category/<name>.
-    const { data: catRows } = await supabase.from('products').select('category').not('category', 'is', null).limit(1000);
-    const uniqueCats = Array.from(new Set((catRows ?? []).map((r: any) => (r.category || '').trim()).filter(Boolean)));
+    // Derived from the `category` column of the same product set.
+    const uniqueCats = Array.from(new Set(products.map((r) => (r.category || '').trim()).filter(Boolean)));
     for (const cat of uniqueCats) {
       routes.push({
         url: `${SITE_URL}/category/${encodeURIComponent(cat)}`,
@@ -92,29 +78,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
 
     // ---- Blogs -----------------------------------------------------------
-    // Same story as products — blogs.status is untyped in this DB, so any
-    // string comparison in .or() breaks the whole clause.
-    const { data: blogs, error: bErr } = await supabase
-      .from('blogs')
-      .select('handle, updated_at, created_at, status')
-      .not('status', 'eq', 0)
-      .limit(500);
-
-    if (!bErr && blogs) {
-      for (const b of blogs) {
-        if (!b.handle) continue;
-        routes.push({
-          url: `${SITE_URL}/blogs/${encodeURIComponent(b.handle)}`,
-          lastModified: b.updated_at ? new Date(b.updated_at) : b.created_at ? new Date(b.created_at) : new Date(),
-          changeFrequency: 'monthly',
-          priority: 0.7,
-        });
-      }
+    const blogs = await getLiveBlogs(500);
+    for (const b of blogs) {
+      routes.push({
+        url: `${SITE_URL}/blogs/${encodeURIComponent(b.handle)}`,
+        lastModified: b.updated_at ? new Date(b.updated_at) : b.created_at ? new Date(b.created_at) : new Date(),
+        changeFrequency: 'monthly',
+        priority: 0.7,
+      });
     }
   } catch (err) {
-    // Keep static routes; log and let the build succeed. A missing DB row is
-    // preferable to a delisting event with Google.
-    console.error('[sitemap] Supabase enumeration failed:', (err as Error).message);
+    // Keep static routes; a missing DB row is preferable to a delisting event.
+    console.error('[sitemap] enumeration failed:', (err as Error).message);
   }
 
   return routes;
