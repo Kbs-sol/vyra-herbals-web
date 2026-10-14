@@ -12,6 +12,14 @@ import type { NextConfig } from 'next';
  * Tightening `script-src` to a nonce is the next step, and needs the GTM and
  * Pixel snippets moved to next/script with a nonce first.
  */
+// Analytics and marketing vendors:
+//   googletagmanager.com / google-analytics.com / analytics.google.com → GA4 + gtag.js + collect hits
+//   googleadservices.com / doubleclick.net → Google Ads conversions and remarketing
+//   connect.facebook.net / facebook.com → Meta Pixel & Conversions
+//   clarity.ms / *.clarity.ms / c.bing.com → Microsoft Clarity replay & heatmaps
+//   analytics.tiktok.com → TikTok Pixel
+//   snap.licdn.com / px.ads.linkedin.com → LinkedIn Insight tag
+//   s.pinimg.com / ctp.pinterest.com → Pinterest Tag
 const contentSecurityPolicy = [
   "default-src 'self'",
   "base-uri 'self'",
@@ -19,17 +27,18 @@ const contentSecurityPolicy = [
   "form-action 'self' https://pay.easebuzz.in https://testpay.easebuzz.in",
   // Nobody may frame the storefront: blocks clickjacking of the checkout.
   "frame-ancestors 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://connect.facebook.net https://pay.easebuzz.in https://testpay.easebuzz.in https://ebz-static.s3.ap-south-1.amazonaws.com https://cdn.jsdelivr.net",
-  "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://ssl.google-analytics.com https://*.google-analytics.com https://connect.facebook.net https://*.clarity.ms https://www.googleadservices.com https://www.google.com https://googleads.g.doubleclick.net https://analytics.tiktok.com https://snap.licdn.com https://s.pinimg.com https://pay.easebuzz.in https://testpay.easebuzz.in https://ebz-static.s3.ap-south-1.amazonaws.com https://cdn.jsdelivr.net",
+  "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com",
   "img-src 'self' data: blob: https:",
-  "font-src 'self' data: https://cdn.jsdelivr.net",
-  "connect-src 'self' https://*.supabase.co https://*.supabase.in https://www.googletagmanager.com https://connect.facebook.net https://www.facebook.com https://cpaas.messagecentral.com https://api.postalpincode.in https://www.icarry.in https://pay.easebuzz.in https://testpay.easebuzz.in",
+  "font-src 'self' data: https://cdn.jsdelivr.net https://fonts.gstatic.com",
+  "connect-src 'self' https://*.supabase.co https://*.supabase.in https://www.googletagmanager.com https://www.google-analytics.com https://*.analytics.google.com https://*.google-analytics.com https://stats.g.doubleclick.net https://connect.facebook.net https://www.facebook.com https://*.clarity.ms https://c.bing.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://analytics.tiktok.com https://px.ads.linkedin.com https://ctp.pinterest.com https://cpaas.messagecentral.com https://api.postalpincode.in https://www.icarry.in https://pay.easebuzz.in https://testpay.easebuzz.in",
   // Payment gateway and embedded marketing video.
   "frame-src 'self' https://pay.easebuzz.in https://testpay.easebuzz.in https://www.youtube.com https://www.youtube-nocookie.com https://www.facebook.com",
   "worker-src 'self' blob:",
   "manifest-src 'self'",
   "upgrade-insecure-requests",
 ].join('; ');
+
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -48,6 +57,10 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: '*.supabase.in',
+      },
+      {
+        protocol: 'https',
+        hostname: 'i.ytimg.com',
       },
     ],
     formats: ['image/avif', 'image/webp'],
