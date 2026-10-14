@@ -23,7 +23,7 @@ const Follow = () => {
                 >
                   <img
                     src="/assets/images/insta.webp"
-                    alt="product"
+                    alt="Follow Vyra Herbals on Instagram"
                     width={150}
                   />
                 </a>
@@ -39,7 +39,7 @@ const Follow = () => {
                 >
                   <img
                     src="/assets/images/whatsapp.webp"
-                    alt="product"
+                    alt="Chat with Vyra Herbals on WhatsApp"
                     width={150}
                   />
                 </a>

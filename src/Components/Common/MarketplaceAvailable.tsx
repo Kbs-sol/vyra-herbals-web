@@ -24,7 +24,7 @@ const MarketplaceAvailable = () => {
               >
                 <img
                   src="/amazon-logo-png_seeklogo-286206.png"
-                  alt="Amazon"
+                  alt="Buy Vyra Herbals on Amazon"
                   className="market-logo amazon-logo"
                 />
               </a>
@@ -37,7 +37,7 @@ const MarketplaceAvailable = () => {
               >
                 <img
                   src="/flipkart-logo-icon-flat-style-png-4.png"
-                  alt="Flipkart"
+                  alt="Buy Vyra Herbals on Flipkart"
                   className="market-logo flipkart-logo"
                 />
               </a>
@@ -50,7 +50,7 @@ const MarketplaceAvailable = () => {
               >
                 <img
                   src="/Meesho-682x435.avif"
-                  alt="Meesho"
+                  alt="Buy Vyra Herbals on Meesho"
                   className="market-logo meesho-logo"
                 />
               </a>

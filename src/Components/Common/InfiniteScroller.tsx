@@ -82,7 +82,7 @@ const InfiniteScroller = ({ images, duration = 20 }) => {
   // Render images correctly whether they are URLs or JSX elements
   const getImage = useCallback(
     (item) =>
-      typeof item === "string" ? <img src={item} alt="scroller-item" /> : item,
+      typeof item === "string" ? <img src={item} alt="Vyra Herbals certification and quality badge" /> : item,
     []
   );
 

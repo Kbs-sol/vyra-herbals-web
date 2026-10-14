@@ -19,7 +19,7 @@ const Blogs = () => {
               <div className="blog-card">
                 <div className="blog-media">
                   <a className="blog-img" href="#">
-                    <img src="/assets/images/blog-01.jpg" alt="blog" />
+                    <img src="/assets/images/blog-01.jpg" alt="Vyra Herbals hair care blog" />
                   </a>
                 </div>
                 <div className="blog-content">
@@ -53,7 +53,7 @@ const Blogs = () => {
               <div className="blog-card">
                 <div className="blog-media">
                   <a className="blog-img" href="#">
-                    <img src="/assets/images/blog-01.jpg" alt="blog" />
+                    <img src="/assets/images/blog-01.jpg" alt="Vyra Herbals hair care blog" />
                   </a>
                 </div>
                 <div className="blog-content">
@@ -87,7 +87,7 @@ const Blogs = () => {
               <div className="blog-card">
                 <div className="blog-media">
                   <a className="blog-img" href="#">
-                    <img src="/assets/images/blog-01.jpg" alt="blog" />
+                    <img src="/assets/images/blog-01.jpg" alt="Vyra Herbals hair care blog" />
                   </a>
                 </div>
                 <div className="blog-content">

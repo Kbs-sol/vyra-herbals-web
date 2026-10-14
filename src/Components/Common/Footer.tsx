@@ -19,7 +19,7 @@ const Footer = () => {
             <div className="col-sm-6 col-xl-3">
               <div className="footer-widget">
                 <Link className="footer-logo" href="/" title="Go to Home Page">
-                  <img src="/assets/images/logo-final.png" alt="logo" />
+                  <img src="/assets/images/logo-final.png" alt="Vyra Herbals logo" />
                 </Link>
 
                 <p className="footer-desc">
@@ -132,16 +132,16 @@ const Footer = () => {
                 Delhivery | XpressBees | eComXpress | DTDC
                 <div className="del-dt">
                   <span>
-                    <img src="/assets/images/dtdc.jpg" alt="payment" />
+                    <img src="/assets/images/dtdc.jpg" alt="DTDC courier delivery partner" />
                   </span>
                   <span>
-                    <img src="/assets/images/delivery.jpg" alt="payment" />
+                    <img src="/assets/images/delivery.jpg" alt="Delhivery courier delivery partner" />
                   </span>
                   <span>
-                    <img src="/assets/images/xpress.jpg" alt="payment" />
+                    <img src="/assets/images/xpress.jpg" alt="Xpressbees courier delivery partner" />
                   </span>
                   <span>
-                    <img src="/assets/images/express.png" alt="payment" />
+                    <img src="/assets/images/express.png" alt="Ecom Express courier delivery partner" />
                   </span>
                 </div>
               </div>
@@ -167,7 +167,7 @@ const Footer = () => {
             <img
               className="whts-icon"
               src="/assets/images/wts-nw.png"
-              alt=""
+              alt="Chat with Vyra Herbals on WhatsApp"
               width="150"
               height="150"
             />
