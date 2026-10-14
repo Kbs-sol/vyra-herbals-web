@@ -500,7 +500,7 @@ const Singleproducts: React.FC<SingleproductsProps> = ({ initialProduct = null }
                   <li>
                     <Image
                       src={mainImage || '/assets/images/placeholder-product.png'}
-                      alt="product"
+                      alt={`${product?.title || "Vyra Herbals product"} - Vyra Herbals`}
                       width={520}
                       height={520}
                       style={{ objectFit: 'contain' }}
@@ -789,7 +789,7 @@ const Singleproducts: React.FC<SingleproductsProps> = ({ initialProduct = null }
                         <span className="review-avatar">
                           <Image
                             src="/assets/images/user.png"
-                            alt="user-img"
+                            alt={`${review.reviewer_name || "Verified customer"} - Vyra Herbals customer review`}
                             width={65}
                             height={65}
                             style={{ objectFit: 'cover' }}

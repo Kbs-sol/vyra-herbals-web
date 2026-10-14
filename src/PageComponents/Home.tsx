@@ -37,7 +37,7 @@ const PageLoader = ({ isVisible }: { isVisible: boolean }) => (
       transition: 'opacity 0.3s ease-out'
     }}
   >
-    <img src="/assets/images/logo-final.png" alt="logo" />
+    <img src="/assets/images/logo-final.png" alt="Vyra Herbals logo" />
   </div>
 );
 

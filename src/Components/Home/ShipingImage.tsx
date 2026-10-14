@@ -29,7 +29,7 @@ const ShipingImage = () => {
       <section>
         <div className="free_ship">
           <Link href="/search?searchtext=all">
-            <img src="/assets/images/freeshiping-01.png" />
+            <img src="/assets/images/freeshiping-01.png" alt="Free shipping on all Vyra Herbals products - shop at vyraherbals.com" />
           </Link>
         </div>
       </section>

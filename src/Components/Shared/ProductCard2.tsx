@@ -31,7 +31,7 @@ const ProductCard2 = ({ product }) => {
             className="feature-wish"
           />
           <a className="feature-image" href={`/product/${product.handle}`}>
-            <LazyImage src={product.image_url} alt="product" />
+            <LazyImage src={product.image_url} alt={`${product.title} - Vyra Herbals`} />
           </a>
         </div>
         <div className="feature-content">

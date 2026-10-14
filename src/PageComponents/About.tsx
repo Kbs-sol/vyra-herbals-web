@@ -34,7 +34,7 @@ const About = () => {
         <section className="text-center">
           <img
             src="/assets/images/ingredients.jpg"
-            alt="ingredients-logo"
+            alt="Illustration of natural hair care ingredients: amla, aloe vera, fenugreek, coconut, hibiscus and onion"
             width={180}
             height={180}
           />

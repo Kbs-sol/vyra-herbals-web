@@ -53,7 +53,7 @@ export default async function BlogsPage({
         <div className="container">
           {blogs.length === 0 ? (
             <div className="text-center py-5">
-               <img src="/assets/images/empty-blog.svg" alt="No blogs" style={{ width: '200px', opacity: 0.5 }} className="mb-4" />
+               <img src="/assets/images/empty-blog.svg" alt="No blog posts published yet" style={{ width: '200px', opacity: 0.5 }} className="mb-4" />
                <h3 className="text-muted">No stories found just yet.</h3>
                <p>We are currently brewing some herbal wisdom for you!</p>
             </div>
