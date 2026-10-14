@@ -93,7 +93,7 @@ export default function robots(): MetadataRoute.Robots {
     // assistants look for them at the site root regardless — no need to
     // advertise them here (advertising them via robots.txt would flag
     // them as sitemaps to Google, which is incorrect).
-    sitemap: [`${SITE_URL}/sitemap.xml`, `${SITE_URL}/feed.xml`],
+    sitemap: [`${SITE_URL}/sitemap.xml`, `${SITE_URL}/sitemap-video.xml`, `${SITE_URL}/feed.xml`],
     host: SITE_URL,
   };
 }

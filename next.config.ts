@@ -111,6 +111,13 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        source: '/sitemap-video.xml',
+        headers: [
+          { key: 'Cache-Control', value: 'public, s-maxage=900, stale-while-revalidate=3600' },
+          { key: 'X-Robots-Tag', value: 'noindex' },
+        ],
+      },
+      {
         source: '/feed.xml',
         headers: [
           { key: 'Cache-Control', value: 'public, s-maxage=900, stale-while-revalidate=3600' },

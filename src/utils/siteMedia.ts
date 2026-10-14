@@ -131,6 +131,36 @@ export async function getSiteMediaUrl(slot: MediaSlot): Promise<string> {
 }
 
 /**
+ * Server-side: like getSiteMediaUrl() but also returns the row's timestamps.
+ * Used for structured data (VideoObject needs an upload date).
+ *   uploaded_at → optional ISO date an admin can store alongside the URL
+ *   updated_at  → when the slot was last saved (best-effort fallback)
+ */
+export async function getSiteMediaEntry(
+  slot: MediaSlot,
+): Promise<{ url: string; uploadedAt?: string; updatedAt?: string }> {
+  try {
+    const supabase = createServerSupabase();
+    const { data, error } = await supabase
+      .from('site_settings')
+      .select('value, updated_at')
+      .eq('key', `media_${slot}`)
+      .maybeSingle();
+    if (error) return { url: resolveFallback(slot) };
+    const value = data?.value as (SiteMediaValue & { uploaded_at?: string }) | null | undefined;
+    const url = (value?.url || '').trim();
+    if (!url) return { url: resolveFallback(slot) };
+    return {
+      url,
+      uploadedAt: value?.uploaded_at || undefined,
+      updatedAt: value?.updated_at || (data as any)?.updated_at || undefined,
+    };
+  } catch {
+    return { url: resolveFallback(slot) };
+  }
+}
+
+/**
  * Server-side: fetch every slot at once (used by the admin Media Library page
  * and the /api/site-media list endpoint).
  */
