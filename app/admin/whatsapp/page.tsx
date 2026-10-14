@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import AdminLayoutWrapper from '../components/AdminLayoutWrapper';
+import ModeBanner from './_components/ModeBanner';
 
 /**
  * WhatsApp Inbox — the admin's view of every real-time conversation.
@@ -154,12 +155,13 @@ export default function WhatsAppInboxPage() {
   return (
     <AdminLayoutWrapper pageTitle="WhatsApp Inbox">
       <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 90px)', padding: '16px', gap: '12px' }}>
+        <ModeBanner mode="inbox" />
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
           <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>
             WhatsApp Inbox {totalUnread > 0 ? <span style={{ background: '#25D366', color: '#fff', borderRadius: 999, padding: '2px 10px', fontSize: 12, marginLeft: 8 }}>{totalUnread}</span> : null}
           </h2>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-            <Link href="/admin/whatsapp/broadcast" style={btnGhost}>Broadcast (templates)</Link>
+            <Link href="/admin/whatsapp/broadcast" style={btnGhost}>Bulk Sender (templates)</Link>
             <a href="https://business.facebook.com/wa/manage/message-templates/" target="_blank" rel="noreferrer" style={btnGhost}>Meta template manager ↗</a>
           </div>
         </div>

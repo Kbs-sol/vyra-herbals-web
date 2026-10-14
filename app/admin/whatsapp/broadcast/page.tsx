@@ -20,6 +20,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import AdminLayoutWrapper from '../../components/AdminLayoutWrapper';
+import ModeBanner from '../_components/ModeBanner';
 
 // -------------------------------------------------------------- history
 interface BatchLog {
@@ -196,6 +197,9 @@ export default function WhatsAppBulkPage() {
   return (
     <AdminLayoutWrapper pageTitle="WhatsApp Bulk">
       <div className="wrap">
+        <div style={{ marginBottom: 16 }}>
+          <ModeBanner mode="bulk" />
+        </div>
         <header className="head">
           <div>
             <h1 className="title">WhatsApp Bulk</h1>
