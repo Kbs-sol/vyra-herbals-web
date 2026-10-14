@@ -73,7 +73,7 @@ export const PromisesSlider = () => {
         {images.map((src, i) => {
           return (
             <div className="brand-media" key={"our-promise-" + i}>
-              <img src={"assets/images/promises/" + src} alt="brand" />
+              <img src={"assets/images/promises/" + src} alt="Vyra Herbals certification and quality badge" />
             </div>
           );
         })}

@@ -2,8 +2,13 @@ import { NextResponse } from 'next/server';
 import { whatsappClient } from '@/services/communications/providers/whatsapp/client';
 import { verifyWebhookHandshake } from '@/services/communications/providers/whatsapp/webhookHandler';
 import { updateDeliveryStatusByMessageId } from '@/services/communications/logging/messageLogger';
+import { logInboundMessage } from '@/services/communications/logging/inboundLogger';
 import { logger } from '@/services/communications/logging/logger';
-import { processIncomingMessages } from '@/services/communications/bot/botEngine';
+
+// Force dynamic — API routes touch Supabase / cookies; static analysis at build time would try
+// to import the module without runtime env vars and blow up in 'collect page data'.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export const runtime = 'nodejs'; // crypto signature verification needs the Node runtime, not edge
 
@@ -75,36 +80,30 @@ export async function POST(req: Request) {
     }
   }
 
-  // 2. Process Incoming Messages (Conversational Bot)
+  // 2. Persist inbound messages so the admin inbox can render them.
+  //    Doing this synchronously (but wrapped) is fine — the insert is a
+  //    single Supabase call and we still 200 fast.
+  //    IMPORTANT: this MUST happen even if the bot fails; the admin inbox is
+  //    the only surface that recovers a message the bot didn't understand.
+  if (incomingMessages.length > 0) {
+    await Promise.allSettled(incomingMessages.map((m: any) => logInboundMessage(m).catch((err) => {
+      logger.error('inbound_log_failed', { error: err?.message, from: m?.from, id: m?.id });
+    })));
+  }
+
+  // 3. Process Incoming Messages (Conversational Bot)
   // Dynamic import to avoid circular dependencies and keep the webhook hot path fast
   if (incomingMessages.length > 0) {
-    const filteredMessages: any[] = [];
-    for (const msg of incomingMessages) {
-      if (msg.type === 'text' && msg.text?.body) {
-        const normalizedText = msg.text.body.trim().toLowerCase();
-        if (normalizedText === 'stop') {
-          import('@/services/communications/marketing/optOutHandler')
-            .then(({ handleMarketingOptOut }) => handleMarketingOptOut(msg.from, 'unsubscribe'))
-            .catch((err) => logger.error('whatsapp_optout_error', { error: err.message }));
-          continue;
-        }
-        if (normalizedText === 'start') {
-          import('@/services/communications/marketing/optOutHandler')
-            .then(({ handleMarketingOptOut }) => handleMarketingOptOut(msg.from, 'subscribe'))
-            .catch((err) => logger.error('whatsapp_optin_error', { error: err.message }));
-          continue;
-        }
-      }
-      filteredMessages.push(msg);
-    }
-
-    if (filteredMessages.length > 0) {
-      try {
-        await processIncomingMessages(filteredMessages);
-      } catch (err: any) {
-        logger.error('whatsapp_bot_processing_error', { error: err.message });
-      }
-    }
+    // Process asynchronously so we don't block the 200 OK response to Meta
+    import('@/services/communications/bot/botEngine')
+      .then(({ processIncomingMessages }) => {
+        processIncomingMessages(incomingMessages).catch((err) => {
+          logger.error('whatsapp_bot_processing_error', { error: err.message });
+        });
+      })
+      .catch((err) => {
+        logger.error('whatsapp_bot_import_error', { error: err.message });
+      });
   }
 
   // Meta requires a fast 200 regardless of downstream processing outcome,

@@ -1,0 +1,119 @@
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { getLiveProducts } from '@/utils/catalogue';
+import {
+  breadcrumbJsonLd,
+  buildCategoryMetadata,
+  categorySlugToName,
+  itemListJsonLd,
+  SITE_URL,
+} from '@/utils/seo';
+import JsonLd from '@/Components/Shared/JsonLd';
+import Category from '@/Pages/Category';
+
+/**
+ * Category listing — server component wrapper.
+ *
+ * Two big wins the old client-only version could not deliver:
+ *   1) Per-category <title> and <meta description> tuned to the search intent
+ *      identified in the audit (`Herbal Hair Oil for Hair Fall & Growth …`).
+ *      /category/hair-oil already sits at position ~4.9 in Google — a decent
+ *      title + description alone is expected to lift CTR from 0.9% → ~3%.
+ *   2) `ItemList` + `BreadcrumbList` JSON-LD so Google shows category-level
+ *      rich results (multi-image carousels are eligible).
+ *
+ * The heavy filter / sort UI is still a client island via <Category />.
+ */
+
+export const revalidate = 300;
+
+type Params = { categoryName: string };
+
+interface CategoryDataRow {
+  id: string | number;
+  handle: string;
+  title: string;
+  image_url: string | null;
+  price: number | string | null;
+  category: string | null;
+}
+
+async function fetchCategory(rawSlug: string): Promise<{
+  name: string;
+  slug: string;
+  products: CategoryDataRow[];
+} | null> {
+  try {
+    const decoded = decodeURIComponent(rawSlug);
+    const humanised = categorySlugToName(decoded);
+
+    // Case-insensitive match against every spelling the DB might hold
+    // (`Hair Oil`, `hair oil`, URL-safe `hair-oil`). Filtering is done in JS
+    // because PostgREST filters on products.status silently return 0 rows.
+    const norm = (v: string) => v.toLowerCase().replace(/[-_\s]+/g, ' ').trim();
+    const wanted = new Set([decoded, humanised].map(norm));
+    const { products: all } = await getLiveProducts(500);
+    const data = all.filter((p) => p.category && wanted.has(norm(p.category))).slice(0, 200);
+
+    if (data.length === 0) return null;
+
+    // Use whichever spelling the DB actually stored for the human name.
+    const displayName = (data.find((r) => r.category)?.category as string) || humanised;
+    return { name: displayName, slug: rawSlug, products: data as unknown as CategoryDataRow[] };
+  } catch (e) {
+    console.error('[category] unexpected error:', (e as Error).message);
+    return null;
+  }
+}
+
+export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
+  const { categoryName } = await params;
+  const result = await fetchCategory(categoryName);
+  const name = result?.name || categorySlugToName(categoryName);
+  return buildCategoryMetadata({
+    name,
+    slug: categoryName,
+    description: null,
+    image_url: result?.products?.[0]?.image_url || null,
+    productCount: result?.products?.length,
+  });
+}
+
+export default async function CategoryPage({ params }: { params: Promise<Params> }) {
+  const { categoryName } = await params;
+  const result = await fetchCategory(categoryName);
+  if (!result) notFound();
+
+  const canonical = `${SITE_URL}/category/${encodeURIComponent(categoryName)}`;
+  const jsonLd = [
+    breadcrumbJsonLd([
+      { name: 'Home', url: '/' },
+      { name: result.name, url: `/category/${encodeURIComponent(categoryName)}` },
+    ]),
+    itemListJsonLd(result.products.map((p) => ({ handle: p.handle, title: p.title, image_url: p.image_url, price: p.price }))),
+  ];
+
+  return (
+    <>
+      <JsonLd data={jsonLd} />
+
+      {/* Server-rendered SEO block — hidden from view, visible to crawlers */}
+      <div className="seo-server-content" style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }}>
+        <h1>{result.name} — Herbal Care</h1>
+        <p>Browse our {result.name.toLowerCase()} collection: {result.products.length} product{result.products.length === 1 ? '' : 's'} \u2014 100% natural, handmade, chemical-free herbal formulations. Sulphate-free, paraben-free, ISO 9001:2015 & GMP certified.</p>
+        <ul>
+          {result.products.slice(0, 20).map((p) => (
+            <li key={p.id}>
+              <Link href={`/product/${encodeURIComponent(p.handle)}`}>{p.title}</Link>
+              {p.price ? <span> — ₹{p.price}</span> : null}
+            </li>
+          ))}
+        </ul>
+        <link rel="canonical" href={canonical} />
+      </div>
+
+      <Category />
+    </>
+  );
+}

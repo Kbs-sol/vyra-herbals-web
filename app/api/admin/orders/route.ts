@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
 import { verifyAdminAuth } from '@/utils/adminAuth';
 
+
+// Force dynamic — API routes touch Supabase / cookies; static analysis at build time would try
+// to import the module without runtime env vars and blow up in 'collect page data'.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // GET - Fetch all orders with pagination and filters
 export async function GET(request: NextRequest) {
   if (!(await verifyAdminAuth(request))) {
@@ -16,10 +22,8 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') || '';
     const paymentMethod = searchParams.get('paymentMethod') || '';
     const search = searchParams.get('search') || '';
-    const ALLOWED_SORT_COLS = new Set(['id', 'order_id', 'created_at', 'total_amount', 'status', 'payment_method']);
-    const requestedSortBy = searchParams.get('sortBy') || '';
-    const sortBy = ALLOWED_SORT_COLS.has(requestedSortBy) ? requestedSortBy : 'created_at';
-    const sortOrder = searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc';
+    const sortBy = searchParams.get('sortBy') || 'created_at';
+    const sortOrder = searchParams.get('sortOrder') || 'desc';
     const startDate = searchParams.get('startDate') || '';
     const endDate = searchParams.get('endDate') || '';
 

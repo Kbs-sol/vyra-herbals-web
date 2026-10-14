@@ -1,5 +1,5 @@
 export class MessageCentral {
-    private static CUSTOMER_ID = process.env.MESSAGE_CENTRAL_CUSTOMER_ID || '';
+    private static CUSTOMER_ID = process.env.NEXT_PUBLIC_MESSAGE_CENTRAL_CUSTOMER_ID || '';
     private static KEY = process.env.MESSAGE_CENTRAL_KEY || ''; // Base64 encoded password
     private static BASE_URL = 'https://cpaas.messagecentral.com';
 

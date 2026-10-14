@@ -6,6 +6,13 @@ import { notifyOrderPlaced } from '@/services/communications/integration/orderNo
 import { requireUser } from '@/utils/apiAuth';
 import { enforceRateLimit } from '@/utils/rateLimit';
 import { COD_Charges } from '@/constants';
+import { capiPurchase, extractCapiContext } from '@/utils/metaCapi';
+
+
+// Force dynamic — API routes touch Supabase / cookies; static analysis at build time would try
+// to import the module without runtime env vars and blow up in 'collect page data'.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export const runtime = 'nodejs';
 export const preferredRegion = 'bom1';
@@ -181,7 +188,6 @@ export async function POST(req: Request) {
       shipping_data: orderData.shippingData,
       payment_method: 'cod',
       status: 'placed',
-      source: 'website',
       user_id: userId,
       created_at: now.toISOString(),
       order_date: now.toISOString(),
@@ -198,6 +204,11 @@ export async function POST(req: Request) {
     }
 
     const order = inserted?.[0];
+
+    // Confirm the order over WhatsApp before we spend up to 25s talking to
+    // iCarry, so a slow courier API can't delay the customer's confirmation.
+    // Never throws — a notification problem must not fail a placed order.
+    await notifyOrderPlaced(order);
 
     // 2. Create Shipment in iCarry. The order is already stamped 'Pending Sync', so
     //    if this call times out the row is still recoverable via /api/orders/sync-shipment.
@@ -217,16 +228,7 @@ export async function POST(req: Request) {
         console.error(`[COD] iCarry sync threw for order ${order?.id}:`, syncErr);
         shipmentSync = { success: false, message: (syncErr as Error).message || 'sync exception' };
     }
-    let trackingId = '';
-    if (shipmentSync.success) {
-      trackingId = shipmentSync.awb_code || shipmentSync.trackingId || '';
-      if ((shipmentSync as any).awb_code) {
-        order.awb_code = (shipmentSync as any).awb_code;
-      }
-      if ((shipmentSync as any).shipmentId) {
-        order.shipment_id = (shipmentSync as any).shipmentId;
-      }
-    }
+    const trackingId = shipmentSync.success ? shipmentSync.trackingId : '';
 
     // 3. Record coupon usage (after order is durably created)
     if (appliedCouponId && appliedCouponDiscount > 0) {
@@ -239,26 +241,59 @@ export async function POST(req: Request) {
       );
     }
 
-    // 4. Clear carts
+    // 4. Clear cart for the user
     if (userId) {
       await supabase.from('cart').delete().eq('user_id', userId);
     }
-    
-    // Also clear anonymous cart
-    const cookieHeader = req.headers.get('cookie') || '';
-    const deviceIdMatch = cookieHeader.match(/anon_device_id=([^;]+)/);
-    if (deviceIdMatch && deviceIdMatch[1]) {
-      await supabase.from('anon_carts').delete().eq('device_id', deviceIdMatch[1]);
-    }
 
-    // Attach tracking ID so the combined ORDER_PLACED message can use it
-    if (trackingId) {
-      order.tracking_id = trackingId;
-      if (!order.awb_code && !trackingId.startsWith('ORD-') && trackingId !== String(order?.id)) {
-        order.awb_code = trackingId;
-      }
+    // 5. Cart cleared above; the "order placed" WhatsApp notification already
+    //    went out at step 1 via notifyOrderPlaced(). There used to be a second
+    //    automationEngine.emit({type:'ORDER_PLACED'}) here, which meant every
+    //    COD order raised the same event twice — two Supabase round trips inside
+    //    the function budget, for a message the queue's dedupe_key then threw
+    //    away. It also read `shippingData.phone` directly, which breaks on rows
+    //    whose shipping_data is stored as a JSON string.
+
+    // 6. Meta Conversions API — server-side Purchase mirror. COD orders count
+    //    as conversions the same as prepaid; without CAPI we'd under-report
+    //    the ~55% of the order book that ships COD in South India. event_id
+    //    matches the browser-side `order_<txn_id>` fired from OrderPlaced.tsx.
+    try {
+      const capiCtx = extractCapiContext(req);
+      const shipping = order?.shipping_data || orderData?.shippingData || {};
+      const nameParts = String(shipping.fullName || shipping.name || '').trim().split(/\s+/);
+      const capiItems = (order?.items || orderItems || []).map((p: any) => ({
+        id: String(p.product_id || p.id),
+        quantity: Number(p.quantity || p.qty || 1),
+        price: Number(p.price || p.unit_price || 0),
+        title: p.title || p.name,
+        category: p.category,
+      }));
+      await capiPurchase({
+        order_id: order?.txn_id || order?.id,
+        total: Number(order?.total_amount ?? 0),
+        currency: 'INR',
+        items: capiItems,
+        customer: {
+          email: shipping.email,
+          phone: shipping.phone || shipping.mobile,
+          first_name: nameParts[0],
+          last_name: nameParts.slice(1).join(' ') || undefined,
+          city: shipping.city,
+          state: shipping.state,
+          zip: shipping.pincode || shipping.zip || shipping.postalCode,
+          country: 'in',
+          external_id: userId ? String(userId) : undefined,
+        },
+        ip: capiCtx.ip,
+        userAgent: capiCtx.userAgent,
+        fbp: capiCtx.fbp,
+        fbc: capiCtx.fbc,
+        sourceUrl: `${new URL(req.url).origin}/order-placed/${order?.id ?? ''}`,
+      });
+    } catch (capiErr) {
+      console.warn('[COD] CAPI Purchase send failed:', (capiErr as Error).message);
     }
-    await notifyOrderPlaced(order);
 
     return NextResponse.json({
       order_id: order?.id,

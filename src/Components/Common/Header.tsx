@@ -352,7 +352,7 @@ const Header = () => {
             </div>
             <div className="header-logo-and-list">
               <Link href="/" className={"header-logo"}>
-                <img src="/assets/images/logo-final.png" alt="logo" />
+                <img src="/assets/images/logo-final.png" alt="Vyra Herbals logo" />
               </Link>
 
               <ul className="navbar-list">

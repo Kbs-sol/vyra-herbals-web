@@ -52,9 +52,9 @@ export type IcarryTokenResult = { token: string | null; reason?: string };
 // without also bumping vercel.json maxDuration.
 const ICARRY_TOKEN_FETCH_TIMEOUT_MS = 5000;
 
-// Advance collected online for a COD order (mirrors the ₹50 charged in
+// Advance collected online for a COD order (mirrors the ₹100 charged in
 // Checkout). Used to derive the amount the courier still has to collect.
-const COD_ADVANCE_DEFAULT = 50;
+const COD_ADVANCE_DEFAULT = 100;
 
 // COD handling fee added to the order total at checkout (mirrors COD_Charges in
 // src/constants.ts). It is our fee, not part of the declared goods value, so it
@@ -161,8 +161,8 @@ const buildAddress = (shippingData: any): string => {
         .map((p) => String(p || "").trim())
         .filter(Boolean);
     const joined = parts.join(", ");
-    // iCarry requires a meaningful address. Check joined parts, full address, or fall back to city.
-    return joined || String(shippingData.address || shippingData.city || "").trim();
+    // iCarry requires a meaningful address. Fall back to city so the request is accepted.
+    return joined || String(shippingData.city || "").trim();
 };
 
 const ICARRY_SHIPMENT_TIMEOUT_MS = 10000;

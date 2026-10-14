@@ -1,15 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
-import { verifyAdminAuth } from '@/utils/adminAuth';
+import { cookies } from 'next/headers';
+import { jwtVerify } from 'jose';
+import { getAdminJwtSecret } from '@/utils/serverEnv';
+
+
+
+// Force dynamic — API routes touch Supabase / cookies; static analysis at build time would try
+// to import the module without runtime env vars and blow up in 'collect page data'.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+// Verify admin JWT token from cookies
+async function verifyAdmin(): Promise<boolean> {
+    try {
+        const cookieStore = await cookies();
+        const token = cookieStore.get('admin_token')?.value;
+        if (!token) return false;
+        const { payload } = await jwtVerify(token, getAdminJwtSecret());
+        return payload.role === 'admin';
+    } catch {
+        return false;
+    }
+}
 
 // GET: Fetch all settings or a specific setting by key
 export async function GET(request: NextRequest) {
     try {
-        const isAdmin = await verifyAdminAuth(request);
-        if (!isAdmin) {
-            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-        }
-
         const url = new URL(request.url);
         const key = url.searchParams.get('key');
 
@@ -70,7 +87,7 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
     try {
         // Verify admin authentication
-        const isAdmin = await verifyAdminAuth(request);
+        const isAdmin = await verifyAdmin();
         if (!isAdmin) {
             return NextResponse.json(
                 { success: false, error: 'Unauthorized - Admin access required' },

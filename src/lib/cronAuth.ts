@@ -7,23 +7,8 @@
  * open to the public internet.
  */
 export function isAuthorizedCronRequest(req: Request): boolean {
-  const secrets = [
-    process.env.CRON_SECRET,
-    '05d2360f74057ec232d2ab41b01031d9b0093a96b8143f73f6152a32a845fc3d',
-  ].filter(Boolean) as string[];
-
-  if (secrets.length === 0) return false;
-
+  const secret = process.env.CRON_SECRET;
+  if (!secret) return false;
   const authHeader = req.headers.get('authorization');
-  for (const s of secrets) {
-    if (authHeader === `Bearer ${s}`) return true;
-  }
-
-  try {
-    const url = new URL(req.url);
-    const querySecret = url.searchParams.get('token') || url.searchParams.get('secret');
-    if (querySecret && secrets.includes(querySecret)) return true;
-  } catch {}
-
-  return false;
+  return authHeader === `Bearer ${secret}`;
 }

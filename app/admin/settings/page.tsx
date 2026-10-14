@@ -11,7 +11,7 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState({
     // General
     siteName: 'Vyra Herbals',
-    siteTagline: 'Natural & Ayurvedic Products',
+    siteTagline: '100% Natural Handmade Herbal Hair Care',
     contactEmail: 'support@vyraherbals.com',
     contactPhone: '+91 9876543210',
     address: 'Mumbai, Maharashtra, India',
@@ -31,8 +31,8 @@ export default function SettingsPage() {
     emailNotifications: true,
 
     // SEO
-    metaTitle: 'Vyra Herbals - Natural & Ayurvedic Products',
-    metaDescription: 'Shop premium natural and ayurvedic products at Vyra Herbals. Hair care, skin care, and wellness products.',
+    metaTitle: 'Vyra Herbals — 100% Natural Herbal Hair Oil, Shampoo & Hair Care | Chemical-Free, Handmade in India',
+    metaDescription: '100% natural, handmade herbal hair care from Vyra Herbals — chemical-free, sulphate-free, paraben-free hair oil, shampoo & hair masks. Made fresh in India. ISO 9001:2015 & GMP certified. Free shipping across India.',
     googleAnalyticsId: '',
   });
 

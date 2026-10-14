@@ -2,6 +2,13 @@ import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
 import { finalizeOrderFromSession } from '@/utils/orderFinalize';
 import { verifyEasebuzzCallbackHash, verifyEasebuzzTransaction } from '@/utils/easebuzz';
+import { extractCapiContext } from '@/utils/metaCapi';
+
+
+// Force dynamic — API routes touch Supabase / cookies; static analysis at build time would try
+// to import the module without runtime env vars and blow up in 'collect page data'.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export const runtime = 'nodejs';
 export const preferredRegion = 'bom1';
@@ -85,94 +92,22 @@ export async function POST(req: Request) {
             }
         }
 
-        // ---- PAYMENT IS GENUINE — Check for WhatsApp Draft Orders ----
-        const { data: pendingOrder } = await supabase
-            .from('orders')
-            .select('*')
-            .eq('txn_id', txnid)
-            .eq('source', 'whatsapp')
-            .in('status', ['pending', 'placed'])
-            .maybeSingle();
-
-        if (pendingOrder) {
-            if (pendingOrder.status === 'pending') {
-                const nowIso = new Date().toISOString();
-                const isCod = pendingOrder.payment_method === 'cod';
-
-                // Finalize the WhatsApp order directly
-                const { data: updatedOrder } = await supabase.from('orders').update({
-                    status: 'placed',
-                    created_at: pendingOrder.created_at || nowIso,
-                    order_date: pendingOrder.order_date || nowIso,
-                }).eq('id', pendingOrder.id).select('*').single();
-                
-                await supabase.from('transactions').update({
-                    status: 'success',
-                    order_id: pendingOrder.order_id || `ORD-${pendingOrder.id}`,
-                    payment_method: pendingOrder.payment_method || (isCod ? 'cod' : 'online')
-                }).eq('id', Number(txnid));
-
-                const finalizedOrder = updatedOrder || {
-                    ...pendingOrder,
-                    status: 'placed',
-                    created_at: pendingOrder.created_at || nowIso,
-                    order_date: pendingOrder.order_date || nowIso,
-                };
-
-                // Clear customer's WhatsApp cart and update session state
-                const shippingData = typeof finalizedOrder.shipping_data === 'string'
-                    ? JSON.parse(finalizedOrder.shipping_data)
-                    : (finalizedOrder.shipping_data || {});
-                const phone = shippingData.phone || String(finalizedOrder.shipping_address || '').match(/\d{10}/)?.[0];
-
-                if (phone) {
-                    await supabase.from('whatsapp_cart_items').delete().or(`phone.eq.${phone},phone.eq.91${phone}`);
-                    try {
-                        const { updateSession } = await import('@/services/communications/bot/sessionManager');
-                        await updateSession(phone.startsWith('91') ? phone : `91${phone}`, {
-                            state: 'ORDER_CONFIRMED',
-                            context: { confirmed_order_id: finalizedOrder.id, cod_selected: isCod }
-                        });
-                    } catch (sessErr) {
-                        console.error('[WhatsApp Payment Success] session update error:', sessErr);
-                    }
-                }
-
-                // iCarry courier booking
-                let orderForNotify = finalizedOrder;
-                try {
-                    const { syncOrderShipment } = await import('@/utils/orderShipment');
-                    const syncRes = await syncOrderShipment(supabase, finalizedOrder);
-                    if (syncRes && syncRes.success) {
-                        orderForNotify = {
-                            ...finalizedOrder,
-                            awb_code: syncRes.awb_code,
-                            tracking_id: syncRes.awb_code || syncRes.trackingId,
-                            shipment_id: syncRes.shipmentId,
-                        };
-                    }
-                } catch (shipErr) {
-                    console.error('[WhatsApp Payment Success] iCarry sync error:', shipErr);
-                }
-
-                // Send notifications
-                try {
-                    const { notifyOrderPlaced, notifyPaymentConfirmed } = await import('@/services/communications/integration/orderNotifications');
-                    await notifyOrderPlaced(orderForNotify);
-                    if (!isCod) {
-                        await notifyPaymentConfirmed(orderForNotify);
-                    }
-                } catch (notifErr) {
-                    console.error('[WhatsApp Payment Success] notification error:', notifErr);
-                }
-            }
-            return NextResponse.redirect(`${appUrl}/order-placed/${pendingOrder.id}`, 303);
-        }
-
         // ---- PAYMENT IS GENUINE — create the durable order -------------------
+        // Capture Meta CAPI context from the callback request: the visitor's
+        // browser fbp/fbc cookies + IP + UA are on THIS request (Easebuzz
+        // sends them along as browser POSTs the surl). Pass into finalize so
+        // the server-side Purchase event has full attribution context.
+        const capiCtx = extractCapiContext(req);
         const result = await finalizeOrderFromSession(supabase, txnid, {
             paymentAmount: (data.amount as any) ?? null,
             paymentMethod: 'online',
+            capi: {
+                ip: capiCtx.ip,
+                userAgent: capiCtx.userAgent,
+                fbp: capiCtx.fbp,
+                fbc: capiCtx.fbc,
+                sourceUrl: `${appUrl}/order-placed`,
+            },
         });
 
         if (!result.ok) {
@@ -196,13 +131,6 @@ export async function POST(req: Request) {
         // raised the same event a second time (extra Supabase round trips inside
         // the function budget) and read `shipping_data?.phone` directly, which
         // returns undefined on rows where shipping_data is a JSON string.
-
-        // Clear anon cart if it exists
-        const cookieHeader = req.headers.get('cookie') || '';
-        const deviceIdMatch = cookieHeader.match(/anon_device_id=([^;]+)/);
-        if (deviceIdMatch && deviceIdMatch[1]) {
-            await supabase.from('anon_carts').delete().eq('device_id', deviceIdMatch[1]);
-        }
 
         const successUrl = result.order?.id
             ? `${appUrl}/order-placed/${result.order.id}`

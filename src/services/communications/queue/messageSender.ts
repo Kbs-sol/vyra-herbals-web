@@ -8,10 +8,15 @@ import { logger } from '../logging/logger';
 export type SendOutcome = 'sent' | 'failed_retry' | 'failed_permanent';
 
 function rowToOutboundMessage(row: QueuedMessageRow): OutboundMessage {
-  // `row.payload` contains the complete original OutboundMessage, including
-  // optional fields like button_parameters and header_image_url which are
-  // lost if we only reconstruct from the top-level row columns.
-  return row.payload as unknown as OutboundMessage;
+  return {
+    order_id: row.order_id ?? 0,
+    customer_phone: row.customer_phone,
+    message_type: row.message_type,
+    provider: row.provider,
+    template_name: row.template_name,
+    parameters: row.parameters as Record<string, string | number>,
+    dedupe_key: row.dedupe_key,
+  };
 }
 
 /**

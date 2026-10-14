@@ -25,7 +25,7 @@ const Certificate = () => {
                 <img
                   src="/assets/images/certificates/certificate-02.png"
                   width={230}
-                  alt="certification"
+                  alt="ISO 9001:2015 certified company badge"
                 />
               </div>
             </div>
@@ -34,7 +34,7 @@ const Certificate = () => {
                 <img
                   src="/assets/images/certificates/certificate-01.png"
                   width={230}
-                  alt="certification"
+                  alt="GMP certified - Good Manufacturing Practice badge"
                 />
               </div>
             </div>
@@ -44,7 +44,7 @@ const Certificate = () => {
                 <img
                   src="/assets/images/certificates/certificate-03.jpg"
                   width={230}
-                  alt="certification"
+                  alt="MSME registered - Ministry of Micro, Small and Medium Enterprises, Government of India"
                 />
               </div>
             </div>

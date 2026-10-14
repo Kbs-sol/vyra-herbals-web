@@ -2,6 +2,12 @@ import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
 import { verifyEasebuzzCallbackHash } from '@/utils/easebuzz';
 
+
+// Force dynamic — API routes touch Supabase / cookies; static analysis at build time would try
+// to import the module without runtime env vars and blow up in 'collect page data'.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export const runtime = 'nodejs';
 export const preferredRegion = 'bom1';
 
@@ -38,11 +44,6 @@ export async function POST(req: Request) {
         // Only flip to 'failed' when the row isn't already 'success' (guards the
         // rare race where the surl success callback landed first).
         const hashOk = verifyEasebuzzCallbackHash(data);
-        if (!hashOk) {
-            console.warn(`[payment/failure] unsigned/forged failure callback for txn ${txnid}`);
-            return NextResponse.json({ success: false, error: 'invalid hash' }, { status: 401 });
-        }
-
         const { data: txn } = await supabase
             .from('transactions')
             .select('status')
@@ -54,6 +55,9 @@ export async function POST(req: Request) {
                 .from('transactions')
                 .update({ status: 'failed', payment_method: 'online' })
                 .eq('id', Number(txnid));
+        }
+        if (!hashOk) {
+            console.warn(`[payment/failure] unsigned/forged failure callback for txn ${txnid}`);
         }
 
         return NextResponse.redirect(

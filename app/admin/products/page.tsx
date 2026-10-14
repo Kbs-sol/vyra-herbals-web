@@ -28,11 +28,6 @@ export default function ProductsPage() {
   const [isDeletingCat, setIsDeletingCat] = useState(false);
 
   const [formData, setFormData] = useState({
-      status: 1 as number | string,
-      brand: 'Vyra Herbals',
-      stock_quantity: '100',
-      keywords: '',
-      coupon: '',
     title: '',
     handle: '',
     sku: '',
@@ -268,11 +263,6 @@ export default function ProductsPage() {
   const openAddModal = () => {
     setEditingProduct(null);
     setFormData({
-      status: 1,
-      brand: 'Vyra Herbals',
-      stock_quantity: '100',
-      keywords: '',
-      coupon: '',
       title: '',
       handle: '',
       sku: '',
@@ -295,13 +285,8 @@ export default function ProductsPage() {
   };
 
   const openEditModal = (product: Product) => {
-      setEditingProduct(product);
-      setFormData({
-        status: product.status !== undefined && product.status !== null ? Number(product.status) : 1,
-        brand: product.brand || 'Vyra Herbals',
-        stock_quantity: product.stock_quantity?.toString() || '100',
-        keywords: product.keywords || '',
-        coupon: product.coupon || '',
+    setEditingProduct(product);
+    setFormData({
       title: product.title || '',
       handle: product.handle || '',
       sku: product.sku || '',
@@ -341,11 +326,7 @@ export default function ProductsPage() {
           ? [formData.image_url, ...sanitizedImages]
           : sanitizedImages;
       const payload = {
-          ...formData,
-          status: parseInt(String(formData.status), 10) || 1,
-          stock_quantity: parseInt(formData.stock_quantity) || 0,
-          keywords: formData.keywords,
-          coupon: formData.coupon,
+        ...formData,
         handle: formData.handle || slugify(formData.title),
         sku: formData.sku || slugify(formData.title),
         images: mergedImages,
@@ -608,69 +589,15 @@ export default function ProductsPage() {
 
                   <div className="form-row">
                     <div className="form-group">
-                        <label>SKU (Stock Keeping Unit)</label>
-                        <input
-                          type="text"
-                          value={formData.sku || ''}
-                          onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                          placeholder="auto-generated-from-title"
-                        />
-                      </div>
+                      <label>SKU (Stock Keeping Unit)</label>
+                      <input
+                        type="text"
+                        value={formData.sku || ''}
+                        onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                        placeholder="auto-generated-from-title"
+                      />
                     </div>
-
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Status</label>
-                        <select
-                          value={formData.status}
-                          onChange={(e) => setFormData({ ...formData, status: parseInt(e.target.value, 10) })}
-                          style={{ width: '100%', padding: '0.5rem', border: '1px solid #ddd', borderRadius: '4px' }}
-                        >
-                          <option value={1}>Active</option>
-                          <option value={0}>Draft</option>
-                          <option value={2}>Archived</option>
-                        </select>
-                      </div>
-                      <div className="form-group">
-                        <label>Brand</label>
-                        <input
-                          type="text"
-                          value={formData.brand}
-                          onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                          placeholder="e.g. Vyra Herbals"
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>Stock Quantity</label>
-                        <input
-                          type="number"
-                          value={formData.stock_quantity}
-                          onChange={(e) => setFormData({ ...formData, stock_quantity: e.target.value })}
-                          placeholder="100"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Keywords (SEO)</label>
-                        <input
-                          type="text"
-                          value={formData.keywords}
-                          onChange={(e) => setFormData({ ...formData, keywords: e.target.value })}
-                          placeholder="comma separated keywords"
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>Coupon Code</label>
-                        <input
-                          type="text"
-                          value={formData.coupon}
-                          onChange={(e) => setFormData({ ...formData, coupon: e.target.value })}
-                          placeholder="Optional coupon"
-                        />
-                      </div>
-                    </div>
+                  </div>
 
                   <div className="form-group">
                     <label>Description</label>

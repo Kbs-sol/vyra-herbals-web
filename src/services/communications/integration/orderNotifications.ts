@@ -65,35 +65,6 @@ export async function notifyOrderPlaced(order: any): Promise<void> {
     const shipping = readShippingData(order);
     const customerName = String(shipping.fullName || shipping.name || shipping.first_name || '').trim() || 'Customer';
 
-    let awbId = String(order.awb_code || '').trim();
-
-    // If order in memory didn't have awb_code, check the DB row (iCarry sync might have just populated it)
-    if (!awbId && order.id) {
-      try {
-        const { getSupabaseAdmin } = await import('@/lib/supabaseAdmin');
-        const { data: dbOrder } = await getSupabaseAdmin()
-          .from('orders')
-          .select('awb_code, tracking_id')
-          .eq('id', order.id)
-          .maybeSingle();
-        if (dbOrder?.awb_code) {
-          awbId = String(dbOrder.awb_code).trim();
-        } else if (
-          dbOrder?.tracking_id &&
-          !String(dbOrder.tracking_id).startsWith('ORD-') &&
-          String(dbOrder.tracking_id) !== String(order.id)
-        ) {
-          awbId = String(dbOrder.tracking_id).trim();
-        }
-      } catch (dbErr) {
-        console.warn(`[notifyOrderPlaced] failed to fetch awb_code from db for order ${order.id}:`, dbErr);
-      }
-    }
-
-    if (!awbId && order.tracking_id && !String(order.tracking_id).startsWith('ORD-') && String(order.tracking_id) !== String(order.id)) {
-      awbId = String(order.tracking_id).trim();
-    }
-
     await automationEngine.emit(
       {
         type: 'ORDER_PLACED',
@@ -104,8 +75,6 @@ export async function notifyOrderPlaced(order: any): Promise<void> {
         total_amount: money(order.total_amount),
         payment_method: order.payment_method === 'cod' ? 'cod' : 'online',
         items: toOrderItems(order.items),
-        tracking_id: awbId,
-        awb_code: awbId,
       },
       'api'
     );
@@ -120,19 +89,19 @@ export async function notifyPaymentConfirmed(order: any): Promise<void> {
     if (!order?.id) return;
     const shipping = readShippingData(order);
 
-    // await automationEngine.emit(
-    //   {
-    //     type: 'PAYMENT_CONFIRMED',
-    //     order_id: Number(order.id),
-    //     user_id: order.user_id ?? null,
-    //     customer_phone: String(shipping.phone ?? ''),
-    //     // transaction_price is what was actually charged online; total_amount
-    //     // is the order value. For prepaid they match, but prefer the charge.
-    //     amount_paid: money(order.transaction_price, order.total_amount),
-    //     payment_gateway: 'Easebuzz',
-    //   },
-    //   'api'
-    // );
+    await automationEngine.emit(
+      {
+        type: 'PAYMENT_CONFIRMED',
+        order_id: Number(order.id),
+        user_id: order.user_id ?? null,
+        customer_phone: String(shipping.phone ?? ''),
+        // transaction_price is what was actually charged online; total_amount
+        // is the order value. For prepaid they match, but prefer the charge.
+        amount_paid: money(order.transaction_price, order.total_amount),
+        payment_gateway: 'Easebuzz',
+      },
+      'api'
+    );
   } catch (err) {
     console.warn(`[WhatsApp] PAYMENT_CONFIRMED notify failed for order ${order?.id}:`, err);
   }
@@ -167,17 +136,17 @@ export async function notifyShipmentCreated(
     const trackingId = String(shipment.trackingId ?? '').trim() || awb;
     const shipping = readShippingData(order);
 
-    // await automationEngine.emit(
-    //   {
-    //     type: 'SHIPMENT_CREATED',
-    //     order_id: Number(order.id),
-    //     customer_phone: String(shipping.phone ?? ''),
-    //     tracking_id: trackingId,
-    //     courier_name: String(shipment.courier_name ?? '').trim() || 'our courier partner',
-    //     awb_code: awb,
-    //   },
-    //   'api'
-    // );
+    await automationEngine.emit(
+      {
+        type: 'SHIPMENT_CREATED',
+        order_id: Number(order.id),
+        customer_phone: String(shipping.phone ?? ''),
+        tracking_id: trackingId,
+        courier_name: String(shipment.courier_name ?? '').trim() || 'our courier partner',
+        awb_code: awb,
+      },
+      'api'
+    );
   } catch (err) {
     console.warn(`[WhatsApp] SHIPMENT_CREATED notify failed for order ${order?.id}:`, err);
   }
@@ -200,19 +169,15 @@ export async function notifyDeliveryStatusChanged(
     const status = canonicalDeliveryStatus(rawStatus);
     if (!status) return; // booked/pending/label-created — not customer-facing
 
-    // Guard: only the 'delivered' template exists in Meta for now
-    if (status !== 'Delivered') return;
-
     const shipping = readShippingData(order);
 
     await automationEngine.emit(
       {
         type: 'DELIVERY_STATUS_UPDATED',
         order_id: Number(order.id),
-        dedupe_key: `DELIVERY_STATUS_UPDATED:${order.id}:${status}`,
         customer_phone: String(shipping.phone ?? ''),
         new_status: status,
-        tracking_id: String(order.awb_code ?? order.tracking_id ?? '').trim(),
+        tracking_id: String(order.tracking_id ?? order.awb_code ?? '').trim(),
       },
       source
     );

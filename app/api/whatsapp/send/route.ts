@@ -5,13 +5,19 @@ import { whatsappClient } from '@/services/communications/providers/whatsapp/cli
 import { tryNormalizePhone } from '@/services/communications/utils/phoneNormalizer';
 import { requireAdmin } from '@/lib/adminAuth';
 
+
+// Force dynamic — API routes touch Supabase / cookies; static analysis at build time would try
+// to import the module without runtime env vars and blow up in 'collect page data'.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export const runtime = 'nodejs';
 
 interface ManualSendBody {
   order_id: number;
   customer_phone: string;
   template_name: string;
-  parameters?: Record<string, string | number> | (string | number)[];
+  parameters: Record<string, string | number>;
 }
 
 /**
@@ -48,9 +54,7 @@ export async function POST(req: Request) {
     message_type: 'MANUAL', // ad-hoc admin sends aren't tied to a domain event; see template_name for actual content
     provider: 'whatsapp',
     template_name: body.template_name,
-    parameters: Array.isArray(body.parameters) 
-      ? body.parameters 
-      : Object.values(body.parameters ?? {}),
+    parameters: body.parameters ?? {},
     dedupe_key: `MANUAL:${body.order_id}:${body.template_name}:${Date.now()}`,
   });
 

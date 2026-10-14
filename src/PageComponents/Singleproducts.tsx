@@ -38,16 +38,27 @@ import IngredientsSection from "../Components/Product/IngredientsSection";
 
 import { trackEvent } from "@/utils/analytics";
 
-const Singleproducts = () => {
+interface SingleproductsProps {
+  /**
+   * Optional server-fetched product. When present the client skips the
+   * initial POST /products/detail round-trip and the PDP paints instantly
+   * (server component already put the row in the HTML). Reviews-tied
+   * client refresh still runs so signed-in users' `is_in_cart` flag is
+   * accurate.
+   */
+  initialProduct?: Product | null;
+}
+
+const Singleproducts: React.FC<SingleproductsProps> = ({ initialProduct = null }) => {
   const params = useParams();
   const searchParams = useSearchParams();
   const productHandle = params?.productHandle || '';
   const shouldAutoOrderAgain = searchParams?.get('orderAgain') === '1';
-  const [product, setProduct] = useState<Product | null>(null);
-  const [mainImage, setMainImage] = useState<string | null>(null);
+  const [product, setProduct] = useState<Product | null>(initialProduct as any);
+  const [mainImage, setMainImage] = useState<string | null>((initialProduct as any)?.image_url || null);
   const [isInCart, setIsInCart] = useState(false);
   const [isPageLoaded, setIsPageLoaded] = useState(false); //product page
-  const [isProductLoading, setIsProductLoading] = useState(true);
+  const [isProductLoading, setIsProductLoading] = useState(!initialProduct);
   const [productError, setProductError] = useState<string | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1); // Pagination state
@@ -489,7 +500,7 @@ const Singleproducts = () => {
                   <li>
                     <Image
                       src={mainImage || '/assets/images/placeholder-product.png'}
-                      alt="product"
+                      alt={`${product?.title || "Vyra Herbals product"} - Vyra Herbals`}
                       width={520}
                       height={520}
                       style={{ objectFit: 'contain' }}
@@ -778,7 +789,7 @@ const Singleproducts = () => {
                         <span className="review-avatar">
                           <Image
                             src="/assets/images/user.png"
-                            alt="user-img"
+                            alt={`${review.reviewer_name || "Verified customer"} - Vyra Herbals customer review`}
                             width={65}
                             height={65}
                             style={{ objectFit: 'cover' }}

@@ -43,7 +43,7 @@ export default async function BlogsPage({
         <div className="container">
           <div className="hero-content">
             <Badge pill bg="success" className="mb-3 px-3 py-2">Our Journal</Badge>
-            <h1 className="display-4 fw-bold">Ayurvedic Wisdom & <br/>Wellness Insights</h1>
+            <h1 className="display-4 fw-bold">Natural Herbal Hair Care <br/>Guides & Wellness Insights</h1>
             <p className="lead text-muted">Explore the ancient secrets of beauty and health, <br/>curated for the modern lifestyle.</p>
           </div>
         </div>
@@ -53,7 +53,7 @@ export default async function BlogsPage({
         <div className="container">
           {blogs.length === 0 ? (
             <div className="text-center py-5">
-               <img src="/assets/images/empty-blog.svg" alt="No blogs" style={{ width: '200px', opacity: 0.5 }} className="mb-4" />
+               <img src="/assets/images/empty-blog.svg" alt="No blog posts published yet" style={{ width: '200px', opacity: 0.5 }} className="mb-4" />
                <h3 className="text-muted">No stories found just yet.</h3>
                <p>We are currently brewing some herbal wisdom for you!</p>
             </div>
@@ -76,7 +76,7 @@ export default async function BlogsPage({
                         <span className="blog-date">{new Date(b.created_at || Date.now()).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
                       </div>
                       <h3 className="blog-card__title">{b.title}</h3>
-                      <p className="blog-card__excerpt">{b.excerpt || 'Discover the profound benefits of Ayurvedic rituals and how they can transform your daily self-care routine.'}</p>
+                      <p className="blog-card__excerpt">{b.excerpt || 'Discover how 100% natural handmade herbal rituals — rooted in India\'s traditional hair-care wisdom — transform your daily self-care routine.'}</p>
                       <div className="blog-card__footer">
                         <span className="read-more-btn">Read Story</span>
                         <div className="arrow-icon">→</div>

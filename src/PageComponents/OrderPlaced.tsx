@@ -163,12 +163,29 @@ const OrderPlaced = () => {
           return;
         }
 
-        // One-time conversion event for analytics, like the old transaction page did.
+        // One-time conversion event for analytics (Meta Pixel `Purchase` + GA4
+        // `purchase` fire together via the mapping in src/utils/analytics.ts).
+        // Sending the full `items` array is what powers GA4's e-commerce
+        // reports — without it revenue-by-SKU stays empty.
+        const orderItems = (data.items || data.products || []).map((p: any) => ({
+          item_id: String(p.product_id || p.id),
+          item_name: p.title || p.name || p.product_name || 'Vyra product',
+          item_category: p.category || undefined,
+          item_brand: 'Vyra Herbals',
+          quantity: Number(p.quantity || p.qty || 1),
+          price: Number(p.price || p.unit_price || 0),
+        }));
         trackEvent('Purchase', {
           transaction_id: data.txn_id || String(data.id),
           value: Number(data.total_amount ?? data.order_amount ?? 0),
           currency: 'INR',
-          num_items: (data.items || data.products || []).length,
+          num_items: orderItems.reduce((n: number, i: any) => n + (i.quantity || 1), 0),
+          tax: Number(data.tax || 0) || undefined,
+          shipping: Number(data.shipping_charges || data.shipping || 0) || undefined,
+          coupon: data.coupon_code || undefined,
+          items: orderItems,
+          content_type: 'product',
+          content_ids: orderItems.map((i: any) => i.item_id),
         });
 
         // Best-effort cart cleanup if any of the cart items match this order.

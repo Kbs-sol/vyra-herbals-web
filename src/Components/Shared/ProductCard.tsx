@@ -32,7 +32,7 @@ const ProductCard = ({ product, isImageLazy = true }) => {
           <Link className="product-image" href={`/product/${product.handle}`}>
             <LazyImage
               src={product.image_url}
-              alt={`${product.title}-image`}
+              alt={`${product.title} - Vyra Herbals`}
               isLazy={isImageLazy}
             />
           </Link>

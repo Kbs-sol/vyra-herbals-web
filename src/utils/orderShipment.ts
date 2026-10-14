@@ -2,7 +2,7 @@ import { createShipment } from "./shipping";
 import { notifyShipmentCreated } from "@/services/communications/integration/orderNotifications";
 
 type SyncResult =
-    | { success: true; trackingId: string; shipmentId: string; awb_code: string; alreadySynced?: boolean }
+    | { success: true; trackingId: string; shipmentId: string; alreadySynced?: boolean }
     | { success: false; message: string };
 
 // Hard ceiling on the entire iCarry sync call. Internal fetches in shipping.ts
@@ -44,7 +44,6 @@ export const syncOrderShipment = async (supabase: any, order: any): Promise<Sync
             success: true,
             trackingId: order.tracking_id || order.awb_code || String(order.shipment_id),
             shipmentId: String(order.shipment_id),
-            awb_code: String(order.awb_code || ''),
             alreadySynced: true,
         };
     }
@@ -64,7 +63,6 @@ export const syncOrderShipment = async (supabase: any, order: any): Promise<Sync
                 success: true,
                 trackingId: latest.tracking_id || latest.awb_code || String(latest.shipment_id),
                 shipmentId: String(latest.shipment_id),
-                awb_code: String(latest.awb_code || ''),
                 alreadySynced: true,
             };
         }
@@ -133,7 +131,6 @@ export const syncOrderShipment = async (supabase: any, order: any): Promise<Sync
                 success: true,
                 trackingId,
                 shipmentId: String(shipmentResult.shipment_id || ''),
-                awb_code: String(shipmentResult.awb_code || ''),
             };
         }
 

@@ -12,6 +12,14 @@ import type { NextConfig } from 'next';
  * Tightening `script-src` to a nonce is the next step, and needs the GTM and
  * Pixel snippets moved to next/script with a nonce first.
  */
+// Analytics and marketing vendors:
+//   googletagmanager.com / google-analytics.com / analytics.google.com → GA4 + gtag.js + collect hits
+//   googleadservices.com / doubleclick.net → Google Ads conversions and remarketing
+//   connect.facebook.net / facebook.com → Meta Pixel & Conversions
+//   clarity.ms / *.clarity.ms / c.bing.com → Microsoft Clarity replay & heatmaps
+//   analytics.tiktok.com → TikTok Pixel
+//   snap.licdn.com / px.ads.linkedin.com → LinkedIn Insight tag
+//   s.pinimg.com / ctp.pinterest.com → Pinterest Tag
 const contentSecurityPolicy = [
   "default-src 'self'",
   "base-uri 'self'",
@@ -19,26 +27,18 @@ const contentSecurityPolicy = [
   "form-action 'self' https://pay.easebuzz.in https://testpay.easebuzz.in",
   // Nobody may frame the storefront: blocks clickjacking of the checkout.
   "frame-ancestors 'self'",
-  // Analytics vendors whitelisted here (all loaded via GTM):
-  //   googletagmanager.com          → GTM itself + GA4 (gtag.js)
-  //   google-analytics.com          → GA4 collect endpoints
-  //   connect.facebook.net + facebook.com → Meta Pixel (fbevents.js + tr/)
-  //   clarity.ms                    → Microsoft Clarity (loader + collect)
-  //   googleadservices.com          → Google Ads conversion + remarketing tags
-  //   doubleclick.net               → Google Ads remarketing
-  //   analytics.tiktok.com          → TikTok Pixel (optional, ready if GTM adds it)
-  //   snap.licdn.com + px.ads.linkedin.com → LinkedIn Insight (optional)
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://ssl.google-analytics.com https://connect.facebook.net https://*.clarity.ms https://www.googleadservices.com https://www.google.com https://googleads.g.doubleclick.net https://analytics.tiktok.com https://snap.licdn.com https://pay.easebuzz.in https://testpay.easebuzz.in https://ebz-static.s3.ap-south-1.amazonaws.com https://cdn.jsdelivr.net",
-  "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://ssl.google-analytics.com https://*.google-analytics.com https://connect.facebook.net https://*.clarity.ms https://www.googleadservices.com https://www.google.com https://googleads.g.doubleclick.net https://analytics.tiktok.com https://snap.licdn.com https://s.pinimg.com https://pay.easebuzz.in https://testpay.easebuzz.in https://ebz-static.s3.ap-south-1.amazonaws.com https://cdn.jsdelivr.net",
+  "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com",
   "img-src 'self' data: blob: https:",
-  "font-src 'self' data: https://cdn.jsdelivr.net",
-  "connect-src 'self' https://*.supabase.co https://*.supabase.in https://www.googletagmanager.com https://www.google-analytics.com https://*.analytics.google.com https://*.google-analytics.com https://stats.g.doubleclick.net https://connect.facebook.net https://www.facebook.com https://*.clarity.ms https://c.bing.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://analytics.tiktok.com https://px.ads.linkedin.com https://cpaas.messagecentral.com https://api.postalpincode.in https://www.icarry.in https://pay.easebuzz.in https://testpay.easebuzz.in",
+  "font-src 'self' data: https://cdn.jsdelivr.net https://fonts.gstatic.com",
+  "connect-src 'self' https://*.supabase.co https://*.supabase.in https://www.googletagmanager.com https://www.google-analytics.com https://*.analytics.google.com https://*.google-analytics.com https://stats.g.doubleclick.net https://connect.facebook.net https://www.facebook.com https://*.clarity.ms https://c.bing.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://analytics.tiktok.com https://px.ads.linkedin.com https://ctp.pinterest.com https://cpaas.messagecentral.com https://api.postalpincode.in https://www.icarry.in https://pay.easebuzz.in https://testpay.easebuzz.in",
   // Payment gateway and embedded marketing video.
   "frame-src 'self' https://pay.easebuzz.in https://testpay.easebuzz.in https://www.youtube.com https://www.youtube-nocookie.com https://www.facebook.com",
   "worker-src 'self' blob:",
   "manifest-src 'self'",
   "upgrade-insecure-requests",
 ].join('; ');
+
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -57,6 +57,10 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: '*.supabase.in',
+      },
+      {
+        protocol: 'https',
+        hostname: 'i.ytimg.com',
       },
     ],
     formats: ['image/avif', 'image/webp'],
@@ -108,6 +112,61 @@ const nextConfig: NextConfig = {
           { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
         ],
       },
+      // Sitemap / feed / llms.txt / ai.txt — these are read by BOTS, not
+      // people. Aggressive caching with SWR is fine; explicit `X-Robots-Tag`
+      // keeps them out of a search-result page's "site:" listing (Google
+      // occasionally indexes .xml/.txt as results, which pollutes clicks).
+      {
+        source: '/sitemap.xml',
+        headers: [
+          { key: 'Cache-Control', value: 'public, s-maxage=900, stale-while-revalidate=3600' },
+          { key: 'X-Robots-Tag', value: 'noindex' },
+        ],
+      },
+      {
+        source: '/sitemap-video.xml',
+        headers: [
+          { key: 'Cache-Control', value: 'public, s-maxage=900, stale-while-revalidate=3600' },
+          { key: 'X-Robots-Tag', value: 'noindex' },
+        ],
+      },
+      {
+        source: '/feed.xml',
+        headers: [
+          { key: 'Cache-Control', value: 'public, s-maxage=900, stale-while-revalidate=3600' },
+          { key: 'X-Robots-Tag', value: 'noindex' },
+        ],
+      },
+      {
+        source: '/llms.txt',
+        headers: [
+          { key: 'Cache-Control', value: 'public, s-maxage=3600, stale-while-revalidate=86400' },
+          { key: 'X-Robots-Tag', value: 'noindex' },
+        ],
+      },
+      {
+        source: '/ai.txt',
+        headers: [
+          { key: 'Cache-Control', value: 'public, s-maxage=86400, stale-while-revalidate=604800' },
+          { key: 'X-Robots-Tag', value: 'noindex' },
+        ],
+      },
+      // PWA manifest — small and cache-friendly, but must revalidate weekly.
+      {
+        source: '/manifest.webmanifest',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=604800' },
+          { key: 'Content-Type', value: 'application/manifest+json' },
+        ],
+      },
+      // security.txt — long cache, immutable-in-practice.
+      {
+        source: '/.well-known/security.txt',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=604800' },
+          { key: 'Content-Type', value: 'text/plain; charset=utf-8' },
+        ],
+      },
       // Baseline security headers for every response.
       {
         source: '/:path*',
@@ -135,6 +194,41 @@ const nextConfig: NextConfig = {
     ];
   },
 
+  // ---------------------------------------------------------------------------
+  // SEO redirects — permanent (301) so link equity transfers to the canonical.
+  //
+  // Rationale
+  // ---------
+  //  - Non-www → apex canonical: the site.metadata + sitemap all use
+  //    https://vyraherbals.com. Any inbound link that hits www.* must fold
+  //    into that one canonical, else Google splits authority.
+  //  - Trailing-slash normalisation for content pages: `/about/` and `/about`
+  //    should not both index.
+  //  - Legacy paths from the old repo: /store, /shop-all, /collections/*
+  //    still receive backlinks; redirect them to the new /category/* routes.
+  //  - Blog `.html` suffix cleanup — pre-migration URLs.
+  // ---------------------------------------------------------------------------
+  async redirects() {
+    return [
+      // Legacy /collections/... → /category/...
+      { source: '/collections/:slug', destination: '/category/:slug', permanent: true },
+      // Legacy /shop-all or /store → homepage (which now lists everything)
+      { source: '/store', destination: '/', permanent: true },
+      { source: '/shop-all', destination: '/', permanent: true },
+      // Legacy /product.html?id=... never worked cleanly — send them home so
+      // they can search rather than land on a 404.
+      { source: '/product.html', destination: '/', permanent: true },
+      // Legacy blog URLs
+      { source: '/blog/:slug', destination: '/blogs/:slug', permanent: true },
+      // NOTE: Do NOT add case-normalising redirects for /concern/* here.
+      // Next.js's path-to-regexp matcher on Vercel treats source paths
+      // case-INsensitively, so `{ source: '/concern/Hair-Fall', destination:
+      // '/concern/hair-fall' }` matches its own target and triggers
+      // ERR_TOO_MANY_REDIRECTS on the very URL it was meant to protect.
+      // The correct URLs are already lowercase; a Title-Case hit will simply
+      // 404, which is the safe outcome.
+    ];
+  },
 
   // Optimize bundle size
   webpack: (config, { isServer }) => {

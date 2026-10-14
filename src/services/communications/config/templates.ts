@@ -16,8 +16,11 @@ function buildRegistry(): Partial<Record<EventType, TemplateDefinition>> {
   return {
     ORDER_PLACED: {
       name: process.env.WHATSAPP_TEMPLATE_ORDER_PLACED ?? 'order_placed',
-      // Combined Order Placed + Shipment Created template with tracking ID
-      parameterOrder: ['customer_name', 'total_amount', 'tracking_id'],
+      // No customer-facing tracking page exists in this app yet, and Meta
+      // rejects/renders badly on blank placeholders — so the approved
+      // `order_placed` template takes three params, not four. Add
+      // 'tracking_link' back here the day a /track page ships.
+      parameterOrder: ['customer_name', 'order_id', 'total_amount'],
     },
     PAYMENT_CONFIRMED: {
       name: process.env.WHATSAPP_TEMPLATE_PAYMENT_CONFIRMED ?? 'payment_confirmed',

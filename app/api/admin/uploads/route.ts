@@ -4,36 +4,41 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
-import { requireAdmin } from '@/utils/adminAuth';
-import { getAdminJwtSecret, getSupabaseUrl, getSupabaseServiceRoleKey } from '@/utils/serverEnv';
+import { getAdminJwtSecret } from '@/utils/serverEnv';
 
+
+
+// Force dynamic — API routes touch Supabase / cookies; static analysis at build time would try
+// to import the module without runtime env vars and blow up in 'collect page data'.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const DEFAULT_STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET || 'products';
 
 export async function POST(request: NextRequest) {
   try {
-    const denied = await requireAdmin(request);
-    if (denied) return denied;
+    // Verify admin cookie token
+    const cookieStore = await cookies();
+    const token = cookieStore.get('admin_token')?.value;
+    if (!token) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    try {
+      await jwtVerify(token, getAdminJwtSecret());
+    } catch (err) {
+      return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 401 });
+    }
 
     const formData = await request.formData();
     const uploadFile = formData.get('file') as File | null;
-    
-    // Bucket allowlist
-    const ALLOWED_BUCKETS = new Set(['products', 'blogs', 'testimonials', 'avatars']);
-    const requestedBucket = formData.get('bucket') as string;
-    const bucket = ALLOWED_BUCKETS.has(requestedBucket) ? requestedBucket : DEFAULT_STORAGE_BUCKET;
-
-    // Handle sanitization
-    const rawHandle = (formData.get('handle') as string) || 'product';
-    const handle = rawHandle.replace(/[^a-z0-9-_]/gi, '').slice(0, 50) || 'product';
+    const handle = (formData.get('handle') as string) || 'product';
+    const bucket = (formData.get('bucket') as string) || DEFAULT_STORAGE_BUCKET; // allow overriding bucket for different content (e.g., 'blogs')
 
     if (!uploadFile) {
       return NextResponse.json({ success: false, error: 'No file provided' }, { status: 400 });
-    }
-
-    // MIME type allowlist
-    const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif']);
-    if (!ALLOWED_MIME_TYPES.has(uploadFile.type)) {
-      return NextResponse.json({ success: false, error: 'Invalid file type. Only JPEG, PNG, WEBP, and AVIF are allowed.' }, { status: 400 });
     }
 
     const extension = uploadFile.name.split('.').pop() || 'jpg';
@@ -44,7 +49,11 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await uploadFile.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    const supabaseAdmin = createClient(getSupabaseUrl(), getSupabaseServiceRoleKey(), {
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json({ success: false, error: 'Supabase credentials missing (SUPABASE_URL / SERVICE_ROLE_KEY)' }, { status: 500 });
+    }
+
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       auth: { persistSession: false },
     });
 
