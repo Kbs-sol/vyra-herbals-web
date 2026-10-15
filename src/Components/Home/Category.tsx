@@ -19,42 +19,42 @@ const HARDCODED_CATEGORIES = [
     id: 1,
     name: "Hair Oil",
     slug: "hair-oil",
-    image_url: "/category-images/Hair Oil.png",
+    image_url: "/category-images/Hair Oil.webp",
     hover_url: "https://obbohecegyagnqufelpx.supabase.co/storage/v1/object/public/images/hair-oil-100ml/1769794807906-zgf6vtn.jpg"
   },
   {
     id: 2,
     name: "Shampoo",
     slug: "shampoo",
-    image_url: "/category-images/Shampo.jpeg",
+    image_url: "/category-images/Shampo.webp",
     hover_url: "https://obbohecegyagnqufelpx.supabase.co/storage/v1/object/public/images/herbal-shampoo-200ml/1769795134812-b9j9hng.jpg"
   },
   {
     id: 3,
     name: "Scalp Massager",
     slug: "scalp-massager",
-    image_url: "/category-images/scalp.jpg",
+    image_url: "/category-images/scalp.webp",
     hover_url: "https://obbohecegyagnqufelpx.supabase.co/storage/v1/object/public/images/scalp-massager/1771935718696-hz94vln.jpg"
   },
   {
     id: 4,
     name: "Herbal Hair Mask Powder",
     slug: "herbal-hair-mask-powder",
-    image_url: "/category-images/Hair Mask.jpeg",
+    image_url: "/category-images/Hair Mask.webp",
     hover_url: "https://obbohecegyagnqufelpx.supabase.co/storage/v1/object/public/images/herbal-hair-mask-powder/1771663039180-wsclkdq.jpeg"
   },
   {
     id: 5,
     name: "Neem Combs",
     slug: "neem-combs",
-    image_url: "/assets/images/cat/coomb.jpg",
+    image_url: "/assets/images/cat/coomb.webp",
     hover_url: "https://obbohecegyagnqufelpx.supabase.co/storage/v1/object/public/images/neem-combs-combo-2/1769797623158-lx3krar.jpg"
   },
   {
     id: 6,
     name: "Rosemary Leaves",
     slug: "rosemary-leaves",
-    image_url: "/category-images/Rosemary Leaves.jpeg",
+    image_url: "/category-images/Rosemary Leaves.webp",
     hover_url: "https://obbohecegyagnqufelpx.supabase.co/storage/v1/object/public/images/rosemary-leaves/1771662946547-x0yeozh.jpeg"
   }
 ];
@@ -142,8 +142,8 @@ const Category = () => {
                       <div className="category-wrap">
                         <Link href={`/category/${cat.slug}`}>
                           <div className="category-media">
-                            <img src={cat.image_url} alt={cat.name} />
-                            <img src={cat.hover_url} alt={cat.name} />
+                            <img src={cat.image_url} alt={cat.name} width={300} height={300} loading="lazy" />
+                            <img src={cat.hover_url} alt={cat.name} width={300} height={300} loading="lazy" />
                           </div>
                           <div className="category-meta">
                             <h4>

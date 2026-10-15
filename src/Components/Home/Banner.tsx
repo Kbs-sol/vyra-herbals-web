@@ -91,18 +91,21 @@ const Banner = () => {
             <div className="banner-list">
               <Link href="/search?searchtext=all">
                 <img
-                  src="/assets/images/banner/slide-02.png"
+                  src="/assets/images/banner/slide-02.webp"
                   // onLoad={() => setLoading(false)}
                   // onError={() => setLoading(false)}
                   alt="Healthy Hair, Happy You - Vyra herbal shampoo and hair oil with natural ingredients"
+                  width={1200}
+                  height={505}
+                  fetchPriority="high"
                 />
               </Link>
             </div>
             <div className="banner-list">
-              <img src="/assets/images/banner-02.png" alt="Hair care for strong and healthy hair - transform your hair, naturally" />
+              <img src="/assets/images/banner-02.webp" alt="Hair care for strong and healthy hair - transform your hair, naturally" width={831} height={350} />
             </div>
             <div className="banner-list">
-              <img src="/assets/images/hero-banner.png" alt="Vyra All in One Hair Growth Kit - shampoo, hair oil, rosemary leaves, hair mask, neem combs and scalp massager" />
+              <img src="/assets/images/hero-banner.webp" alt="Vyra All in One Hair Growth Kit - shampoo, hair oil, rosemary leaves, hair mask, neem combs and scalp massager" width={1200} height={800} />
             </div>
           </Slider>
         </div>
