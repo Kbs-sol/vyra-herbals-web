@@ -15,13 +15,39 @@ const DEFAULT_LANGUAGE_CODE = 'en';
 export function buildTemplatePayload(message: OutboundMessage): WhatsAppSendPayload {
   validateOutboundMessage(message);
 
-  const bodyComponent: WhatsAppTemplateComponent = {
-    type: 'body',
-    parameters: Object.values(message.parameters).map((value) => ({
-      type: 'text',
-      text: String(value),
-    })),
-  };
+  const components: WhatsAppTemplateComponent[] = [
+    {
+      type: 'body',
+      parameters: (Array.isArray(message.parameters) ? message.parameters : Object.values(message.parameters)).map((value) => ({
+        type: 'text',
+        text: String(value),
+      })),
+    }
+  ];
+
+  // if (message.header_image_url) {
+  //   components.push({
+  //     type: 'header',
+  //     parameters: [
+  //       {
+  //         type: 'image',
+  //         image: { link: message.header_image_url },
+  //       },
+  //     ],
+  //   });
+  // }
+
+  if (message.button_parameters && message.button_parameters.length > 0) {
+    components.push({
+      type: 'button',
+      sub_type: 'url',
+      index: '0',
+      parameters: message.button_parameters.map((val) => ({
+        type: 'text',
+        text: String(val),
+      })),
+    });
+  }
 
   return {
     messaging_product: 'whatsapp',
@@ -30,7 +56,7 @@ export function buildTemplatePayload(message: OutboundMessage): WhatsAppSendPayl
     template: {
       name: message.template_name,
       language: { code: process.env.WHATSAPP_TEMPLATE_LANGUAGE ?? DEFAULT_LANGUAGE_CODE },
-      components: [bodyComponent],
+      components,
     },
   };
 }

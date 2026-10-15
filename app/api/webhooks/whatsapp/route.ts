@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { whatsappClient } from '@/services/communications/providers/whatsapp/client';
 import { verifyWebhookHandshake } from '@/services/communications/providers/whatsapp/webhookHandler';
 import { updateDeliveryStatusByMessageId } from '@/services/communications/logging/messageLogger';
-import { logInboundMessage } from '@/services/communications/logging/inboundLogger';
+import { logChatMessage } from '@/services/communications/bot/chatLogger';
 import { logger } from '@/services/communications/logging/logger';
 
 // Force dynamic — API routes touch Supabase / cookies; static analysis at build time would try
@@ -80,15 +80,40 @@ export async function POST(req: Request) {
     }
   }
 
-  // 2. Persist inbound messages so the admin inbox can render them.
-  //    Doing this synchronously (but wrapped) is fine — the insert is a
-  //    single Supabase call and we still 200 fast.
-  //    IMPORTANT: this MUST happen even if the bot fails; the admin inbox is
-  //    the only surface that recovers a message the bot didn't understand.
+  // 2. Persist inbound messages to whatsapp_chat_messages so the admin inbox can render them.
+  //    Each insert is fast; we log and continue even if it fails so the bot always gets its messages.
   if (incomingMessages.length > 0) {
-    await Promise.allSettled(incomingMessages.map((m: any) => logInboundMessage(m).catch((err) => {
-      logger.error('inbound_log_failed', { error: err?.message, from: m?.from, id: m?.id });
-    })));
+    await Promise.allSettled(
+      incomingMessages.map(async (m: any) => {
+        try {
+          // Extract the text body from the message (text, button reply, etc.)
+          let body: string = '[unsupported message type]';
+          if (m.type === 'text' && m.text?.body) body = m.text.body;
+          else if (m.type === 'interactive') {
+            const btn = m.interactive?.button_reply;
+            const list = m.interactive?.list_reply;
+            if (btn?.title) body = `Button: ${btn.title}`;
+            else if (list?.title) body = `List: ${list.title}`;
+          } else if (m.type === 'button' && m.button?.text) body = m.button.text;
+          else if (m.type === 'image') body = m.image?.caption ? `[image] ${m.image.caption}` : '[image]';
+          else if (m.type === 'audio') body = '[audio]';
+          else if (m.type === 'video') body = m.video?.caption ? `[video] ${m.video.caption}` : '[video]';
+          else if (m.type === 'document') body = `[document] ${m.document?.filename || ''}`.trim();
+          else if (m.type === 'order') body = '[cart submitted]';
+
+          await logChatMessage({
+            phone_number: m.from,
+            direction: 'inbound',
+            sender_name: m.profileName || 'Customer',
+            message_type: m.type || 'text',
+            body,
+            raw_payload: m,
+          });
+        } catch (err: any) {
+          logger.error('inbound_log_failed', { error: err?.message, from: m?.from });
+        }
+      })
+    );
   }
 
   // 3. Process Incoming Messages (Conversational Bot)
