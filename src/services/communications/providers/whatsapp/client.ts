@@ -140,6 +140,34 @@ export class WhatsAppClient extends CommunicationProvider {
       }
 
       const successData = data as WhatsAppApiSuccessResponse;
+
+      // Log outbound message to whatsapp_chat_messages for the Admin Live Chat screen
+      try {
+        const anyPayload = payload as any;
+        let textBody = '';
+        if (anyPayload.type === 'text') {
+          textBody = anyPayload.text?.body || '';
+        } else if (anyPayload.type === 'interactive') {
+          textBody = anyPayload.interactive?.body?.text || anyPayload.interactive?.header?.text || 'Interactive Message';
+        } else if (anyPayload.type === 'template') {
+          textBody = `[Template: ${anyPayload.template?.name}]`;
+        }
+        if (textBody && anyPayload.to) {
+          import('../../bot/chatLogger')
+            .then(({ logChatMessage }) => {
+              logChatMessage({
+                phone_number: anyPayload.to,
+                direction: 'outbound',
+                sender_name: 'Vyra Bot',
+                message_type: anyPayload.type || 'text',
+                body: textBody,
+                raw_payload: payload,
+              });
+            })
+            .catch(() => {});
+        }
+      } catch {}
+
       return {
         success: true,
         message_id: successData.messages?.[0]?.id,
