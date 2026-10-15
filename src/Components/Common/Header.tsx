@@ -346,7 +346,7 @@ const Header = () => {
         <div className="container">
           <div className="header-content">
             <div className="header-media-group">
-              <button className="toggle" onClick={() => setShowMenu(true)}>
+              <button className="toggle" onClick={() => setShowMenu(true)} aria-label="Open mobile navigation menu">
                 <FaBarsStaggered />
               </button>
             </div>
@@ -480,9 +480,10 @@ const Header = () => {
                 />
               </section>
 
-              <button className="header-widget header-wishlist" title="Go to wishlist">
+              <button className="header-widget header-wishlist" title="Go to wishlist" aria-label="Go to wishlist">
                 <Link
                   href="/wishlist"
+                  aria-label="View your wishlist"
                   onClick={(e) => pathname?.includes("wishlist") && e.preventDefault()}
                 >
                   <FaHeart />
@@ -490,9 +491,10 @@ const Header = () => {
                 </Link>
               </button>
 
-              <button className="header-widget header-cart" title="Go to cart">
+              <button className="header-widget header-cart" title="Go to cart" aria-label="Go to shopping cart">
                 <Link
                   href="/cart"
+                  aria-label="View your shopping cart"
                   onClick={(e) => pathname?.includes("cart") && e.preventDefault()}
                 >
                   <FaShoppingCart />

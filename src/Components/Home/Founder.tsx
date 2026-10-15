@@ -35,7 +35,13 @@ const Founder = () => {
           </div>
           <div className="col-lg-6">
             <div className="about-img">
-              <img src="/assets/images/vyra-founder.jpeg" alt="Sahera Banu, founder of Vyra Herbals" />
+              <img
+                src="/assets/images/vyra-founder.webp"
+                alt="Sahera Banu, founder of Vyra Herbals"
+                width={500}
+                height={524}
+                loading="lazy"
+              />
               <div className="fondr-titl">
                 <h4>Sahera Banu</h4>
                 <h5>Founder</h5>
