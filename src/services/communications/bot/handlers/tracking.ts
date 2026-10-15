@@ -63,9 +63,10 @@ export async function handleTracking(from: string, session: WhatsAppSession) {
       try {
         const { syncOrderShipment } = await import('@/utils/orderShipment');
         const res = await syncOrderShipment(db, o);
-        if (res.success && res.awb_code) {
-          o.awb_code = res.awb_code;
-          o.tracking_id = res.awb_code;
+        if (res.success && res.trackingId) {
+          o.awb_code = res.trackingId;
+          o.tracking_id = res.trackingId;
+          o.shipment_id = res.shipmentId;
         }
       } catch {}
     }
