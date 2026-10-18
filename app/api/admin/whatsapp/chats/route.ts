@@ -18,11 +18,14 @@ export async function GET(req: NextRequest) {
 
   // If a specific phone is requested, return full message history
   if (phone) {
-    const cleanPhone = phone.trim();
+    const rawPhone = phone.trim().replace(/^\+/, '');
+    const tenDigit = rawPhone.replace(/^91/, '');
+    const withCountry = `91${tenDigit}`;
+
     const { data: messages, error } = await db
       .from('whatsapp_chat_messages')
       .select('*')
-      .eq('phone_number', cleanPhone)
+      .or(`phone_number.eq.${withCountry},phone_number.eq.${tenDigit}`)
       .order('created_at', { ascending: true })
       .limit(200);
 
@@ -34,20 +37,23 @@ export async function GET(req: NextRequest) {
     const { data: session } = await db
       .from('whatsapp_sessions')
       .select('*')
-      .eq('phone_number', cleanPhone)
+      .or(`phone_number.eq.${withCountry},phone_number.eq.${tenDigit}`)
       .maybeSingle();
 
-    // Get customer name / email
-    const tenDigit = cleanPhone.replace(/^91/, '');
-    const { data: user } = await db
-      .from('users')
-      .select('name, email')
-      .or(`phone.eq.${cleanPhone},phone.eq.${tenDigit}`)
-      .maybeSingle();
+    // Get customer name / email safely
+    let user: any = null;
+    try {
+      const { data: userData } = await db
+        .from('users')
+        .select('name, email')
+        .or(`phone.eq.${withCountry},phone.eq.${tenDigit}`)
+        .maybeSingle();
+      user = userData;
+    } catch {}
 
     return NextResponse.json({
       success: true,
-      phone: cleanPhone,
+      phone: withCountry,
       customer: user || { name: 'Customer' },
       session: session || { state: 'IDLE' },
       messages: messages || []
@@ -57,18 +63,26 @@ export async function GET(req: NextRequest) {
   // Otherwise, return all conversation threads
   try {
     // 1. Get active sessions
-    const { data: sessions } = await db
+    const { data: sessions, error: sessionsError } = await db
       .from('whatsapp_sessions')
       .select('*')
       .order('updated_at', { ascending: false })
       .limit(50);
 
+    if (sessionsError && sessionsError.code !== '42P01') {
+      console.warn('[ChatsAPI] Error loading sessions:', sessionsError.message);
+    }
+
     // 2. Get latest messages if chat table exists
-    const { data: recentMessages } = await db
+    const { data: recentMessages, error: messagesError } = await db
       .from('whatsapp_chat_messages')
       .select('*')
       .order('created_at', { ascending: false })
       .limit(500);
+
+    if (messagesError && messagesError.code !== '42P01') {
+      console.warn('[ChatsAPI] Error loading messages:', messagesError.message);
+    }
 
     // Group messages by phone
     const threadMap = new Map<string, any>();
@@ -108,26 +122,31 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    // Look up customer names
+    // Look up customer names safely
     const phoneList = Array.from(threadMap.keys());
     if (phoneList.length > 0) {
-      const tenDigits = phoneList.map(p => p.replace(/^91/, ''));
-      const { data: users } = await db
-        .from('users')
-        .select('name, phone')
-        .or(`phone.in.(${phoneList.join(',')}),phone.in.(${tenDigits.join(',')})`);
+      try {
+        const tenDigits = phoneList.map(p => p.replace(/^91/, ''));
+        const allPhones = Array.from(new Set([...phoneList, ...tenDigits]));
+        const { data: users } = await db
+          .from('users')
+          .select('name, phone')
+          .in('phone', allPhones);
 
-      const userMap = new Map<string, string>();
-      (users || []).forEach(u => {
-        if (u.phone) {
-          userMap.set(u.phone, u.name);
-          userMap.set(`91${u.phone.replace(/^91/, '')}`, u.name);
-        }
-      });
+        const userMap = new Map<string, string>();
+        (users || []).forEach(u => {
+          if (u.phone) {
+            userMap.set(u.phone, u.name);
+            userMap.set(`91${u.phone.replace(/^91/, '')}`, u.name);
+          }
+        });
 
-      threadMap.forEach((val, key) => {
-        val.customer_name = userMap.get(key) || userMap.get(key.replace(/^91/, '')) || 'Customer';
-      });
+        threadMap.forEach((val, key) => {
+          val.customer_name = userMap.get(key) || userMap.get(key.replace(/^91/, '')) || 'Customer';
+        });
+      } catch (err: any) {
+        console.warn('[ChatsAPI] User name lookup skipped:', err?.message);
+      }
     }
 
     const threads = Array.from(threadMap.values()).sort(
