@@ -19,7 +19,7 @@ export function buildTemplatePayload(message: OutboundMessage): WhatsAppSendPayl
     {
       type: 'body',
       parameters: (Array.isArray(message.parameters) ? message.parameters : Object.values(message.parameters)).map((value) => ({
-        type: 'text',
+        type: 'text' as const,
         text: String(value),
       })),
     }
@@ -43,7 +43,7 @@ export function buildTemplatePayload(message: OutboundMessage): WhatsAppSendPayl
       sub_type: 'url',
       index: '0',
       parameters: message.button_parameters.map((val) => ({
-        type: 'text',
+        type: 'text' as const,
         text: String(val),
       })),
     });

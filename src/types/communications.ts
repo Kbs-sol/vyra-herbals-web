@@ -106,6 +106,8 @@ export interface OutboundMessage {
   provider: ProviderName;
   template_name: string;
   parameters: Record<string, string | number>;
+  button_parameters?: Array<string | number>;
+  header_image_url?: string;
   /** Idempotency key — composite of order_id + message_type by default. */
   dedupe_key: string;
   scheduled_for?: Date;
