@@ -32,8 +32,8 @@ const ShipingImage = () => {
             <img
               src="/assets/images/freeshiping-01.webp"
               alt="Free shipping on all Vyra Herbals products - shop at vyraherbals.com"
-              width={1200}
-              height={449}
+              width={1600}
+              height={600}
               loading="lazy"
             />
           </Link>
