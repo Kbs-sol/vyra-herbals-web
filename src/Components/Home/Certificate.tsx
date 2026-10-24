@@ -23,18 +23,22 @@ const Certificate = () => {
             <div className="col-md-3">
               <div className="text-center">
                 <img
-                  src="/assets/images/certificates/certificate-02.png"
+                  src="/assets/images/certificates/certificate-02.webp"
                   width={230}
+                  height={230}
                   alt="ISO 9001:2015 certified company badge"
+                  loading="lazy"
                 />
               </div>
             </div>
             <div className="col-md-3">
               <div className="text-center">
                 <img
-                  src="/assets/images/certificates/certificate-01.png"
+                  src="/assets/images/certificates/certificate-01.webp"
                   width={230}
+                  height={230}
                   alt="GMP certified - Good Manufacturing Practice badge"
+                  loading="lazy"
                 />
               </div>
             </div>
@@ -42,9 +46,11 @@ const Certificate = () => {
             <div className="col-md-3">
               <div className="text-center">
                 <img
-                  src="/assets/images/certificates/certificate-03.jpg"
+                  src="/assets/images/certificates/certificate-03.webp"
                   width={230}
+                  height={230}
                   alt="MSME registered - Ministry of Micro, Small and Medium Enterprises, Government of India"
+                  loading="lazy"
                 />
               </div>
             </div>
