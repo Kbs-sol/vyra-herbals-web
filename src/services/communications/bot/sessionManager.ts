@@ -1,13 +1,34 @@
-import { createServerSupabase } from '@/utils/supabaseClient';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+
+export type BotState =
+  | 'IDLE'
+  | 'BROWSING'           // Viewing product list / category
+  | 'VIEWING_PRODUCT'    // Viewing single product detail
+  | 'BUILDING_CART'      // Cart review interaction
+  | 'AWAITING_ADDRESS'   // Customer typing delivery address
+  | 'CONFIRMING_ADDRESS' // Bot showed address, waiting for confirm or edit
+  | 'AWAITING_PAYMENT'   // Payment link sent
+  | 'ORDER_CONFIRMED'    // Payment confirmed
+  | 'HUMAN_HANDOFF';     // Bot silent until admin resets
 
 export interface WhatsAppSession {
   phone_number: string;
-  state: 'IDLE' | 'AWAITING_ADDRESS' | 'AWAITING_PAYMENT' | 'BUILDING_CART' | 'HUMAN_HANDOFF' | 'ORDER_CONFIRMED' | 'BROWSING' | 'VIEWING_PRODUCT';
+  state: BotState;
   context: Record<string, any>;
+  // context fields used:
+  // selected_product_id: number
+  // cart_total: number
+  // draft_order_id: number
+  // txnid: string
+  // payment_link: string
+  // payment_link_sent_at: string (ISO timestamp)
+  // address_draft: string
+  // address_confirmed: object
+  // cod_selected: boolean
 }
 
 export async function getSession(phoneNumber: string): Promise<WhatsAppSession> {
-  const db = createServerSupabase();
+  const db = getSupabaseAdmin();
   const { data, error } = await db
     .from('whatsapp_sessions')
     .select('*')
@@ -29,7 +50,7 @@ export async function getSession(phoneNumber: string): Promise<WhatsAppSession> 
 }
 
 export async function updateSession(phoneNumber: string, updates: Partial<Omit<WhatsAppSession, 'phone_number'>>) {
-  const db = createServerSupabase();
+  const db = getSupabaseAdmin();
   await db
     .from('whatsapp_sessions')
     .update(updates)

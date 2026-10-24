@@ -81,33 +81,34 @@ export async function POST(req: Request) {
   }
 
   // 2. Persist inbound messages so the admin inbox can render them.
-  //    Doing this synchronously (but wrapped) is fine — the insert is a
-  //    single Supabase call and we still 200 fast.
   //    IMPORTANT: this MUST happen even if the bot fails; the admin inbox is
   //    the only surface that recovers a message the bot didn't understand.
-  if (incomingMessages.length > 0) {
-    await Promise.allSettled(incomingMessages.map((m: any) => logInboundMessage(m).catch((err) => {
-      logger.error('inbound_log_failed', { error: err?.message, from: m?.from, id: m?.id });
-    })));
-  }
+  const inboundLogPromise = incomingMessages.length > 0
+    ? Promise.allSettled(
+        incomingMessages.map((m: any) =>
+          logInboundMessage(m).catch((err) => {
+            logger.error('inbound_log_failed', { error: err?.message, from: m?.from, id: m?.id });
+          })
+        )
+      )
+    : Promise.resolve();
 
   // 3. Process Incoming Messages (Conversational Bot)
-  // Dynamic import to avoid circular dependencies and keep the webhook hot path fast
+  // We await the bot execution directly inside the serverless function execution context
+  // so Vercel does not freeze or terminate background promises mid-flow.
   if (incomingMessages.length > 0) {
-    // Process asynchronously so we don't block the 200 OK response to Meta
-    import('@/services/communications/bot/botEngine')
-      .then(({ processIncomingMessages }) => {
-        processIncomingMessages(incomingMessages).catch((err) => {
-          logger.error('whatsapp_bot_processing_error', { error: err.message });
-        });
-      })
-      .catch((err) => {
-        logger.error('whatsapp_bot_import_error', { error: err.message });
-      });
+    try {
+      const { processIncomingMessages } = await import('@/services/communications/bot/botEngine');
+      await processIncomingMessages(incomingMessages);
+    } catch (err: any) {
+      logger.error('whatsapp_bot_processing_error', { error: err?.message });
+    }
   }
 
-  // Meta requires a fast 200 regardless of downstream processing outcome,
-  // or it will back off and eventually disable the webhook.
+  // Ensure inbound message logs complete
+  await inboundLogPromise;
+
+  // Return 200 OK to Meta
   return NextResponse.json({ 
     received_updates: updates.length,
     received_messages: incomingMessages.length 

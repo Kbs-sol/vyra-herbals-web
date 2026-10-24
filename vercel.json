@@ -24,6 +24,9 @@
     },
     "app/api/cron/reconcile-payments/route.ts": {
       "maxDuration": 60
+    },
+    "app/api/webhooks/whatsapp/route.ts": {
+      "maxDuration": 60
     }
   }
 }
