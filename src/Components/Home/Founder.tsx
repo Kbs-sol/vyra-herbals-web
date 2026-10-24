@@ -38,8 +38,8 @@ const Founder = () => {
               <img
                 src="/assets/images/vyra-founder.webp"
                 alt="Sahera Banu, founder of Vyra Herbals"
-                width={500}
-                height={524}
+                width={800}
+                height={838}
                 loading="lazy"
               />
               <div className="fondr-titl">
