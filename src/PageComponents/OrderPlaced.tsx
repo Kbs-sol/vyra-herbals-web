@@ -124,7 +124,11 @@ const OrderPlaced = () => {
         const { data: { session } } = await supabase.auth.getSession();
         const headers: any = { 'Content-Type': 'application/json' };
         if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
-        const res = await fetch(`${API_PATH}/orders/info?order_id=${encodeURIComponent(orderId)}`, { headers });
+        // Guest orders (e.g. Shiprocket Checkout without a Vyra account) are
+        // authorised by the email on the order; /shiprocket/return forwards it.
+        const guestEmail = new URLSearchParams(window.location.search).get('email');
+        const emailQs = guestEmail ? `&email=${encodeURIComponent(guestEmail)}` : '';
+        const res = await fetch(`${API_PATH}/orders/info?order_id=${encodeURIComponent(orderId)}${emailQs}`, { headers });
         const json = await res.json();
         if (cancelled) return;
         if (json.status !== 'success' || !json.data) {
@@ -146,7 +150,7 @@ const OrderPlaced = () => {
               headers,
               body: JSON.stringify({ order_id: orderId }),
             });
-            const res2 = await fetch(`${API_PATH}/orders/info?order_id=${encodeURIComponent(orderId)}`, { headers });
+            const res2 = await fetch(`${API_PATH}/orders/info?order_id=${encodeURIComponent(orderId)}${emailQs}`, { headers });
             const json2 = await res2.json();
             if (!cancelled && json2.status === 'success' && json2.data) {
               setOrder(json2.data);

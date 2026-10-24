@@ -544,8 +544,17 @@ export const createShipment = async (orderData: any): Promise<CreateShipmentResu
         //        → collect ₹199 (= items total − ₹50).
         // `transaction_price` holds the advance actually charged; fall back to
         // the ₹100 default if the row predates that field or looks wrong.
+        // Shiprocket Checkout orders do NOT use our ₹100-advance scheme: Shiprocket
+        // reports exactly what it collected online, and a pure COD order has paid
+        // nothing. Falling back to ₹100 here would make the courier collect ₹100
+        // too little, so for those orders `transaction_price` is authoritative
+        // (including 0).
+        const isShiprocketOrder = shippingData.checkoutSource === 'shiprocket';
         const codAdvance = (() => {
             const paid = Number(orderData.transaction_price);
+            if (isShiprocketOrder) {
+                return Number.isFinite(paid) && paid > 0 ? Math.min(paid, declaredValue) : 0;
+            }
             if (Number.isFinite(paid) && paid > 0 && paid < declaredValue) return paid;
             return COD_ADVANCE_DEFAULT;
         })();
@@ -560,9 +569,13 @@ export const createShipment = async (orderData: any): Promise<CreateShipmentResu
         //   e.g. goods ₹729 + ₹50 COD = ₹779 total, ₹100 advance paid
         //        → invoice ₹729, collect ₹679.
         // Prepaid parcels have no COD fee, so invoice == total.
+        // Shiprocket reports its own COD fee; ours (₹50) does not apply there.
+        const codFeeForInvoice = isShiprocketOrder
+            ? Math.max(0, Number(shippingData.srCodCharges) || 0)
+            : COD_HANDLING_FEE;
         const invoiceValue = isPrepaid
             ? declaredValue
-            : Math.max(1, declaredValue - COD_HANDLING_FEE);
+            : Math.max(1, declaredValue - codFeeForInvoice);
 
         if (!isPrepaid) {
             console.log(
