@@ -2,7 +2,7 @@ import { createServerSupabase } from '@/utils/supabaseClient';
 
 export interface WhatsAppSession {
   phone_number: string;
-  state: 'IDLE' | 'AWAITING_ADDRESS' | 'AWAITING_PAYMENT';
+  state: 'IDLE' | 'AWAITING_ADDRESS' | 'AWAITING_PAYMENT' | 'BUILDING_CART' | 'HUMAN_HANDOFF' | 'ORDER_CONFIRMED' | 'BROWSING' | 'VIEWING_PRODUCT';
   context: Record<string, any>;
 }
 
