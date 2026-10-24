@@ -66,82 +66,84 @@ const Home = () => {
   return (
     <>
       <PageLoader isVisible={isLoading} />
-      <ErrorBoundary>
-        <Banner />
+      <main id="main-content">
         <ErrorBoundary>
-          <Category />
+          <Banner />
+          <ErrorBoundary>
+            <Category />
+          </ErrorBoundary>
+          
+  
+          
+          
+          <ErrorBoundary>
+            <StickyHairConcern />
+          </ErrorBoundary>
+  
+  
+  
+          <ErrorBoundary>
+            <OurProducts />
+          </ErrorBoundary>
+  
+  
+          <ErrorBoundary>
+            <section id="customerStoriesSection">
+              <Stories />
+            </section>
+          </ErrorBoundary>
+  
+          <ErrorBoundary>
+            <ShipingImage />
+          </ErrorBoundary>
+  
+          <ErrorBoundary>
+            <section id="bestSellers">
+              <BestSeller />
+            </section>
+          </ErrorBoundary>
+          <ErrorBoundary>
+            <Video />
+          </ErrorBoundary>
+          <ErrorBoundary>
+            <Certificate />
+          </ErrorBoundary>
+          <ErrorBoundary>
+            <OurPromise />
+          </ErrorBoundary>
+          <ErrorBoundary>
+            <Founder />
+          </ErrorBoundary>
+          <ErrorBoundary>
+            <OurJourney />
+          </ErrorBoundary>
+          
+          <ErrorBoundary>
+            <section id="customerTestimonials">
+              <Testimonial />
+            </section>
+          </ErrorBoundary>
+  
+          
+          <ErrorBoundary>
+            <AllTestimonials isHomePage={true} />
+          </ErrorBoundary>
+          
+          <ErrorBoundary>
+            <Follow />
+          </ErrorBoundary>
+          <ErrorBoundary>
+            <MarketplaceAvailable />
+          </ErrorBoundary>
+          <ErrorBoundary>
+            <BlogSection />
+          </ErrorBoundary>
+          <ErrorBoundary>
+            <Features />
+          </ErrorBoundary>
+  
         </ErrorBoundary>
-        
-
-        
-        
-        <ErrorBoundary>
-          <StickyHairConcern />
-        </ErrorBoundary>
-
-
-
-        <ErrorBoundary>
-          <OurProducts />
-        </ErrorBoundary>
-
-
-        <ErrorBoundary>
-          <section id="customerStoriesSection">
-            <Stories />
-          </section>
-        </ErrorBoundary>
-
-        <ErrorBoundary>
-          <ShipingImage />
-        </ErrorBoundary>
-
-        <ErrorBoundary>
-          <section id="bestSellers">
-            <BestSeller />
-          </section>
-        </ErrorBoundary>
-        <ErrorBoundary>
-          <Video />
-        </ErrorBoundary>
-        <ErrorBoundary>
-          <Certificate />
-        </ErrorBoundary>
-        <ErrorBoundary>
-          <OurPromise />
-        </ErrorBoundary>
-        <ErrorBoundary>
-          <Founder />
-        </ErrorBoundary>
-        <ErrorBoundary>
-          <OurJourney />
-        </ErrorBoundary>
-        
-        <ErrorBoundary>
-          <section id="customerTestimonials">
-            <Testimonial />
-          </section>
-        </ErrorBoundary>
-
-        
-        <ErrorBoundary>
-          <AllTestimonials isHomePage={true} />
-        </ErrorBoundary>
-        
-        <ErrorBoundary>
-          <Follow />
-        </ErrorBoundary>
-        <ErrorBoundary>
-          <MarketplaceAvailable />
-        </ErrorBoundary>
-        <ErrorBoundary>
-          <BlogSection />
-        </ErrorBoundary>
-        <ErrorBoundary>
-          <Features />
-        </ErrorBoundary>
-
-      </ErrorBoundary>
+      </main>
     </>
   );
 };

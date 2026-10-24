@@ -6,37 +6,37 @@ import styled from "styled-components";
 
 const media = [
   {
-    img: "/assets/images/thumbnails/story-01.png",
+    img: "/assets/images/thumbnails/story-01.webp",
     video:
       "https://drive.google.com/file/d/1AVs29eA5jXKwiwAvRfrrPg6jkSGbDilh/view?usp=drive_link",
   },
   {
-    img: "/assets/images/thumbnails/story-02.png",
+    img: "/assets/images/thumbnails/story-02.webp",
     video:
       "https://drive.google.com/file/d/1ABl-RZ6hp0XfjicJD3UwWvNlfhnMEmk5/view?usp=drive_link",
   },
   {
-    img: "/assets/images/thumbnails/story-03.png",
+    img: "/assets/images/thumbnails/story-03.webp",
     video:
       "https://drive.google.com/file/d/1Aaicyll1FmPJTwkwSCEY4_e9IS4AwfWf/view?usp=drive_link",
   },
   {
-    img: "/assets/images/thumbnails/story-04.png",
+    img: "/assets/images/thumbnails/story-04.webp",
     video:
       "https://drive.google.com/file/d/1AGZT23-V6XoalRarwz50lDwt9SkfYedl/view?usp=drive_link",
   },
   {
-    img: "/assets/images/thumbnails/story-05.png",
+    img: "/assets/images/thumbnails/story-05.webp",
     video:
       "https://drive.google.com/file/d/1AHm7qINHVDM6qv5Nx-hYA7cnsZZSX1f8/view?usp=drive_link",
   },
   {
-    img: "/assets/images/thumbnails/story-06.png",
+    img: "/assets/images/thumbnails/story-06.webp",
     video:
       "https://drive.google.com/file/d/1AXdWcKTMicUFyhcS868lpINWeO_k78wc/view?usp=drive_link",
   },
   {
-    img: "/assets/images/thumbnails/story-07.png",
+    img: "/assets/images/thumbnails/story-07.webp",
     video:
       "https://drive.google.com/file/d/1R0gvRPJTdldYU0HE7qBa6dUPvwVIwR25/view?usp=drive_link",
   },
@@ -114,10 +114,16 @@ const Stories = () => {
           <StyledInfiniteScroller>
             <InfiniteScroller
               images={media.map((file, index) => {
-                return (
-                  <div className="text-center">
-                    <a href={file.video} target="_blank">
-                      <img src={file.img} alt={"customer-review-" + index} />
+                 return (
+                  <div className="text-center" key={"story-" + index}>
+                    <a href={file.video} target="_blank" rel="noopener noreferrer">
+                      <img
+                        src={file.img}
+                        alt={"customer-review-" + index}
+                        width={192}
+                        height={320}
+                        loading="lazy"
+                      />
                     </a>
                   </div>
                 );
