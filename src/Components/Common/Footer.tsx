@@ -34,6 +34,7 @@ const Footer = () => {
                       rel="noopener"
                       href="https://www.facebook.com/vyraherbals"
                       className="icofont-facebook"
+                      aria-label="Follow Vyra Herbals on Facebook"
                     />
                   </li>
                   <li>
@@ -42,6 +43,7 @@ const Footer = () => {
                       rel="noopener"
                       href="https://www.instagram.com/vyraherbals"
                       className="icofont-instagram"
+                      aria-label="Follow Vyra Herbals on Instagram"
                     />
                   </li>
                   <li>
@@ -50,6 +52,7 @@ const Footer = () => {
                       rel="noopener"
                       href="https://www.youtube.com/@vyraherbals"
                       className="fab fa-youtube"
+                      aria-label="Subscribe to Vyra Herbals on YouTube"
                     />
                   </li>
                 </ul>

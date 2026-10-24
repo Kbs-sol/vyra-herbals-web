@@ -134,8 +134,14 @@ export default function RootLayout({
         <link rel="preconnect" href="https://connect.facebook.net" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://fonts.googleapis.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link rel="dns-prefetch" href="https://www.facebook.com" />
-        <link rel="dns-prefetch" href="https://www.clarity.ms" />
+        {/* Preload critical LCP Hero banner */}
+        <link
+          rel="preload"
+          as="image"
+          href="/assets/images/banner/slide-02.webp"
+          type="image/webp"
+          fetchPriority="high"
+        />
         {/* PWA manifest + theme color for Chrome/Safari address bar + Android install prompt */}
         <link rel="manifest" href="/manifest.webmanifest" />
         <meta name="theme-color" content="#2d7a3a" />
