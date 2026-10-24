@@ -7,7 +7,6 @@ import { API_PATH, APP_NAME } from "../constants";
 import { useAuth } from "../Components/Contexts/AuthContext";
 import { useCart } from "../Components/Contexts/CartContext";
 import Checkout from "./Checkout";
-import ShiprocketCheckoutButton from "../Components/Shared/ShiprocketCheckoutButton";
 import { toast } from "react-toastify";
 import LoadingIndicator from "../Components/Common/LoadingIndicator";
 import BestSeller from "../Components/Home/BestSeller";
@@ -115,7 +114,6 @@ const Cart = () => {
                   cartItems={cartItems}
                   product={null}
                 />
-                <ShiprocketCheckoutButton />
               </div>
 
             </div>

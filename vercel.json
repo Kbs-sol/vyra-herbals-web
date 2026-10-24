@@ -1,8 +1,6 @@
 {
   "buildCommand": "npm run build",
-  "regions": [
-    "bom1"
-  ],
+  "regions": ["bom1"],
   "env": {
     "SKIP_TYPE_CHECK": "1"
   },
@@ -25,15 +23,6 @@
       "maxDuration": 60
     },
     "app/api/cron/reconcile-payments/route.ts": {
-      "maxDuration": 60
-    },
-    "app/api/shiprocket/webhook/order/route.ts": {
-      "maxDuration": 60
-    },
-    "app/api/shiprocket/finalize/route.ts": {
-      "maxDuration": 60
-    },
-    "app/api/cron/shiprocket-pending/route.ts": {
       "maxDuration": 60
     }
   }
