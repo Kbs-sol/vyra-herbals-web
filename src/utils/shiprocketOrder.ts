@@ -33,7 +33,7 @@ import {
  */
 
 export type SrFinalizeResult =
-  | { ok: true; order: any; alreadyExisted: boolean; sideEffects: () => Promise<void> }
+  | { ok: true; order: any; alreadyExisted: boolean; scope: 'cart' | 'direct'; sideEffects: () => Promise<void> }
   | { ok: false; reason: string; retryable: boolean };
 
 const SR_SESSION_PREFIX = 'SR-';
@@ -42,7 +42,10 @@ const isUniqueViolation = (err: any): boolean =>
   err?.code === '23505' || /duplicate key|unique constraint/i.test(String(err?.message || ''));
 
 /** Link written by /api/shiprocket/token: which signed-in user started this checkout. */
-async function loadSession(supabase: any, txnId: string): Promise<{ userId: string | null; couponCode: string | null }> {
+async function loadSession(
+  supabase: any,
+  txnId: string,
+): Promise<{ userId: string | null; couponCode: string | null; scope: 'cart' | 'direct' }> {
   try {
     const { data } = await supabase
       .from('order_sessions')
@@ -54,9 +57,11 @@ async function loadSession(supabase: any, txnId: string): Promise<{ userId: stri
     return {
       userId: payload?.userId ? String(payload.userId) : null,
       couponCode: payload?.couponCode ? String(payload.couponCode) : null,
+      // 'direct' = a Buy Now of one product: the buyer's saved cart must survive it.
+      scope: payload?.scope === 'direct' ? 'direct' : 'cart',
     };
   } catch {
-    return { userId: null, couponCode: null };
+    return { userId: null, couponCode: null, scope: 'cart' };
   }
 }
 
@@ -97,7 +102,8 @@ export async function finalizeShiprocketOrder(
     .limit(1);
   if (existingErr) console.error('[shiprocket] existing order lookup failed:', existingErr.message);
   if (existing?.[0]) {
-    return { ok: true, order: existing[0], alreadyExisted: true, sideEffects: async () => {} };
+    const prior = await loadSession(supabase, txnId);
+    return { ok: true, order: existing[0], alreadyExisted: true, scope: prior.scope, sideEffects: async () => {} };
   }
 
   // Authoritative record from Shiprocket.
@@ -186,7 +192,7 @@ export async function finalizeShiprocketOrder(
     if (isUniqueViolation(insertErr)) {
       // A concurrent delivery of the same webhook won the race - return its row.
       const { data: winner } = await supabase.from('orders').select('*').eq('txn_id', txnId).limit(1);
-      if (winner?.[0]) return { ok: true, order: winner[0], alreadyExisted: true, sideEffects: async () => {} };
+      if (winner?.[0]) return { ok: true, order: winner[0], alreadyExisted: true, scope: session.scope, sideEffects: async () => {} };
     }
     console.error('[shiprocket] order insert failed:', insertErr);
     return { ok: false, reason: `order_creation_failed: ${insertErr.message}`, retryable: true };
@@ -207,7 +213,14 @@ export async function finalizeShiprocketOrder(
       console.warn('[shiprocket] coupon usage not recorded:', (e as Error).message);
     }
 
-    if (userId) await supabase.from('cart').delete().eq('user_id', userId);
+    // Only a real cart checkout empties the saved cart; a Buy Now must not wipe it.
+    if (userId && session.scope === 'cart') {
+      try {
+        await supabase.from('cart').delete().eq('user_id', userId);
+      } catch (e) {
+        console.warn('[shiprocket] cart clear failed:', (e as Error).message);
+      }
+    }
 
     await notifyOrderPlaced(order);
     if (order.payment_method === 'online') await notifyPaymentConfirmed(order);
@@ -250,5 +263,5 @@ export async function finalizeShiprocketOrder(
     }
   };
 
-  return { ok: true, order, alreadyExisted: false, sideEffects };
+  return { ok: true, order, alreadyExisted: false, scope: session.scope, sideEffects };
 }

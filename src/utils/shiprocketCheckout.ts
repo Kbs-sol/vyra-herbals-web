@@ -30,8 +30,25 @@
 import { createHmac } from 'node:crypto';
 
 export const DEFAULT_API_BASE = 'https://checkout-api.shiprocket.com';
+export const STAGING_API_BASE = 'https://fastrr-api-dev.pickrr.com';
 export const UI_SCRIPT_URL = 'https://checkout-ui.shiprocket.com/assets/js/channels/shopify.js';
 export const UI_STYLE_URL = 'https://checkout-ui.shiprocket.com/assets/styles/shopify.css';
+// Shiprocket documents a separate staging UI bundle; loading the production one
+// against staging credentials would fail, so the UI urls follow the API base.
+export const STAGING_UI_SCRIPT_URL = 'https://customcheckoutfastrr.netlify.app/assets/js/channels/shopify.js';
+export const STAGING_UI_STYLE_URL = 'https://customcheckoutfastrr.netlify.app/assets/styles/shopify.css';
+
+export type ShiprocketEnvironment = 'production' | 'staging';
+
+export const environmentForBase = (apiBase: string): ShiprocketEnvironment =>
+  apiBase.replace(/\/$/, '') === STAGING_API_BASE ? 'staging' : 'production';
+
+export function uiUrlsFor(apiBase: string): { env: ShiprocketEnvironment; scriptUrl: string; styleUrl: string } {
+  const env = environmentForBase(apiBase);
+  return env === 'staging'
+    ? { env, scriptUrl: STAGING_UI_SCRIPT_URL, styleUrl: STAGING_UI_STYLE_URL }
+    : { env, scriptUrl: UI_SCRIPT_URL, styleUrl: UI_STYLE_URL };
+}
 
 /**
  * Shiprocket requires products[].id and products[].variants[].id to be unique
@@ -52,23 +69,38 @@ export const productIdForVariant = (variantId: number | string): number | null =
 };
 
 export interface ShiprocketConfig {
-  /** Feature flag AND credentials present. */
+  /** Credentials present AND not switched off by the env kill switch. This is what makes Shiprocket the default. */
   enabled: boolean;
-  /** Credentials present (server side), regardless of the UI flag. */
+  /** Credentials present (server side). */
   configured: boolean;
+  /** Owner switched Shiprocket off via env (SHIPROCKET_CHECKOUT_ENABLED=false). */
+  killed: boolean;
   apiKey: string;
   apiSecret: string;
   apiBase: string;
 }
 
-/** Read lazily so a missing var never breaks unrelated routes at build time. */
+const OFF_VALUES = new Set(['false', '0', 'off', 'no', 'disabled']);
+
+/** True when a flag value explicitly says "off". Unset / blank / anything else is NOT off. */
+export const isOffValue = (v: unknown): boolean => OFF_VALUES.has(String(v ?? '').trim().toLowerCase());
+
+/**
+ * Read lazily so a missing var never breaks unrelated routes at build time.
+ *
+ * Default behaviour: once the API key + secret are present Shiprocket is the
+ * primary checkout. There is no "turn it on" flag to forget. To switch it off
+ * without removing keys set SHIPROCKET_CHECKOUT_ENABLED=false (the older
+ * NEXT_PUBLIC_SHIPROCKET_CHECKOUT_ENABLED=false is honoured too). A second,
+ * no-redeploy kill switch lives in the site_settings table (see shiprocketRuntime).
+ */
 export function getShiprocketConfig(env: Record<string, string | undefined> = process.env): ShiprocketConfig {
   const apiKey = (env.SHIPROCKET_CHECKOUT_API_KEY || '').trim();
   const apiSecret = (env.SHIPROCKET_CHECKOUT_API_SECRET || '').trim();
   const apiBase = (env.SHIPROCKET_CHECKOUT_API_BASE || DEFAULT_API_BASE).trim().replace(/\/$/, '');
-  const flag = (env.NEXT_PUBLIC_SHIPROCKET_CHECKOUT_ENABLED || '').trim().toLowerCase() === 'true';
+  const killed = isOffValue(env.SHIPROCKET_CHECKOUT_ENABLED) || isOffValue(env.NEXT_PUBLIC_SHIPROCKET_CHECKOUT_ENABLED);
   const configured = !!apiKey && !!apiSecret;
-  return { enabled: flag && configured, configured, apiKey, apiSecret, apiBase };
+  return { enabled: configured && !killed, configured, killed, apiKey, apiSecret, apiBase };
 }
 
 // ---------------------------------------------------------------------------
@@ -97,8 +129,10 @@ export async function srPost<T = any>(
   payload: Record<string, unknown>,
   fetchImpl: typeof fetch = fetch,
   timeoutMs = 8000,
+  opts: { addTimestamp?: boolean } = {},
 ): Promise<SrCallResult<T>> {
-  const body = JSON.stringify({ ...payload, timestamp: new Date().toISOString() });
+  const addTimestamp = opts.addTimestamp !== false;
+  const body = JSON.stringify(addTimestamp ? { ...payload, timestamp: new Date().toISOString() } : payload);
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
@@ -206,6 +240,27 @@ export async function fetchOrderList(
   );
   if (!r.ok) return r;
   return { ok: true, status: r.status, data: r.data?.result };
+}
+
+/**
+ * Catalogue push webhooks (our site -> Shiprocket). Shiprocket also PULLS our
+ * catalogue, so these only keep its cache fresh after a price / stock change.
+ * The body is the bare product / collection object (no extra fields).
+ */
+export async function pushProductWebhook(
+  cfg: ShiprocketConfig,
+  product: Record<string, unknown>,
+  fetchImpl: typeof fetch = fetch,
+): Promise<SrCallResult> {
+  return srPost(cfg, '/wh/v1/custom/product', product, fetchImpl, 6000, { addTimestamp: false });
+}
+
+export async function pushCollectionWebhook(
+  cfg: ShiprocketConfig,
+  collection: Record<string, unknown>,
+  fetchImpl: typeof fetch = fetch,
+): Promise<SrCallResult> {
+  return srPost(cfg, '/wh/v1/custom/collection', collection, fetchImpl, 6000, { addTimestamp: false });
 }
 
 // ---------------------------------------------------------------------------

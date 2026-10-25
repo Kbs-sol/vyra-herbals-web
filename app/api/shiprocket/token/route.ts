@@ -4,7 +4,8 @@ import { getAuthedUser } from '@/utils/apiAuth';
 import { enforceRateLimit } from '@/utils/rateLimit';
 import { validateCoupon } from '@/utils/coupons';
 import { isInactiveStatus } from '@/utils/catalogue';
-import { createCheckoutSession, getShiprocketConfig, sanitizeCartLines } from '@/utils/shiprocketCheckout';
+import { createCheckoutSession, sanitizeCartLines } from '@/utils/shiprocketCheckout';
+import { getRuntimeDecision } from '@/utils/shiprocketRuntime';
 
 // Force dynamic - these routes touch Supabase and Shiprocket at request time.
 export const dynamic = 'force-dynamic';
@@ -24,11 +25,6 @@ export const preferredRegion = 'bom1';
  * visitor's account is remembered so the order lands in their order history.
  */
 export async function POST(req: Request) {
-  const cfg = getShiprocketConfig();
-  if (!cfg.enabled) {
-    return NextResponse.json({ error: 'Shiprocket Checkout is not enabled.' }, { status: 503 });
-  }
-
   const limited = enforceRateLimit(req, 'shiprocket:token', 20, 10 * 60 * 1000);
   if (limited) return limited;
 
@@ -38,6 +34,12 @@ export async function POST(req: Request) {
     if (!lines.length) return NextResponse.json({ error: 'Your cart is empty.' }, { status: 400 });
 
     const supabase = createServerSupabase();
+
+    // Env flag + admin kill switch. A 503 here makes the browser fall back to the native checkout.
+    const { cfg, status: srStatus } = await getRuntimeDecision(supabase);
+    if (!srStatus.enabled) {
+      return NextResponse.json({ error: 'Shiprocket Checkout is not enabled.', reason: srStatus.reason }, { status: 503 });
+    }
 
     const { data: rows, error } = await supabase
       .from('products')
@@ -83,12 +85,14 @@ export async function POST(req: Request) {
 
     // Remember who started this checkout so the finished order can be attached
     // to their account. Best effort - the order is still created without it.
-    if (session.data.srOrderId && (user?.id || discount)) {
+    // scope 'direct' (Buy Now) tells finalize NOT to wipe the buyer's saved cart.
+    const scope = body?.scope === 'direct' ? 'direct' : 'cart';
+    if (session.data.srOrderId && (user?.id || discount || scope === 'direct')) {
       try {
         await supabase.from('order_sessions').insert([
           {
             txn_id: `SR-${session.data.srOrderId}`,
-            payload: { source: 'shiprocket', userId: user?.id || null, couponCode: discount?.code || null },
+            payload: { source: 'shiprocket', userId: user?.id || null, couponCode: discount?.code || null, scope },
           },
         ]);
       } catch (e) {

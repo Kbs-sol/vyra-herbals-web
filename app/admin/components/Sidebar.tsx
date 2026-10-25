@@ -179,6 +179,17 @@ const menuItems = [
     ),
   },
   {
+    name: 'Shiprocket',
+    href: '/admin/shiprocket',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
+        <path d="M3 7h11v9H3zM14 10h4l3 3v3h-7z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="7" cy="18" r="1.6" stroke="currentColor" strokeWidth="2" />
+        <circle cx="17" cy="18" r="1.6" stroke="currentColor" strokeWidth="2" />
+      </svg>
+    ),
+  },
+  {
     name: 'Settings',
     href: '/admin/settings',
     icon: (

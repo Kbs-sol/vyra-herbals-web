@@ -11,6 +11,12 @@ import {
   createCheckoutSession,
   fetchOrderDetails,
   VARIANT_ID_OFFSET,
+  isOffValue,
+  uiUrlsFor,
+  environmentForBase,
+  pushProductWebhook,
+  pushCollectionWebhook,
+  STAGING_API_BASE,
 } from '@/utils/shiprocketCheckout';
 
 // Verbatim from Shiprocket's "Order Webhook" documentation, with our variant ids.
@@ -48,19 +54,48 @@ describe('signPayload', () => {
 });
 
 describe('getShiprocketConfig', () => {
-  it('is disabled unless flag AND credentials are present', () => {
-    expect(getShiprocketConfig({}).enabled).toBe(false);
-    expect(getShiprocketConfig({ NEXT_PUBLIC_SHIPROCKET_CHECKOUT_ENABLED: 'true' }).enabled).toBe(false);
-    expect(getShiprocketConfig({ SHIPROCKET_CHECKOUT_API_KEY: 'k', SHIPROCKET_CHECKOUT_API_SECRET: 's' }).enabled).toBe(false);
-    const on = getShiprocketConfig({ NEXT_PUBLIC_SHIPROCKET_CHECKOUT_ENABLED: 'true', SHIPROCKET_CHECKOUT_API_KEY: 'k', SHIPROCKET_CHECKOUT_API_SECRET: 's' });
+  const keys = { SHIPROCKET_CHECKOUT_API_KEY: 'k', SHIPROCKET_CHECKOUT_API_SECRET: 's' };
+  it('is ON by default as soon as BOTH credentials exist (Shiprocket is the default checkout)', () => {
+    const on = getShiprocketConfig(keys);
     expect(on.enabled).toBe(true);
+    expect(on.killed).toBe(false);
     expect(on.apiBase).toBe('https://checkout-api.shiprocket.com');
   });
-  it('trims a trailing slash on the base url and reports configured separately from the flag', () => {
-    const c = getShiprocketConfig({ SHIPROCKET_CHECKOUT_API_KEY: 'k', SHIPROCKET_CHECKOUT_API_SECRET: 's', SHIPROCKET_CHECKOUT_API_BASE: 'https://fastrr-api-dev.pickrr.com/' });
+  it('is OFF without credentials, or with only one of them', () => {
+    expect(getShiprocketConfig({}).enabled).toBe(false);
+    expect(getShiprocketConfig({ SHIPROCKET_CHECKOUT_API_KEY: 'k' }).enabled).toBe(false);
+    expect(getShiprocketConfig({ SHIPROCKET_CHECKOUT_API_SECRET: 's' }).enabled).toBe(false);
+    expect(getShiprocketConfig({ SHIPROCKET_CHECKOUT_API_KEY: '  ', SHIPROCKET_CHECKOUT_API_SECRET: 's' }).configured).toBe(false);
+  });
+  it('honours the env kill switch (new and legacy names) without losing "configured"', () => {
+    for (const v of ['false', 'FALSE', '0', 'off', 'no', 'disabled']) {
+      const c = getShiprocketConfig({ ...keys, SHIPROCKET_CHECKOUT_ENABLED: v });
+      expect(c.enabled).toBe(false);
+      expect(c.killed).toBe(true);
+      expect(c.configured).toBe(true);
+    }
+    expect(getShiprocketConfig({ ...keys, NEXT_PUBLIC_SHIPROCKET_CHECKOUT_ENABLED: 'false' }).enabled).toBe(false);
+  });
+  it('does not treat unset, blank or "true" as the kill switch', () => {
+    for (const v of [undefined, '', ' ', 'true', 'TRUE', '1', 'yes']) {
+      expect(getShiprocketConfig({ ...keys, SHIPROCKET_CHECKOUT_ENABLED: v }).enabled).toBe(true);
+    }
+    expect(isOffValue(undefined)).toBe(false);
+    expect(isOffValue('false')).toBe(true);
+  });
+  it('trims a trailing slash on the base url', () => {
+    const c = getShiprocketConfig({ ...keys, SHIPROCKET_CHECKOUT_API_BASE: 'https://fastrr-api-dev.pickrr.com/' });
     expect(c.apiBase).toBe('https://fastrr-api-dev.pickrr.com');
-    expect(c.configured).toBe(true);
-    expect(c.enabled).toBe(false);
+  });
+});
+
+describe('staging vs production UI bundle', () => {
+  it('uses the documented staging UI only with the staging API base', () => {
+    expect(environmentForBase(STAGING_API_BASE)).toBe('staging');
+    expect(environmentForBase('https://checkout-api.shiprocket.com')).toBe('production');
+    expect(uiUrlsFor(STAGING_API_BASE).scriptUrl).toBe('https://customcheckoutfastrr.netlify.app/assets/js/channels/shopify.js');
+    expect(uiUrlsFor('https://checkout-api.shiprocket.com').scriptUrl).toBe('https://checkout-ui.shiprocket.com/assets/js/channels/shopify.js');
+    expect(uiUrlsFor('https://checkout-api.shiprocket.com').styleUrl).toBe('https://checkout-ui.shiprocket.com/assets/styles/shopify.css');
   });
 });
 
@@ -179,7 +214,7 @@ describe('mapShiprocketOrder', () => {
 });
 
 describe('Shiprocket API calls', () => {
-  const cfg = { enabled: true, configured: true, apiKey: 'KEY', apiSecret: 'SECRET', apiBase: 'https://checkout-api.shiprocket.com' };
+  const cfg = { enabled: true, configured: true, killed: false, apiKey: 'KEY', apiSecret: 'SECRET', apiBase: 'https://checkout-api.shiprocket.com' };
   const okResponse = (json: any) => ({ ok: true, status: 200, json: async () => json }) as any;
 
   it('signs the exact body it sends and builds the documented checkout payload', async () => {
@@ -225,5 +260,39 @@ describe('Shiprocket API calls', () => {
     const r = await fetchOrderDetails(cfg, 'abc123456', fake);
     expect(url).toBe('https://checkout-api.shiprocket.com/api/v1/custom-platform-order/details');
     expect(r.data).toEqual({ order_id: 'abc123456' });
+  });
+});
+
+describe('catalogue push webhooks (our site -> Shiprocket)', () => {
+  const cfg = { enabled: true, configured: true, killed: false, apiKey: 'KEY', apiSecret: 'SECRET', apiBase: 'https://checkout-api.shiprocket.com' };
+  const okResponse = (json: any) => ({ ok: true, status: 200, json: async () => json }) as any;
+
+  it('posts the bare product to /wh/v1/custom/product, signed, with no extra fields', async () => {
+    let seen: any;
+    const fake: any = async (url: string, init: any) => { seen = { url, init }; return okResponse({}); };
+    const product = { id: 15, title: 'Oil', variants: [] };
+    const r = await pushProductWebhook(cfg, product, fake);
+    expect(r.ok).toBe(true);
+    expect(seen.url).toBe('https://checkout-api.shiprocket.com/wh/v1/custom/product');
+    expect(seen.init.body).toBe(JSON.stringify(product));
+    expect(seen.init.headers['X-Api-HMAC-SHA256']).toBe(signPayload('SECRET', seen.init.body));
+    expect(seen.init.headers['X-Api-Key']).toBe('KEY');
+  });
+  it('posts a collection to /wh/v1/custom/collection', async () => {
+    let url = '';
+    const fake: any = async (u: string) => { url = u; return okResponse({}); };
+    await pushCollectionWebhook(cfg, { id: 1, handle: 'hair-oil' }, fake);
+    expect(url).toBe('https://checkout-api.shiprocket.com/wh/v1/custom/collection');
+  });
+  it('reports a Shiprocket rejection instead of throwing', async () => {
+    const fake: any = async () => ({ ok: false, status: 511, json: async () => ({ message: 'Invalid HMAC' }) });
+    const r = await pushProductWebhook(cfg, { id: 1 }, fake);
+    expect(r.ok).toBe(false);
+    expect(r.status).toBe(511);
+  });
+  it('reports a network failure instead of throwing', async () => {
+    const fake: any = async () => { throw new Error('boom'); };
+    const r = await pushProductWebhook(cfg, { id: 1 }, fake);
+    expect(r.ok).toBe(false);
   });
 });

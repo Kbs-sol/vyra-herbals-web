@@ -41,5 +41,10 @@ export async function POST(req: Request) {
   if (!result.alreadyExisted) await result.sideEffects();
 
   const ship = result.order?.shipping_data || {};
-  return NextResponse.json({ order_id: result.order.id, email: ship.email || null, signed_in_order: !!result.order.user_id });
+  return NextResponse.json({
+    order_id: result.order.id,
+    email: ship.email || null,
+    signed_in_order: !!result.order.user_id,
+    scope: result.scope,
+  });
 }

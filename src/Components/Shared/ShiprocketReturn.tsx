@@ -37,7 +37,8 @@ const ShiprocketReturn: React.FC = () => {
           });
           const json = await res.json().catch(() => ({}));
           if (res.ok && json?.order_id) {
-            clearCart();
+            // A Buy Now of one product must not empty a cart the buyer still has.
+            if (json.scope !== 'direct') clearCart();
             const email = json.signed_in_order || !json.email ? '' : `?email=${encodeURIComponent(json.email)}`;
             router.replace(`/order-placed/${json.order_id}${email}`);
             return;
