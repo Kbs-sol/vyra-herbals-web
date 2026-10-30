@@ -1,0 +1,56 @@
+name: Shiprocket Pending Orders
+
+# Failsafe recommended by Shiprocket: if a webhook was dropped AND the buyer closed
+# the tab before the redirect, this picks the paid order up within ~10 minutes.
+# Same pattern and same CRON_SECRET as reconcile-payments.yml.
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: shiprocket-pending
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call Shiprocket pending-orders endpoint
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SHIPROCKET_PENDING_URL: ${{ vars.SHIPROCKET_PENDING_URL || 'https://www.vyraherbals.com/api/cron/shiprocket-pending' }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${CRON_SECRET}" ]; then
+            echo "::error::CRON_SECRET repo secret is not set"
+            exit 1
+          fi
+
+          echo "Calling ${SHIPROCKET_PENDING_URL}"
+
+          http_code=$(curl \
+            --silent \
+            --show-error \
+            --max-time 90 \
+            --retry 2 \
+            --retry-delay 5 \
+            --retry-connrefused \
+            --output response.txt \
+            --write-out '%{http_code}' \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "${SHIPROCKET_PENDING_URL}")
+
+          echo "HTTP ${http_code}"
+          echo "----- response body -----"
+          cat response.txt || true
+          echo
+          echo "-------------------------"
+
+          if [ "${http_code}" -lt 200 ] || [ "${http_code}" -ge 300 ]; then
+            echo "::error::shiprocket-pending endpoint returned HTTP ${http_code}"
+            exit 1
+          fi

@@ -6,7 +6,7 @@ import Link from "next/link";
 import { API_PATH, APP_NAME } from "../constants";
 import { useAuth } from "../Components/Contexts/AuthContext";
 import { useCart } from "../Components/Contexts/CartContext";
-import Checkout from "./Checkout";
+import CheckoutEntry from "../Components/Shared/CheckoutEntry";
 import { toast } from "react-toastify";
 import LoadingIndicator from "../Components/Common/LoadingIndicator";
 import BestSeller from "../Components/Home/BestSeller";
@@ -110,7 +110,7 @@ const Cart = () => {
               <div className="p-4 border rounded-1">
                 <CouponInput />
                 <BillSummary items={cartItems} />
-                <Checkout
+                <CheckoutEntry
                   cartItems={cartItems}
                   product={null}
                 />

@@ -58,7 +58,8 @@ After the first deploy, run through the **post-deploy checklist** in [`SYSTEM_LI
 - **Supabase** — Postgres + Storage + Auth
 - **Vercel** — hosting + cron
 - **Meta WhatsApp Cloud API** — customer messaging + inbox
-- **Easebuzz** — payments
+- **Easebuzz** — payments (native checkout + automatic fallback)
+- **Shiprocket Checkout (fastrr)** — optional primary checkout (UPI / cards / COD, saved addresses). Fully controllable from `/admin/shiprocket`
 - **iCarry** — shipping / multi-courier
 - **Message Central** — OTP
 
@@ -73,6 +74,7 @@ Everything else in `docs/`:
 - `vyra-herbals-audit-report.pdf` — the code audit that drove the repo diet + security review.
 - `WHATSAPP_GO_LIVE.md` — Meta Business Manager checklist for WhatsApp.
 - `META_WHATSAPP_TEMPLATES_OWNER_GUIDE.md` — how to create / approve templates.
+- **`SHIPROCKET_SETUP_GUIDE.md`** — step-by-step Shiprocket Checkout setup from zero, admin control, troubleshooting (including the "client token is not authorized" key error).
 - `API_DOCUMENTATION.md` — REST endpoints.
 - `ARCHITECTURE.md` — high-level flow diagrams.
 
@@ -92,6 +94,7 @@ The admin panel is at `/admin` (guarded by login at `/admin/login`). Highlights:
 | Categories | `/admin/categories` | Category CRUD |
 | Coupons | `/admin/coupons` | Discount codes |
 | Settings | `/admin/settings` | Site-wide toggles |
+| **Shiprocket** | `/admin/shiprocket` | Paste/test/rotate API key + secret (encrypted), Live vs Staging, master on/off, Cart / Buy Now placement, webhook token, catalogue sync, latest Shiprocket orders |
 
 ## Credit
 

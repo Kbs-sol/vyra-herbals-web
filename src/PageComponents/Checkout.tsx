@@ -37,12 +37,18 @@ const Checkout = ({
   cartItems,
   product,
   quantity = 1,
+  hideTrigger = false,
+  openSignal = 0,
 }: {
   show?: boolean;
   onHide?: () => void;
   cartItems: any;
   product: any;
   quantity?: number;
+  /** Hide the built-in "Buy Now / Proceed to Checkout" button (CheckoutEntry renders its own). */
+  hideTrigger?: boolean;
+  /** Increment to open the native checkout programmatically (Shiprocket fallback). */
+  openSignal?: number;
 }) => {
   const { user } = useAuth();
   const { appliedCoupon, setDirectCheckoutItems } = useCart();
@@ -553,6 +559,17 @@ const Checkout = ({
     }, 100);
   };
 
+  // Lets <CheckoutEntry/> open this native Easebuzz / COD flow when Shiprocket is
+  // unavailable, going through the exact same handler as the visible button.
+  const lastOpenSignal = useRef(0);
+  useEffect(() => {
+    if (openSignal > lastOpenSignal.current) {
+      lastOpenSignal.current = openSignal;
+      handleCheckout();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openSignal]);
+
   const loadScript = (src) => {
     return new Promise((resolve, reject) => {
       const script = document.createElement("script");
@@ -1051,13 +1068,15 @@ const Checkout = ({
           </Button>
         </Modal.Footer>
       </StyledModal>
-      <Button
-        className="w-100 rounded-1 buy-button"
-        style={{ backgroundColor: "#704a0d" }}
-        onClick={handleCheckout}
-      >
-        {cartItems && cartItems.length > 0 ? "Proceed to Checkout" : "Buy Now"}
-      </Button>
+      {!hideTrigger && (
+        <Button
+          className="w-100 rounded-1 buy-button"
+          style={{ backgroundColor: "#704a0d" }}
+          onClick={handleCheckout}
+        >
+          {cartItems && cartItems.length > 0 ? "Proceed to Checkout" : "Buy Now"}
+        </Button>
+      )}
     </StyledCheckout>
   );
 };

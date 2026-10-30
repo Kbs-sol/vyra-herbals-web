@@ -20,7 +20,7 @@ import { Product, Review } from "@/types";
 
 import ProductCard from "../Components/Shared/ProductCard";
 import SEOComponent from "../Components/Shared/SEOComponent";
-import Checkout from "./Checkout";
+import CheckoutEntry from "../Components/Shared/CheckoutEntry";
 import { useAuth } from "../Components/Contexts/AuthContext";
 import { useCart } from "../Components/Contexts/CartContext";
 import Loader from "../Components/Loader";
@@ -621,7 +621,7 @@ const Singleproducts: React.FC<SingleproductsProps> = ({ initialProduct = null }
                   </div>
 
                   <div className="col-md-12 mt-3 px-0">
-                    <Checkout
+                    <CheckoutEntry
                       product={product}
                       cartItems={[]}
                       quantity={qty}
