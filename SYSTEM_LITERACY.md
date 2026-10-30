@@ -154,6 +154,20 @@ bundle** — never put a secret behind that prefix.
 | `EASEBUZZ_SALT` | HMAC secret — sign every request |
 | `EASEBUZZ_ENV` | `test` or `prod` |
 
+### 2.4b Shiprocket Checkout (fastrr)
+
+Credentials are best entered at **/admin/shiprocket** (tested with Shiprocket, then stored AES-256-GCM encrypted in `shiprocket_credentials`; no redeploy). The env vars are the fallback.
+
+| Var | Scope | Notes |
+|---|---|---|
+| `SHIPROCKET_CHECKOUT_API_KEY` / `SHIPROCKET_CHECKOUT_API_SECRET` | **Server ONLY** | Fallback when nothing is saved in the admin page. From checkout.shiprocket.in -> Settings -> Platform -> Custom-Built -> API Key |
+| `SHIPROCKET_ENCRYPTION_KEY` | **Server ONLY** | Encrypts credentials saved from the admin page. 32+ random chars. Falls back to `JWT_SECRET`, but rotating that makes saved credentials unreadable (re-enter them) |
+| `SHIPROCKET_WEBHOOK_TOKEN` | **Server ONLY** | Optional. Shiprocket must send it as header `x-webhook-token` |
+| `SHIPROCKET_CHECKOUT_API_BASE` | Server | Staging only. The Live/Staging choice saved in the admin page overrides it |
+| `SHIPROCKET_CHECKOUT_ENABLED` | Server | `false` = env-level kill switch (beats everything) |
+
+Resolution order (single function `resolveShiprocketConfig`, used by token, webhook, finalize, cron, catalogue sync and admin): admin-saved credentials, else env. Any read/decrypt failure falls back to env, never breaks checkout. Switches live in `site_settings.shiprocket_checkout` = `{enabled, cart, buy_now}` (non-secret). Run `supabase/migrations/SHIPROCKET_ADMIN_CONTROL.sql` once. Full guide: `docs/SHIPROCKET_SETUP_GUIDE.md`.
+
 ### 2.5 Shipping — iCarry
 
 | Var | Notes |

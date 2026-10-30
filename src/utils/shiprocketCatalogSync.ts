@@ -1,6 +1,7 @@
 import { after } from 'next/server';
+import { createServerSupabase } from './supabaseClient';
+import { resolveShiprocketConfig } from './shiprocketSettings';
 import {
-  getShiprocketConfig,
   mapCategoryToCollection,
   mapProductToShiprocket,
   pushCollectionWebhook,
@@ -34,9 +35,10 @@ function schedule(task: () => Promise<void>) {
 }
 
 export function pushProductChange(row: any, opts: { archived?: boolean } = {}) {
-  const cfg = getShiprocketConfig();
-  if (!cfg.configured || !row?.id) return;
+  if (!row?.id) return;
   schedule(async () => {
+    const cfg = await resolveShiprocketConfig(createServerSupabase());
+    if (!cfg.configured) return;
     const mapped: any = mapProductToShiprocket(row, origin());
     if (opts.archived) mapped.status = 'archived';
     const r = await pushProductWebhook(cfg, mapped);
@@ -45,9 +47,10 @@ export function pushProductChange(row: any, opts: { archived?: boolean } = {}) {
 }
 
 export function pushCategoryChange(row: any) {
-  const cfg = getShiprocketConfig();
-  if (!cfg.configured || !row) return;
+  if (!row) return;
   schedule(async () => {
+    const cfg = await resolveShiprocketConfig(createServerSupabase());
+    if (!cfg.configured) return;
     const r = await pushCollectionWebhook(cfg, mapCategoryToCollection(row, origin()) as any);
     if (!r.ok) console.warn(`[shiprocket/catalog-sync] collection ${row.id}: ${r.status} ${r.error}`);
   });

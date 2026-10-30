@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
 import { isAuthorizedCronRequest } from '@/lib/cronAuth';
-import { fetchOrderList, getShiprocketConfig } from '@/utils/shiprocketCheckout';
+import { fetchOrderList } from '@/utils/shiprocketCheckout';
+import { resolveShiprocketConfig } from '@/utils/shiprocketSettings';
 import { finalizeShiprocketOrder } from '@/utils/shiprocketOrder';
 
 // Force dynamic - these routes touch Supabase and Shiprocket at request time.
@@ -19,7 +20,8 @@ export const maxDuration = 60;
  */
 export async function GET(req: Request) {
   if (!isAuthorizedCronRequest(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const cfg = getShiprocketConfig();
+  const supabase = createServerSupabase();
+  const cfg = await resolveShiprocketConfig(supabase);
   if (!cfg.configured) return NextResponse.json({ skipped: 'shiprocket not configured' });
 
   const end = new Date();
@@ -27,7 +29,6 @@ export async function GET(req: Request) {
   const list = await fetchOrderList(cfg, { startDate: start.toISOString(), endDate: end.toISOString(), status: 'SUCCESS', limit: 100, page: 0 });
   if (!list.ok) return NextResponse.json({ error: list.error }, { status: 502 });
 
-  const supabase = createServerSupabase();
   const summary = { checked: 0, created: 0, existing: 0, failed: 0 };
   const deadline = Date.now() + 50_000;
   for (const row of list.data?.data || []) {

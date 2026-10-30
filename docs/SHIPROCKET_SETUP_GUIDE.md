@@ -1,194 +1,260 @@
-# Shiprocket Checkout – Setup & Operations Guide
+# Shiprocket Checkout: Setup, Admin Control and Troubleshooting
 
 Built by [VJ](mailto:vijayprasadvvp@gmail.com?subject=Found%20you%20via%20vyraherbals.com&body=Hi%20VJ%2C%20I%20saw%20your%20credit%20on%20https%3A%2F%2Fvyraherbals.com)
 
-> **Short version:** add 2 secrets in Vercel, run 1 SQL file, paste 4 URLs into the Shiprocket dashboard, add 1 GitHub secret. Shiprocket then becomes the default checkout. The old Easebuzz/COD checkout stays as an automatic fallback. The WhatsApp ordering flow is not touched and keeps using Easebuzz.
+> **Short version.** Get an API key + secret from Shiprocket's checkout dashboard, paste them into **/admin/shiprocket**, paste 4 URLs into the Shiprocket dashboard, run 1 SQL file. No Vercel access and no redeploy needed for any of it. If anything goes wrong, shoppers silently get the old Easebuzz / COD checkout, so you never lose a sale to a setup problem.
+
+**How sure are the facts below?** Each section is tagged:
+- **[Official]** read on a Shiprocket support page (links in section 14).
+- **[Code]** verified by reading this repository.
+- **[Third party]** reported by another vendor's help page; re-check it on your screen.
+- **[Unverified]** reasonable inference. Treat it as a hypothesis, not a fact.
 
 ---
 
-## 1. How it works
+## 1. What you are setting up
 
 ```
-Customer clicks "Proceed to Checkout" / "Buy Now"
-        │
-        ├─ Shiprocket ON  ──►  our server creates a signed session (prices come from OUR database)
-        │                      Shiprocket window opens: login (OTP), address, shipping, COD/UPI/cards
-        │                      Customer pays ──► redirected to /shiprocket/return
-        │                      Our server re-checks the order with Shiprocket, saves it, then:
-        │                      coupon usage, WhatsApp confirmation, iCarry shipment, Meta CAPI
-        │                      ──► /order-placed/<id>
-        │
-        └─ Shiprocket OFF / broken ──► the existing native checkout (Easebuzz online payment + COD)
+Shopper clicks "Proceed to Checkout" / "Buy Now"
+   |
+   +-- Shiprocket ON  -> our server asks Shiprocket for a session (prices from OUR database)
+   |                     Shiprocket window: OTP login, saved address, UPI / cards / wallets / COD
+   |                     Shopper pays -> redirected to /shiprocket/return
+   |                     Our server re-checks the order with Shiprocket, saves it, then:
+   |                     coupon usage, WhatsApp confirmation, iCarry shipment, Meta CAPI
+   |
+   +-- Shiprocket OFF or broken -> the existing native checkout (Easebuzz online payment + COD)
 ```
+[Code]
 
-Safety nets, so a checkout problem never costs you a sale:
+What Shiprocket's checkout gives you (all configured in **their** dashboard, not in this repo) **[Official]**:
 
-| Layer | What happens |
+| Goal | Shiprocket feature |
 |---|---|
-| Not configured / switched off | The normal native "Proceed to Checkout" button is shown. Shiprocket is never loaded. |
-| Shiprocket script fails to load (8 s) or session fails (12 s) or any error | A toast appears and the **native checkout opens automatically**. |
-| Shiprocket's own `fallbackUrl` | Sends the shopper back to `…?native=1`, which opens native checkout. |
-| Manual link | "Problem checking out? Use standard checkout" is always visible under the Shiprocket button. |
-| Missed order notification | The order webhook may fail. A GitHub Actions job every 10 minutes finds paid Shiprocket orders we have not recorded and records them. |
+| Fewer abandoned carts | Faster checkout, saved addresses, address autofill, coupon / discount engine, abandoned-cart recovery |
+| Fewer failed COD parcels (RTO) | COD charge, "Disable COD" rules, Partial COD, COD-to-prepaid discount, prepaid discount |
+| More prepaid orders | Prepaid discount, COD-to-prepaid conversion window, "COD on top" ordering toggle |
+| Fewer payment failures | Multiple payment gateways, primary / secondary gateway per method, manual traffic split, UPI app priority |
+| Better delivery promise | Shipping methods (rush / express / standard), pincode serviceability, estimated delivery date |
 
-**Not changed:** WhatsApp bot orders, Easebuzz payment links, Easebuzz webhooks/reconciliation, admin panel orders, iCarry. Shiprocket orders appear in the same `orders` table (`txn_id` = `SR-<shiprocket order id>`), so the admin panel, invoices, WhatsApp updates and tracking work as before.
-
----
-
-## 2. Before you start (Shiprocket side)
-
-1. Have a **Shiprocket Checkout** account (the "Custom-Built / Custom Website" platform, not the Shopify/WooCommerce plugin). Dashboard: https://checkout.shiprocket.in
-2. Complete **KYC and billing** onboarding in that dashboard. Until it is done, checkout stays inactive even with correct keys.
-3. Ask Shiprocket support for **staging (sandbox) access** if you want to test without real money. Staging keys work only with the staging API base (step 3).
-4. Check pricing with Shiprocket (a per-order fee, reportedly around 2%, applies; please confirm the current figure with them).
-
-> These checkout API keys are **different** from your Shiprocket shipping login (email/password). Don't use those.
+Marketing claims on Shiprocket's own pages (for example "70% faster checkout", "30% lower RTO") are their numbers, not measured on this store. Measure your own before and after (section 11).
 
 ---
 
-## 3. Get the keys from the Shiprocket dashboard
+## 2. What is already in the code
 
-Menu names can change slightly; the path below is what Shiprocket's checkout dashboard currently shows. If a name differs, search the dashboard for "API Key" or ask Shiprocket support for the "Custom Platform checkout API key and secret".
-
-1. Log in at https://checkout.shiprocket.in
-2. Go to **Settings → Platform → Custom-Built → API Key**.
-3. Copy the **API Key** and the **API Secret**.
-4. Treat both like passwords. Never paste them in chat, in code, or in any variable starting with `NEXT_PUBLIC_`.
-
-Also, in the same dashboard:
-- Under **Checkout → Custom-Built → Platform Setup**, enter your website domain: `https://www.vyraherbals.com`.
-- Under **Settings → Custom Endpoint**, you will paste the order webhook URL (step 6).
-
----
-
-## 4. Add the secrets to Vercel
-
-Vercel → your project → **Settings → Environment Variables**. Add to **Production** (and Preview if you test there):
-
-| Name | Value | Required |
+| Piece | File | Notes |
 |---|---|---|
-| `SHIPROCKET_CHECKOUT_API_KEY` | API Key from step 3 | Yes |
-| `SHIPROCKET_CHECKOUT_API_SECRET` | API Secret from step 3 | Yes |
-| `SHIPROCKET_CHECKOUT_API_BASE` | Leave **empty** for live. For staging only: `https://fastrr-api-dev.pickrr.com` | Staging only |
-| `SHIPROCKET_CHECKOUT_ENABLED` | Set to `false` to switch Shiprocket off from env. Leave unset normally. | Optional kill switch |
-| `CRON_SECRET` | Any long random string (e.g. output of `openssl rand -hex 32`) | Yes (failsafe job) |
-| `NEXT_PUBLIC_SITE_ORIGIN` | `https://www.vyraherbals.com` (use whichever host you want shoppers returned to) | Yes (probably already set) |
+| Session / token | `app/api/shiprocket/token/route.ts` | Prices and coupons always re-read from our database |
+| Order webhook | `app/api/shiprocket/webhook/order/route.ts` | Body is only a hint; order is re-fetched from Shiprocket with your secret |
+| Return page + finalize | `app/shiprocket/return`, `app/api/shiprocket/finalize/route.ts` | Idempotent on `txn_id = SR-<id>` |
+| Failsafe cron | `app/api/cron/shiprocket-pending/route.ts` + `.github/workflows/shiprocket-pending.yml` | Every 10 min; picks up paid orders we missed |
+| Catalogue (Shiprocket pulls) | `app/api/shiprocket/catalog/*` | Products, collections, collection-products |
+| Catalogue push on edit | `src/utils/shiprocketCatalogSync.ts` | Product / category edits notify Shiprocket |
+| Storefront button | `src/Components/Shared/CheckoutEntry.tsx` | Falls back to native on any error |
+| **Admin control (new)** | `app/admin/shiprocket/page.tsx`, `app/api/admin/shiprocket/route.ts` | Keys, test, switches, webhook token |
+| **Credential store (new)** | `src/utils/shiprocketSettings.ts`, `shiprocketCrypto.ts` | AES-256-GCM, service-role only |
 
-**Keep these existing variables exactly as they are** (they power the fallback and WhatsApp): `EASEBUZZ_KEY`, `EASEBUZZ_SALT`, `EASEBUZZ_ENV`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, iCarry and WhatsApp variables.
+### What the new admin control changes
 
-Then **redeploy** (Deployments → ⋯ → Redeploy). Env changes only apply to new deployments.
+Before: the key and secret lived only in Vercel env variables. Changing or rotating them needed Vercel access and a redeploy, and a typo gave no useful message.
 
-Important: **Shiprocket turns on automatically as soon as both key and secret exist.** If you want to add the keys but go live later, also add `SHIPROCKET_CHECKOUT_ENABLED=false` first, and remove it when ready (or use the admin switch, step 9).
+Now, from **/admin/shiprocket**:
+- Paste **API key + secret**, choose **Live or Staging**, optionally set a **webhook token**. The app **tests the pair with Shiprocket first** and only saves it if Shiprocket accepts it, so a typo can never replace working keys.
+- Keys are stored **encrypted** (AES-256-GCM) in a table the public cannot read. They are never shown again, only masked.
+- **Master switch** (Shiprocket on/off for everyone), plus separate switches for **Cart** and **Buy Now**.
+- Plain-English diagnosis when Shiprocket rejects a call.
+- **Remove saved credentials** falls back to the Vercel env values, if any.
+- Vercel env variables still work exactly as before.
 
-Local development: copy the same names into `.env.local` (see `.env.example`).
+**Why a separate table:** `site_settings` has a public-read policy (the storefront reads it). A secret stored there would be readable by any visitor. `shiprocket_credentials` has RLS on and no policies. **[Code]**
+
+**What the admin page cannot do:** it cannot change Shiprocket-side rules (COD fee, prepaid discount, shipping charges, serviceable pincodes, payment gateways). Those only exist in Shiprocket's dashboard, and nothing in what I could find documents an API to edit them from outside. Section 9 says where to click.
 
 ---
 
-## 5. Run the database SQL (once)
+## 3. Step 1: Create the account and finish onboarding
 
-Supabase → **SQL Editor** → paste and run:
+1. Open **https://checkout.shiprocket.in** (Shiprocket Checkout is now branded **fastrr Checkout**; the dashboard you used, `checkout-dashboard.shiprocket.in`, is the same product). **[Official]**
+2. Sign up / log in with the business email you will keep long term.
+3. Complete **KYC and billing** onboarding. A third-party integrator reports checkout stays inactive until it is done. **[Third party]**
+4. Choose the platform **Custom / Custom-Built** (not Shopify or WooCommerce). This repo is a custom Next.js site. Picking another platform produces Shopify-style fields (App Name, Shared Secret, Storefront Access Token) that do not apply here. **[Official: those fields are on the Platform page]**
+5. Enter the store name and domain `https://www.vyraherbals.com` (host only if the form wants it).
 
-1. `supabase/migrations/SHIPROCKET_CHECKOUT_SETUP.sql`: adds the unique index that stops duplicate Shiprocket orders.
-2. `supabase/migrations/SITE_SETTINGS_AND_STATUS_FIX.sql`: **only if** the `site_settings` table does not exist yet. It is needed for the admin on/off switch. Safe to run twice.
+Keep two logins apart:
+- **Checkout dashboard** (checkout.shiprocket.in): API key + secret for **this** integration.
+- **Shipping panel** (app.shiprocket.in): email/password / API user for couriers. **Different system. Not used here** (shipping runs through iCarry). **[Official + Code]**
 
 ---
 
-## 6. Tell Shiprocket where your site is
+## 4. Step 2: Generate the API key
 
-Shiprocket needs to read your catalogue and send you order events. In the Shiprocket checkout dashboard (Platform Setup / Custom Endpoint / catalogue settings), enter:
+Path reported for custom sites: **Settings -> Platform -> Custom-Built -> API Key**, then copy **API Key** and **API Secret**. **[Third party; confirm on your screen]**
+
+Copy each into a notes app first. The secret is long and easy to cut short. Do not paste them into chat, email, or any `NEXT_PUBLIC_` variable.
+
+### If key generation fails ("client token is not authorized" / "Failed to generate API keys")
+
+**Honest status:** I searched Shiprocket's public help center, API docs and the web and found **no page documenting this exact message**. What follows is a reasoned checklist, **not a confirmed diagnosis**. The wording ("client token not authorized") suggests the dashboard's own call to Shiprocket's backend is being refused for your account or session, rather than anything on your website, because your site is not involved in that step at all. **[Unverified]**
+
+Work through these in order and stop when it works:
+
+1. **Hard refresh with a clean session.** Log out, close the tab, open a private window, log in at `https://checkout.shiprocket.in` and go to the dashboard from there (not from a bookmarked deep link). A stale or mismatched session token is the cheapest explanation.
+2. **Try another browser, no extensions** (ad blockers and privacy extensions can strip auth headers). Note the exact time and take a screenshot of the error and the browser's Network tab response if you can.
+3. **Check the account is fully set up.** Finish KYC / billing / store details, and make sure the platform is **Custom-Built** with a store name and domain saved. Keys for a platform that was never completed may be refused.
+4. **Do not toggle "Smart One-Click Checkout" or "Shiprocket Login & Address Vault" to get keys.** Reading this repo, neither is used: the integration authenticates with the single **Custom-Built API key + secret** only. The error appearing on those toggles too points to the same underlying account/authorization problem, not to a missing feature on your site. The repo's "not implemented yet" list includes server-to-server login / address fetch. **[Code]**
+5. **Contact Shiprocket.** This is the step most likely to actually fix it. Send them the text in the box below, plus your screenshot.
+   - Email **integration@shiprocket.com** (their API docs name this for integration help) and **support@shiprocket.com**. **[Official: apidocs.shiprocket.in]**
+   - Raise a ticket from inside the checkout dashboard if it has a help widget.
+
+> Subject: Custom-Built platform API key generation fails: "client token is not authorized"
+>
+> Hello, my Shiprocket Checkout (fastrr) account is `<registered email>`, store `Vyra Herbals`, domain `vyraherbals.com`, platform Custom-Built. On `checkout-dashboard.shiprocket.in`, clicking Generate API key shows "client token is not authorized", and enabling Smart One-Click Checkout and Login & Address Vault shows "Failed to generate API keys". Please check that my account / client is activated for the Custom platform and generate or enable the API key and secret. Also please confirm the staging (sandbox) base URL and credentials for testing, and the per-order fee for my plan. Time of last failure: `<date, time, timezone>`. Screenshot attached.
+
+6. While you wait, **nothing on the site breaks**: with no keys, the native Easebuzz / COD checkout stays the only checkout.
+
+I cannot generate keys for you or test your Shiprocket account from here. Only Shiprocket can unblock step 5 if steps 1 to 3 do not.
+
+---
+
+## 5. Step 3: Run the SQL (once)
+
+Supabase -> **SQL Editor** -> paste and run **`supabase/migrations/SHIPROCKET_ADMIN_CONTROL.sql`**. It is safe to run twice. It creates:
+- `shiprocket_credentials` (encrypted keys, no public access),
+- `site_settings` if missing (on/off + placement switches),
+- the unique index that stops duplicate Shiprocket orders.
+
+---
+
+## 6. Step 4: Vercel settings
+
+Only these are needed now (Vercel -> Settings -> Environment Variables -> Production):
+
+| Name | Value | Needed |
+|---|---|---|
+| `SHIPROCKET_ENCRYPTION_KEY` | A long random string, 32+ chars (`openssl rand -hex 32`) | **Recommended.** If missing, `JWT_SECRET` is used, but rotating `JWT_SECRET` then makes saved keys unreadable and you must re-enter them. |
+| `CRON_SECRET` | Long random string | Yes, for the failsafe job (probably already set) |
+| `NEXT_PUBLIC_SITE_ORIGIN` | `https://www.vyraherbals.com` | Yes (probably already set) |
+
+`SHIPROCKET_CHECKOUT_API_KEY` / `_API_SECRET` / `_API_BASE` / `SHIPROCKET_WEBHOOK_TOKEN` are **optional now**: they are the fallback when nothing is saved in the admin page. Keep `EASEBUZZ_*`, Supabase, iCarry and WhatsApp variables exactly as they are (they power the fallback checkout).
+
+Redeploy once after adding `SHIPROCKET_ENCRYPTION_KEY`.
+
+---
+
+## 7. Step 5: Connect in the admin panel
+
+1. Log in at **/admin/login** and open **Shiprocket** in the sidebar.
+2. Under **API credentials**: paste the key and secret, choose **Staging** (test keys) or **Live**, optionally add a webhook token (any random 16+ characters), click **Test and save credentials**.
+3. Success shows "Shiprocket accepted the API key and secret". On failure the page tells you what to check and **saves nothing**.
+4. Confirm **Connection test** reads **OK** and the environment pill matches what you chose.
+
+---
+
+## 8. Step 6: Tell Shiprocket where your site is
+
+In Shiprocket's dashboard (Platform setup / Settings -> Custom Endpoint / Webhooks), enter the URLs that **/admin/shiprocket -> "URLs to give Shiprocket"** shows with Copy buttons:
 
 | Purpose | URL |
 |---|---|
-| Products catalogue | `https://www.vyraherbals.com/api/shiprocket/catalog/products` |
-| Collections (categories) | `https://www.vyraherbals.com/api/shiprocket/catalog/collections` |
-| Products in a collection | `https://www.vyraherbals.com/api/shiprocket/catalog/collection-products` |
-| Order webhook | `https://www.vyraherbals.com/api/shiprocket/webhook/order` |
+| Products | `https://www.vyraherbals.com/api/shiprocket/catalog/products` |
+| Collections | `https://www.vyraherbals.com/api/shiprocket/catalog/collections` |
+| Collection products | `https://www.vyraherbals.com/api/shiprocket/catalog/collection-products` |
+| **Order webhook** | `https://www.vyraherbals.com/api/shiprocket/webhook/order` |
+| Redirect after payment | `https://www.vyraherbals.com/shiprocket/return` |
 
-(`/admin/shiprocket` lists these URLs with copy buttons.)
+**Protect the webhook (recommended):** the Shiprocket webhook form has a **Headers** field with "Add more" **[Official]**. Add header name `x-webhook-token`, value = the same token you saved in the admin page. Requests without it are then rejected with 401. Even without a token a forged webhook can never create an order (the order is re-fetched from Shiprocket with your secret), but the token stops strangers from making your server spend API calls. If you add a token in the admin page but forget the header in Shiprocket, **real orders will be rejected by the webhook**; the 10-minute failsafe job would still record them, but test one order right after changing this.
 
-How we stay safe:
-- Prices are always taken from **our** database, never from the browser.
-- The order webhook is only a **hint**. We re-fetch the order from Shiprocket using your secret before saving anything, so a fake webhook cannot create an order.
-- Saving is idempotent, so repeated webhooks never duplicate an order.
-
-When you add or edit products/categories in the admin panel, the change is pushed to Shiprocket automatically. Use **Push all products** in `/admin/shiprocket` for a full resync after first setup.
+Then press **Push all products to Shiprocket now** once.
 
 ---
 
-## 7. GitHub secret for the failsafe job
+## 9. Step 7: Configure checkout rules in Shiprocket (this is where sales are won)
 
-GitHub repo → **Settings → Secrets and variables → Actions**:
-- **Secret** `CRON_SECRET` = the same value you put in Vercel.
-- (Optional) **Variable** `SHIPROCKET_PENDING_URL` if your live host isn't `https://www.vyraherbals.com`.
+All in Shiprocket's dashboard **[Official: "Manage Shipping Settings" and "Payment" pages]**:
 
-The workflow `.github/workflows/shiprocket-pending.yml` runs every 10 minutes and calls `/api/cron/shiprocket-pending`. (`vercel.cron.json` is only a template; it is not what schedules this.)
+**Settings -> Shipping settings -> Default values**
+- **Prepaid discount** (fixed or percent). Start modest (for example 3 to 5%) and compare prepaid share.
+- **COD-to-prepaid discount** with a time window, to convert COD buyers after they order.
+- **COD charges** (fixed or percent).
+- **Shipping charges** per method (rush / express / standard) and the **non-serviceable pincodes** list.
 
----
+**Custom rules** (criteria: SKU, tag, collection, UTM, pincodes, weight, invoice value, risk profile, phone number, and more):
+- **Disable COD** for high-risk pincodes or very high order values.
+- **Partial COD** (customer pays a percentage upfront) for expensive orders.
+- **Shipping visibility** per criteria.
 
-## 8. Configure shipping, COD and discounts (in Shiprocket, not on our site)
+**Payment settings**
+- Configure at least one payment gateway (only gateways partnered with Shiprocket are listed).
+- Set **primary and secondary gateway** per payment method so one gateway outage does not lose sales.
+- Order **UPI apps** by priority; enable **Last paid payment method** and **COD on top** if you want COD pushed to the top (think about whether you actually want that; it can raise COD share).
 
-Shiprocket's window calculates shipping charges, serviceability, COD fee, prepaid discounts and RTO protection. Set these in the Shiprocket checkout dashboard (Settings: shipping rules, COD charges, prepaid discount). Our site only sends items, prices and the coupon discount.
-
-Coupons: a coupon applied in the cart is validated on our server and passed to Shiprocket as a fixed cart discount.
-
----
-
-## 9. Test on staging, then go live
-
-**Staging test (recommended):**
-1. Set `SHIPROCKET_CHECKOUT_API_BASE=https://fastrr-api-dev.pickrr.com` with the **staging** key/secret, redeploy.
-2. Open `/admin/shiprocket` (admin login). It should show environment **staging**, a green credential test, and the catalogue count.
-3. Add an item, open the cart, click **Proceed to Checkout**. Shiprocket's window should open.
-4. Place one **prepaid** and one **COD** test order. For each, check:
-   - You land on `/order-placed/<id>`.
-   - The `orders` table has a row with `txn_id` starting `SR-`.
-   - WhatsApp confirmation arrives, the iCarry shipment is created, a coupon (if used) is counted once.
-   - The cart emptied (Buy Now must **not** empty your saved cart).
-5. Test the fallback: set `SHIPROCKET_CHECKOUT_ENABLED=false` (or press **Switch off** in `/admin/shiprocket`), reload the cart. The normal native button must show and work.
-
-**Go live:**
-1. Replace the staging values with **live** key/secret; delete `SHIPROCKET_CHECKOUT_API_BASE`; redeploy.
-2. `/admin/shiprocket` should show environment **production** and a green test.
-3. Place one real low-value order and verify as above.
+**Why not do this with code?** I found nothing documenting an API for these settings, so building a fake "control" for them in our admin would be misleading. The admin page controls what we own: credentials, on/off, placement and fallback.
 
 ---
 
-## 10. Instant rollback (no redeploy needed)
+## 10. Step 8: Test, then go live
 
-| How | Effect |
-|---|---|
-| `/admin/shiprocket` → **Switch off** | Immediate (about 20 s cache). Native checkout becomes the only button. Switch back on any time. |
-| Vercel env `SHIPROCKET_CHECKOUT_ENABLED=false` + redeploy | Same, at env level. |
-| Remove the key/secret + redeploy | Shiprocket fully off. |
+**Staging first (if Shiprocket gives you sandbox keys).** Ask support for staging access and keys (include in your ticket). Save them in the admin page with **Environment = Staging**.
+1. Add an item, open the cart, click **Proceed to Checkout**: Shiprocket's window opens.
+2. Place one **prepaid** and one **COD** test order. Check for each: you land on `/order-placed/<id>`; the `orders` table has a row with `txn_id` starting `SR-`; WhatsApp confirmation arrives; the iCarry shipment is created; a coupon (if used) counts once; the cart empties (Buy Now must **not** empty a saved cart).
+3. Turn **Cart** off in "Where to offer Shiprocket", reload: the normal button shows. Turn it back on.
 
-While switched off, any Shiprocket order that was already paid is **still recorded** (webhook and failsafe still run). Nothing is lost.
+**Go live.** Save the **live** key + secret with **Environment = Live**. The environment pill must say production and the connection test must be OK. Place one real low-value order and verify as above.
+
+**Instant rollback (no redeploy):** admin page -> **Switch OFF Shiprocket**. Orders already paid on Shiprocket are still recorded while it is off.
 
 ---
 
-## 11. Troubleshooting
+## 11. Measure whether it is working
+
+Before switching on, note for two weeks: checkout conversion (GA4 `begin_checkout` to `purchase`), COD share, and RTO / return rate from iCarry. Switch on, then compare the same metrics for two weeks. Shiprocket's dashboard also has analytics for sales, payment trends and discount effectiveness **[Official]**. Do not judge on fewer than about 50 orders per period.
+
+Cost: figures conflict. One integrator's help page says Shiprocket charges **2% per order** **[Third party]**; a comparison blog says around **0.65% per transaction** **[Third party, unverified]**. **Ask Shiprocket for the written rate on your plan** and compare it to Easebuzz fees; factor in COD fee income and fewer RTOs.
+
+---
+
+## 12. Troubleshooting
 
 | Symptom | Likely cause / fix |
 |---|---|
-| Shiprocket button never appears | Keys missing, `SHIPROCKET_CHECKOUT_ENABLED=false`, admin switch off, or you didn't redeploy. Open `/api/shiprocket/status` and read `reason`. |
-| `/admin/shiprocket` credential test fails / "511" / "Invalid key" | Wrong key/secret, or staging keys used with the production base (or the reverse). |
-| Shiprocket window doesn't open, native opens instead | Expected fallback. Check the browser console for Content-Security-Policy errors, and that Shiprocket KYC/domain setup is complete. |
-| Customer paid but no order in admin | Wait up to 10 minutes (failsafe job). If still missing, check the GitHub Actions run of "shiprocket-pending", `CRON_SECRET` match, and the order webhook URL. |
-| Old price/stock shown in Shiprocket | Press **Push all products** in `/admin/shiprocket`. |
-| Native checkout asks guests to log in | That is the existing native behaviour. The Shiprocket path allows guests (OTP login on Shiprocket). |
-| Failsafe job returns 401 | `CRON_SECRET` differs between GitHub and Vercel. |
+| Shiprocket button never appears | Keys missing, master switch off, Cart/Buy Now switch off, or placement mismatch. Open `/api/shiprocket/status` and read `reason`, `cart`, `buyNow`. |
+| Connection test: "rejected the API key / secret" | Wrong or truncated value, staging keys with Live (or reverse). Re-copy both. |
+| Dashboard will not generate keys | Section 4 checklist, then contact Shiprocket. |
+| Saved keys "cannot be decrypted" | `SHIPROCKET_ENCRYPTION_KEY` / `JWT_SECRET` changed. Re-enter keys in the admin page. |
+| "Run SHIPROCKET_ADMIN_CONTROL.sql" message | Table not created yet (section 5). |
+| Real orders rejected by webhook (401) | Token saved in admin but header missing/different in Shiprocket. Fix header or remove token. |
+| Customer paid, no order in admin | Wait up to 10 min (failsafe job). Else check GitHub Actions run "Shiprocket Pending Orders", that `CRON_SECRET` matches in GitHub and Vercel, and the webhook URL. |
+| Stale price / stock in Shiprocket | **Push all products** in the admin page. |
+| Shiprocket window does not open, native opens | Expected fallback. Check browser console for CSP errors and that KYC / domain setup is complete. |
 
 ---
 
-## 12. Security notes
+## 13. Security notes
 
-- Key and secret live **only** in Vercel server env. Never put them in a `NEXT_PUBLIC_` variable, the repo or chat.
-- Requests to Shiprocket are HMAC-SHA256 signed with the secret.
-- Prices, coupons and totals are computed on our server. Order data from Shiprocket is verified through their authenticated API before saving.
-- The admin panel and `/api/admin/shiprocket` require the admin login.
-- **A GitHub personal access token was pasted in chat earlier. Revoke it at GitHub → Settings → Developer settings → Tokens and create a new one.**
+- Key and secret are stored **AES-256-GCM encrypted**, readable only with the Supabase service-role key. They are never returned by any API, only masked.
+- Anyone who can open `/admin` as admin can replace the keys. Protect the admin login (strong `ADMIN_PASSWORD_HASH`, long `JWT_SECRET`).
+- Prices, coupons and totals are computed on our server; Shiprocket order data is verified through their authenticated API before saving.
+- **A GitHub personal access token was pasted into chat while preparing this change. Revoke it now at GitHub -> Settings -> Developer settings -> Personal access tokens, and create a fresh one only if needed.** The token was used only to read and push this branch and was not written into any file.
 
 ---
 
-## 13. Not implemented yet
+## 14. Official sources and videos
 
-Shiprocket refund APIs, loyalty points, server-to-server login/address fetch, and pushing order-status changes back to Shiprocket. Shipping tracking continues through iCarry. Refunds continue through the existing process.
+Shiprocket's own help center (fastrr Checkout):
+- Overview: https://support.shiprocket.in/support/solutions/articles/152000000877-fastrr-checkout-guide-an-overview-of-dashboard
+- Shipping settings and custom rules: https://support.shiprocket.in/support/solutions/articles/152000000892-fastrr-checkout-manage-shipping-settings
+- Payment settings: https://support.shiprocket.in/support/solutions/articles/152000000915-fastrr-checkout-payment
+- Platform page: https://support.shiprocket.in/support/solutions/articles/152000000916-fastrr-checkout-platform
+- Adding a webhook: https://support.shiprocket.in/support/solutions/articles/152000000919-fastrr-checkout-adding-a-webhook
+- All fastrr articles: https://support.shiprocket.in/support/solutions/folders/152000000151
+
+**Videos:** I looked for tutorials and found only **Shopify** ones (for example "How to Integrate Shiprocket Checkout With Shopify" on YouTube). I found **no video for a custom-website integration**, and I could not verify any review claims, so I am not recommending one. A Shopify video will show the dashboard layout but its steps (installing an app) do not apply to this site.
+
+**Not done / not verified:** I did not have access to Shiprocket's Postman "SRC Custom Integration" document, so request formats rely on what the existing code already implements. I did not compare alternatives (for example Razorpay Magic Checkout or GoKwik) beyond reading about them, so I make no claim that Shiprocket is better or worse than them for this store.
+
+---
+
+## 15. Not implemented yet
+
+Shiprocket refund APIs, loyalty points, server-to-server login / address-vault fetch, and pushing order-status changes back to Shiprocket. Tracking continues through iCarry; refunds through the existing process.

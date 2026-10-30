@@ -27,7 +27,7 @@
  *
  * This file only depends on node:crypto so it is unit-testable in isolation.
  */
-import { createHmac } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 
 export const DEFAULT_API_BASE = 'https://checkout-api.shiprocket.com';
 export const STAGING_API_BASE = 'https://fastrr-api-dev.pickrr.com';
@@ -78,6 +78,10 @@ export interface ShiprocketConfig {
   apiKey: string;
   apiSecret: string;
   apiBase: string;
+  /** Where the key/secret came from. Set by shiprocketSettings.mergeConfig; absent for plain env reads. */
+  source?: 'admin' | 'env' | 'none';
+  /** Optional shared secret Shiprocket must send in the `x-webhook-token` header. Empty = webhook not token-protected. */
+  webhookToken?: string;
 }
 
 const OFF_VALUES = new Set(['false', '0', 'off', 'no', 'disabled']);
@@ -101,6 +105,40 @@ export function getShiprocketConfig(env: Record<string, string | undefined> = pr
   const killed = isOffValue(env.SHIPROCKET_CHECKOUT_ENABLED) || isOffValue(env.NEXT_PUBLIC_SHIPROCKET_CHECKOUT_ENABLED);
   const configured = !!apiKey && !!apiSecret;
   return { enabled: configured && !killed, configured, killed, apiKey, apiSecret, apiBase };
+}
+
+/**
+ * Constant-time check of the optional webhook shared secret. When no secret is
+ * configured every request passes (backwards compatible); the admin page warns
+ * that the webhook is then unprotected.
+ */
+export function verifyWebhookToken(provided: string | null | undefined, expected: string | null | undefined): boolean {
+  const want = String(expected ?? '');
+  if (!want) return true;
+  const got = String(provided ?? '');
+  const a = createHmac('sha256', 'wh').update(got).digest();
+  const b = createHmac('sha256', 'wh').update(want).digest();
+  return timingSafeEqual(a, b) && got.length > 0;
+}
+
+/**
+ * Turn a raw Shiprocket failure into an instruction a shop owner can act on.
+ * Used by the admin connection test. Never includes secrets.
+ */
+export function explainShiprocketError(status: number | undefined, message: string | undefined): string {
+  const m = String(message || '');
+  if (status === undefined && !/not authori|unauthori|invalid/i.test(m)) {
+    return /timed out/i.test(m)
+      ? 'Shiprocket did not answer in time. Try again in a minute; if it keeps happening check status with Shiprocket support.'
+      : 'Could not reach Shiprocket from the server. Check the API base URL (live: https://checkout-api.shiprocket.com) and try again.';
+  }
+  if (status === 401 || status === 403 || status === 511 || /not authori[sz]ed|unauthori[sz]ed|invalid.*(key|token|signature|hmac)|hmac/i.test(m)) {
+    return 'Shiprocket rejected the API key / secret pair. Re-copy BOTH values from the checkout dashboard (Settings > Platform > Custom-Built > API Key) with no spaces, make sure the secret is not cut short, and that live keys are used with the live environment (staging keys only with staging). If the dashboard itself will not generate keys ("client token is not authorized"), the account is not activated for the Custom platform yet: see "If key generation fails" in docs/SHIPROCKET_SETUP_GUIDE.md and contact Shiprocket support.';
+  }
+  if (status === 404) return 'Shiprocket answered 404: the API base URL is probably wrong for this environment.';
+  if (status === 429) return 'Shiprocket is rate limiting this server. Wait a few minutes and re-test.';
+  if (status && status >= 500) return 'Shiprocket reported a server error. This is on their side: retry later.';
+  return m ? `Shiprocket said: ${m}` : 'Shiprocket returned an unexpected response.';
 }
 
 // ---------------------------------------------------------------------------

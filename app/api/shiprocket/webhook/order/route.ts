@@ -1,7 +1,8 @@
 import { NextResponse, after } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
 import { enforceRateLimit } from '@/utils/rateLimit';
-import { getShiprocketConfig } from '@/utils/shiprocketCheckout';
+import { verifyWebhookToken } from '@/utils/shiprocketCheckout';
+import { resolveShiprocketConfig } from '@/utils/shiprocketSettings';
 import { finalizeShiprocketOrder } from '@/utils/shiprocketOrder';
 
 // Force dynamic - these routes touch Supabase and Shiprocket at request time.
@@ -28,11 +29,21 @@ export const maxDuration = 60;
  * cron (/api/cron/shiprocket-pending) is the second safety net.
  */
 export async function POST(req: Request) {
-  const cfg = getShiprocketConfig();
-  if (!cfg.configured) return NextResponse.json({ ok: false, error: 'not configured' }, { status: 503 });
-
   const limited = enforceRateLimit(req, 'shiprocket:webhook', 120, 60 * 1000);
   if (limited) return limited;
+
+  const supabase = createServerSupabase();
+  const cfg = await resolveShiprocketConfig(supabase);
+  if (!cfg.configured) return NextResponse.json({ ok: false, error: 'not configured' }, { status: 503 });
+
+  // Optional shared secret. Add a header `x-webhook-token: <token>` in Shiprocket
+  // (Settings > Webhooks > Headers) and save the same token in /admin/shiprocket.
+  // The order is still re-verified with Shiprocket either way; this just stops
+  // strangers from making us spend API calls.
+  const tokenHeader = req.headers.get('x-webhook-token') || req.headers.get('x-api-key');
+  if (!verifyWebhookToken(tokenHeader, cfg.webhookToken)) {
+    return NextResponse.json({ ok: false, error: 'bad token' }, { status: 401 });
+  }
 
   const body: any = await req.json().catch(() => null);
   const srOrderId = String(body?.order_id ?? body?.result?.order_id ?? '').trim();
@@ -42,7 +53,6 @@ export async function POST(req: Request) {
   const hinted = String(body?.status ?? '').toUpperCase();
   if (hinted && hinted !== 'SUCCESS') return NextResponse.json({ ok: true, ignored: `status=${hinted}` });
 
-  const supabase = createServerSupabase();
   const result = await finalizeShiprocketOrder(supabase, cfg, srOrderId);
 
   if (!result.ok) {

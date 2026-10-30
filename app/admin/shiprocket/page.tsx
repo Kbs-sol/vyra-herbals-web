@@ -6,6 +6,11 @@ import AdminLayoutWrapper from '../components/AdminLayoutWrapper';
 type Health = {
   primaryCheckout: 'shiprocket' | 'native';
   environment: 'production' | 'staging';
+  credentialSource: 'admin' | 'env' | 'none';
+  credentialsTableReady: boolean;
+  storedCredentialsUnreadable: boolean;
+  keys: { apiKey: string; apiSecret: string; webhookToken: string };
+  placement: { cart: boolean; buyNow: boolean };
   env: Record<string, string>;
   adminEnabled: boolean;
   credentials: { ok: boolean; detail: string };
@@ -15,6 +20,7 @@ type Health = {
 };
 
 const card: React.CSSProperties = { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, marginBottom: 16 };
+const input: React.CSSProperties = { display: 'block', width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #d1d5db', marginTop: 4, fontSize: 14 };
 const mono: React.CSSProperties = { fontFamily: 'ui-monospace, monospace', fontSize: 13, wordBreak: 'break-all' };
 const pill = (ok: boolean): React.CSSProperties => ({
   display: 'inline-block', padding: '2px 10px', borderRadius: 999, fontSize: 12, fontWeight: 600,
@@ -26,6 +32,10 @@ export default function ShiprocketAdminPage() {
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState('');
   const [msg, setMsg] = useState('');
+  const [apiKey, setApiKey] = useState('');
+  const [apiSecret, setApiSecret] = useState('');
+  const [environment, setEnvironment] = useState<'production' | 'staging'>('production');
+  const [webhookToken, setWebhookToken] = useState('');
 
   const load = useCallback(async () => {
     setErr('');
@@ -46,7 +56,16 @@ export default function ShiprocketAdminPage() {
     try {
       const res = await fetch('/api/admin/shiprocket', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const j = await res.json();
-      setMsg(j.success ? (body.action === 'sync_catalog' ? `Pushed ${j.pushed} of ${j.total} products.` : 'Saved.') : (j.error || `Failed${j.failures?.length ? `: ${j.failures[0].error}` : ''}`));
+      setMsg(
+        j.success
+          ? body.action === 'sync_catalog'
+            ? `Pushed ${j.pushed} of ${j.total} products.`
+            : body.action === 'test_credentials'
+              ? j.credentials?.detail || 'Tested.'
+              : j.detail || 'Saved.'
+          : j.error || `Failed${j.failures?.length ? `: ${j.failures[0].error}` : ''}`,
+      );
+      if (j.success && body.action === 'save_credentials') { setApiKey(''); setApiSecret(''); setWebhookToken(''); }
       await load();
     } catch (e: any) {
       setMsg(e.message || 'Failed');
@@ -87,10 +106,95 @@ export default function ShiprocketAdminPage() {
               </p>
             </section>
 
+            <section style={card} id="sr-keys">
+              <h2 style={{ fontSize: 18, marginBottom: 8 }}>
+                API credentials{' '}
+                <span style={pill(h.credentialSource !== 'none')}>
+                  {h.credentialSource === 'admin' ? 'saved here (encrypted)' : h.credentialSource === 'env' ? 'from Vercel env' : 'not set'}
+                </span>
+              </h2>
+              {!h.credentialsTableReady && (
+                <p style={{ color: '#991b1b', marginBottom: 8 }}>
+                  One-time setup needed: run <code>supabase/migrations/SHIPROCKET_ADMIN_CONTROL.sql</code> in the Supabase SQL editor, then reload. Until then you can still use Vercel env variables.
+                </p>
+              )}
+              {h.storedCredentialsUnreadable && (
+                <p style={{ color: '#991b1b', marginBottom: 8 }}>
+                  Saved credentials exist but cannot be decrypted (the encryption key changed). Re-enter them below.
+                </p>
+              )}
+              <p style={{ marginBottom: 8, color: '#374151' }}>
+                In use now: key <code>{h.keys.apiKey}</code>, secret <code>{h.keys.apiSecret}</code>. Values are tested with Shiprocket before they are saved and are never shown again.
+              </p>
+              <div style={{ display: 'grid', gap: 8, maxWidth: 560 }}>
+                <label style={{ fontSize: 13 }}>
+                  API Key
+                  <input id="sr-api-key" type="password" autoComplete="off" value={apiKey} onChange={(e) => setApiKey(e.target.value)} style={input} placeholder="paste the API Key" />
+                </label>
+                <label style={{ fontSize: 13 }}>
+                  API Secret
+                  <input id="sr-api-secret" type="password" autoComplete="off" value={apiSecret} onChange={(e) => setApiSecret(e.target.value)} style={input} placeholder="paste the API Secret" />
+                </label>
+                <label style={{ fontSize: 13 }}>
+                  Environment
+                  <select id="sr-environment" value={environment} onChange={(e) => setEnvironment(e.target.value as any)} style={input}>
+                    <option value="production">Live (real money)</option>
+                    <option value="staging">Staging / sandbox (test keys only)</option>
+                  </select>
+                </label>
+                <label style={{ fontSize: 13 }}>
+                  Order webhook token (optional, 16+ characters, recommended)
+                  <input id="sr-webhook-token" type="password" autoComplete="off" value={webhookToken} onChange={(e) => setWebhookToken(e.target.value)} style={input} placeholder="any long random string; add the same value as header x-webhook-token in Shiprocket" />
+                </label>
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+                <button
+                  id="sr-save-keys"
+                  disabled={!!busy || !apiKey || !apiSecret}
+                  onClick={() => post({ action: 'save_credentials', apiKey, apiSecret, environment, webhookToken }, 'save')}
+                  style={{ padding: '8px 16px', borderRadius: 8, border: 0, background: '#704a0d', color: '#fff', cursor: 'pointer', opacity: !apiKey || !apiSecret ? 0.5 : 1 }}
+                >
+                  {busy === 'save' ? 'Testing and saving...' : 'Test and save credentials'}
+                </button>
+                <button
+                  disabled={!!busy || h.credentialSource !== 'admin'}
+                  onClick={() => { if (confirm('Remove the saved credentials? The site falls back to Vercel env values, if any.')) post({ action: 'clear_credentials' }, 'clear'); }}
+                  style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer' }}
+                >
+                  Remove saved credentials
+                </button>
+              </div>
+              <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #f3f4f6' }}>
+                <p style={{ fontSize: 13, color: '#374151', marginBottom: 6 }}>
+                  Webhook protection: <strong>{h.keys.webhookToken}</strong>
+                </p>
+                {h.keys.webhookToken === 'set' && (
+                  <button
+                    disabled={!!busy}
+                    onClick={() => { if (confirm('Remove webhook protection?')) post({ action: 'set_webhook_token', token: '' }, 'wh'); }}
+                    style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: 13 }}
+                  >
+                    Remove token
+                  </button>
+                )}
+              </div>
+            </section>
+
+            <section style={card} id="sr-placement">
+              <h2 style={{ fontSize: 18, marginBottom: 8 }}>Where to offer Shiprocket</h2>
+              <p style={{ marginBottom: 8, color: '#374151' }}>Turn Shiprocket on or off per place. Anywhere it is off, shoppers get the standard Easebuzz / COD checkout.</p>
+              <label style={{ display: 'block', marginBottom: 6 }}>
+                <input type="checkbox" id="sr-place-cart" checked={h.placement.cart} disabled={!!busy} onChange={(e) => post({ action: 'set_placement', cart: e.target.checked }, 'place')} /> Cart page ("Proceed to Checkout")
+              </label>
+              <label style={{ display: 'block' }}>
+                <input type="checkbox" id="sr-place-buynow" checked={h.placement.buyNow} disabled={!!busy} onChange={(e) => post({ action: 'set_placement', buy_now: e.target.checked }, 'place')} /> Product page ("Buy Now")
+              </label>
+            </section>
+
             <section style={card} id="sr-credentials">
               <h2 style={{ fontSize: 18, marginBottom: 8 }}>Connection test <span style={pill(h.credentials.ok)}>{h.credentials.ok ? 'OK' : 'Problem'}</span></h2>
               <p>{h.credentials.detail}</p>
-              <button disabled={!!busy} onClick={load} style={{ marginTop: 8, padding: '6px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer' }}>Re-test</button>
+              <button disabled={!!busy} onClick={() => post({ action: 'test_credentials' }, 'test')} style={{ marginTop: 8, padding: '6px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer' }}>{busy === 'test' ? 'Testing...' : 'Re-test'}</button>
             </section>
 
             <section style={card} id="sr-env">

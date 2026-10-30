@@ -28,6 +28,9 @@ interface SrStatus {
   enabled: boolean;
   scriptUrl?: string;
   styleUrl?: string;
+  /** Admin placement switches (/admin/shiprocket). Missing = on. */
+  cart?: boolean;
+  buyNow?: boolean;
 }
 
 declare global {
@@ -144,7 +147,9 @@ const CheckoutEntry: React.FC<Props> = ({ cartItems, product, quantity = 1 }) =>
     }
   }, [openNative]);
 
-  const useShiprocket = !!status?.enabled && !forceNative;
+  // Admin can offer Shiprocket on the cart only, or on product-page Buy Now only.
+  const placementOn = isDirect ? status?.buyNow !== false : status?.cart !== false;
+  const useShiprocket = !!status?.enabled && placementOn && !forceNative;
 
   const onShiprocketClick = async (event: React.MouseEvent) => {
     if (busy || !lines.length) return;
