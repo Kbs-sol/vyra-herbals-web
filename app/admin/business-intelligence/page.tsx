@@ -248,7 +248,7 @@ export default function BusinessIntelligencePage() {
                   <Button
                     variant="danger"
                     className="w-100 fw-bold"
-                    onClick={() => router.push('/admin/customers?tab=abandoned')}
+                    onClick={() => router.push('/admin/customer-intelligence?tab=abandoned')}
                   >
                     View Hot Leads ({data.leads.hot}) &rarr;
                   </Button>
@@ -279,7 +279,7 @@ export default function BusinessIntelligencePage() {
                   <Button
                     variant="warning"
                     className="w-100 fw-bold text-dark"
-                    onClick={() => router.push('/admin/customers?tab=wishlist')}
+                    onClick={() => router.push('/admin/customer-intelligence?tab=wishlist')}
                   >
                     View Warm Leads ({data.leads.warm}) &rarr;
                   </Button>
@@ -310,7 +310,7 @@ export default function BusinessIntelligencePage() {
                   <Button
                     variant="info"
                     className="w-100 fw-bold text-dark"
-                    onClick={() => router.push('/admin/customers?tab=leads')}
+                    onClick={() => router.push('/admin/customer-intelligence?tab=leads')}
                   >
                     View Cold Leads ({data.leads.cold}) &rarr;
                   </Button>
