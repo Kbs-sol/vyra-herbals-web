@@ -52,6 +52,16 @@ const menuItems = [
     ),
   },
   {
+    name: 'Business Intel',
+    href: '/admin/business-intelligence',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
+        <path d="M18 20V10M12 20V4M6 20V14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M3 20H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+  },
+  {
     name: 'Reviews',
     href: '/admin/reviews',
     icon: (
