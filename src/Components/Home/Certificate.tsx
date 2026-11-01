@@ -15,10 +15,6 @@ const Certificate = () => {
             </div>
           </div>
           <div className="row align-items-center justify-content-center cert-out">
-            {/* <div className="col-md-1">
-          </div>
-          <div className="col-md-1">
-          </div> */}
 
             <div className="col-md-3">
               <div className="text-center">
@@ -28,9 +24,11 @@ const Certificate = () => {
                   height={230}
                   alt="ISO 9001:2015 certified company badge"
                   loading="lazy"
+                  style={{ border: "none", background: "none", objectFit: "contain" }}
                 />
               </div>
             </div>
+
             <div className="col-md-3">
               <div className="text-center">
                 <img
@@ -39,6 +37,7 @@ const Certificate = () => {
                   height={230}
                   alt="GMP certified - Good Manufacturing Practice badge"
                   loading="lazy"
+                  style={{ border: "none", background: "none", objectFit: "contain" }}
                 />
               </div>
             </div>
@@ -51,18 +50,24 @@ const Certificate = () => {
                   height={230}
                   alt="MSME registered - Ministry of Micro, Small and Medium Enterprises, Government of India"
                   loading="lazy"
+                  style={{ border: "none", background: "none", objectFit: "contain" }}
                 />
               </div>
             </div>
-            {/* <div className="col-md-3">
-           <div className='text-center'>
-           <img src="/assets/images/certificates/certificate-04.png" width={230}  alt="certification" />
+
+            <div className="col-md-3">
+              <div className="text-center">
+                <img
+                  src="/assets/images/certificates/certificate-04.webp"
+                  width={230}
+                  height={230}
+                  alt="Additional certification badge"
+                  loading="lazy"
+                  style={{ border: "none", background: "none", objectFit: "contain" }}
+                />
+              </div>
             </div>
-           </div> */}
-            {/* <div className="col-md-1">
-           </div>
-           <div className="col-md-1">
-           </div> */}
+
           </div>
         </div>
       </section>
