@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { handleMarketingOptOut } from '@/services/communications/marketing/optOutHandler';
 import { verifyAdminAuth } from '@/utils/adminAuth';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: Request) {
   const isAdmin = await verifyAdminAuth(req);
   // Optional: Allow webhook-triggered internal calls if no auth, but currently webhook bypasses this and uses handler directly

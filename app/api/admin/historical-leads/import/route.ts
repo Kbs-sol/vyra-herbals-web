@@ -3,6 +3,9 @@ import { verifyAdminAuth } from '@/utils/adminAuth';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { tryNormalizePhone } from '@/services/communications/utils/phoneNormalizer';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   if (!(await verifyAdminAuth(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

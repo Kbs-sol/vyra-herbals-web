@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminAuth } from '@/utils/adminAuth';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   if (!(await verifyAdminAuth(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

@@ -35,6 +35,22 @@
     },
     "app/api/cron/shiprocket-pending/route.ts": {
       "maxDuration": 60
+    },
+    "app/api/cron/scheduled-communications/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/cron/clean-old-logs/route.ts": {
+      "maxDuration": 60
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/scheduled-communications",
+      "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron/clean-old-logs",
+      "schedule": "0 2 * * *"
+    }
+  ]
 }

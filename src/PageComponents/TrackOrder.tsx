@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { API_PATH } from "../constants";
 import styled from "styled-components";
 import LoadingIndicator from "../Components/Common/LoadingIndicator";
@@ -38,15 +39,16 @@ function getMilestoneIndex(status: string): number {
 }
 
 const TrackOrder = () => {
+  const searchParams = useSearchParams();
   const [inputValue, setInputValue] = useState("");
   const [trackingInfo, setTrackingInfo] = useState<TrackingInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const fetchOrderDetails = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputValue) { setError("Please enter your Order ID or AWB / Tracking Number."); return; }
-    if (!/^[A-Z0-9-]+$/.test(inputValue)) { setError("Please enter a valid Order ID or Tracking Number."); return; }
+  const loadTracking = async (val: string) => {
+    const trimmed = val.trim().toUpperCase();
+    if (!trimmed) { setError("Please enter your Order ID or AWB / Tracking Number."); return; }
+    if (!/^[A-Z0-9-]+$/.test(trimmed)) { setError("Please enter a valid Order ID or Tracking Number."); return; }
 
     setLoading(true);
     setError("");
@@ -56,14 +58,14 @@ const TrackOrder = () => {
       const response = await fetch(`${API_PATH}/shipping/track`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ shipment_id: inputValue }),
+        body: JSON.stringify({ shipment_id: trimmed }),
       });
       const data = await response.json();
 
       if (data.success === 1 && data.status) {
         setTrackingInfo(data);
       } else {
-        setError(data.message || "Invalid Order ID. Please check and try again.");
+        setError(data.message || "Invalid Order ID or Tracking Number. Please check and try again.");
       }
     } catch {
       setError("There was an error fetching the shipment details. Please try again later.");
@@ -71,6 +73,22 @@ const TrackOrder = () => {
       setLoading(false);
     }
   };
+
+  const fetchOrderDetails = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await loadTracking(inputValue);
+  };
+
+  useEffect(() => {
+    const q = searchParams.get('awb') || searchParams.get('tracking_id') || searchParams.get('order_id') || searchParams.get('shipment_id');
+    if (q) {
+      const clean = q.trim().toUpperCase();
+      if (/^[A-Z0-9-]+$/.test(clean)) {
+        setInputValue(clean);
+        loadTracking(clean);
+      }
+    }
+  }, [searchParams]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.trim();

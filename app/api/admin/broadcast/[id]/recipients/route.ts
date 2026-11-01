@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { verifyAdminAuth } from '@/utils/adminAuth';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const isAdmin = await verifyAdminAuth(req);
   if (!isAdmin) {
