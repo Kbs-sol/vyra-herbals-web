@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { verifyAdminAuth } from '@/utils/adminAuth';
 import { getAudiencePhones } from '@/services/communications/marketing/audienceFetcher';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 function maskPhone(phone: string) {
   if (phone.length < 10) return phone;
   const first = phone.slice(0, 4);

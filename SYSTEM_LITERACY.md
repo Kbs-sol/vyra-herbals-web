@@ -33,6 +33,10 @@ vyra-herbals-web/
 │   │                             Each has a `layout.tsx` that sets `robots: { index: false }`.
 │   │
 │   ├── admin/                    Admin panel — noindexed globally.
+│   │   ├── business-intelligence/ Revenue trends, AOV, split metrics, conversion graphs.
+│   │   ├── customer-intelligence/ Customer LTV, cohorts, search, WhatsApp audience sync.
+│   │   ├── test-lab/             Safe staging ground to trigger test WhatsApp templates.
+│   │   ├── chats/                Full Live Chats interface (4s polling, takeover mode).
 │   │   ├── whatsapp/             Real-time WhatsApp inbox (this repo's flagship new feature).
 │   │   │   ├── page.tsx          The inbox UI itself.
 │   │   │   └── broadcast/        Bulk template send (the old marketing tool).

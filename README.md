@@ -87,7 +87,11 @@ The admin panel is at `/admin` (guarded by login at `/admin/login`). Highlights:
 | **Media Library** | `/admin/media` | **Bulk image manager — paste URL or upload, reorder, delete, no other product fields touched.** |
 | Orders | `/admin/orders` | Order list + status transitions + shipment sync |
 | Reviews | `/admin/reviews` | Approve / reject customer reviews |
-| WhatsApp Inbox | `/admin/whatsapp` | Live customer conversations, 24-h window enforcement, template-send fallback |
+| WhatsApp Inbox | /admin/whatsapp | Live customer conversations, 24-h window enforcement, template-send fallback |
+| Live Chats | /admin/chats | Full WhatsApp live chat - thread list, 4s polling, instant send, bot takeover |
+| Business Intel | /admin/business-intelligence | Revenue charts, AOV, order splits, lead funnel, 30-day trends |
+| Customer Intel | /admin/customer-intelligence | Customer CRM - LTV, order history, segmentation & behavior search |
+| Test Lab | /admin/test-lab | Safe sandbox to test WhatsApp message templates without real sends |
 | Blogs | `/admin/blogs` | Blog CMS |
 | Categories | `/admin/categories` | Category CRUD |
 | Coupons | `/admin/coupons` | Discount codes |

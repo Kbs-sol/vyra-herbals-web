@@ -50,7 +50,7 @@ export async function runCleanup(): Promise<{
   message_queue_deleted: number;
 }> {
   const [messagesDeleted, eventsDeleted, queueDeleted] = await Promise.all([
-    deleteOldMessages(90),
+    Promise.resolve(0) /* preserve WhatsApp messages indefinitely */,
     deleteOldEvents(30),
     messageQueue.deleteOldFailedPermanent(30),
   ]);

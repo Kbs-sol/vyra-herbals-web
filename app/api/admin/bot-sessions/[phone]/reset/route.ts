@@ -3,6 +3,9 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { whatsappClient } from '@/services/communications/providers/whatsapp/client';
 import { verifyAdminAuth } from '@/utils/adminAuth';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function PATCH(req: Request, { params }: { params: Promise<{ phone: string }> }) {
   const isAdmin = await verifyAdminAuth(req);
   if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

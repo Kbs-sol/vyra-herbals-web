@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { verifyAdminAuth } from '@/utils/adminAuth';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { getAudiencePhones } from '@/services/communications/marketing/audienceFetcher';
@@ -7,6 +7,9 @@ import { whatsappClient } from '@/services/communications/providers/whatsapp/cli
 import { sendQueuedMessage } from '@/services/communications/queue/messageSender';
 import { logger } from '@/services/communications/logging/logger';
 import { tryNormalizePhone } from '@/services/communications/utils/phoneNormalizer';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   const isAdmin = await verifyAdminAuth(req);

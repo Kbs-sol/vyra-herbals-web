@@ -230,7 +230,9 @@ export async function POST(req: NextRequest) {
       direction: 'outbound',
       sender_name: 'Admin',
       message_type: 'text',
-      body: message.trim()
+      body: message.trim(),
+      message_id: result.message_id,
+      status: 'sent'
     });
 
     return NextResponse.json({ success: true, message_id: result.message_id });
