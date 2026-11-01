@@ -21,6 +21,7 @@ interface ChatMessage {
   message_type: string;
   body: string;
   created_at: string;
+  raw_payload?: { status?: string };
 }
 
 export default function WhatsAppLiveChatsPage() {
@@ -356,8 +357,16 @@ export default function WhatsAppLiveChatsPage() {
                             >
                               <span>{isCustomer ? (activeCustomer?.name || 'Customer') : (msg.sender_name || 'Vyra Bot')}</span>
                               <span className="text-muted fw-normal">
-                                {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </span>
+                                {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                {!isCustomer && (
+                                  msg.raw_payload?.status === 'read' ? (
+                                    <span title="Read / Seen" style={{ color: '#0284c7', fontWeight: 'bold', fontSize: '13px', marginLeft: '3px' }}>✓✓</span>
+                                  ) : msg.raw_payload?.status === 'delivered' ? (
+                                    <span title="Delivered" style={{ color: '#64748b', fontWeight: 'bold', fontSize: '13px', marginLeft: '3px' }}>✓✓</span>
+                                  ) : (
+                                    <span title="Sent" style={{ color: '#94a3b8', fontSize: '13px', marginLeft: '3px' }}>✓</span>
+                                  )
+                                )}
                             </div>
                             <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: '#111827' }}>
                               {msg.body}

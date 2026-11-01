@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { whatsappClient } from '@/services/communications/providers/whatsapp/client';
 import { verifyWebhookHandshake } from '@/services/communications/providers/whatsapp/webhookHandler';
 import { updateDeliveryStatusByMessageId } from '@/services/communications/logging/messageLogger';
-import { logChatMessage } from '@/services/communications/bot/chatLogger';
+import { logChatMessage, updateChatMessageStatus } from '@/services/communications/bot/chatLogger';
 import { logger } from '@/services/communications/logging/logger';
 
 // Force dynamic — API routes touch Supabase / cookies; static analysis at build time would try
@@ -64,6 +64,9 @@ export async function POST(req: Request) {
       update.status === 'sent' ? null : (update.status as 'delivered' | 'read' | 'failed');
 
     if (!targetStatus) continue;
+
+    // Update 1-1 chat messages status for the admin inbox UI
+    await updateChatMessageStatus(update.message_id, targetStatus);
 
     const matched = await updateDeliveryStatusByMessageId(
       update.message_id,

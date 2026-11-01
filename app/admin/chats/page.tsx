@@ -21,22 +21,23 @@ interface ChatMessage {
   message_type: string;
   body: string;
   created_at: string;
+  raw_payload?: { status?: string };
 }
 
 export default function WhatsAppLiveChatsPage() {
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [loadingThreads, setLoadingThreads] = useState(true);
   const [search, setSearch] = useState('');
-  
+
   const [activePhone, setActivePhone] = useState<string | null>(null);
   const [activeCustomer, setActiveCustomer] = useState<any>(null);
   const [activeSession, setActiveSession] = useState<any>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
-  
+
   const [inputMessage, setInputMessage] = useState('');
   const [sending, setSending] = useState(false);
-  
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // 1. Fetch conversation threads
@@ -60,8 +61,9 @@ export default function WhatsAppLiveChatsPage() {
 
   useEffect(() => {
     fetchThreads();
-    const interval = setInterval(fetchThreads, 10000); // Polling threads every 10s
+    const interval = setInterval(fetchThreads, 10000); // Poll threads every 10s
     return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 2. Fetch messages for active thread
@@ -88,6 +90,7 @@ export default function WhatsAppLiveChatsPage() {
       const interval = setInterval(() => fetchActiveMessages(activePhone, false), 4000); // Poll active chat every 4s
       return () => clearInterval(interval);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePhone]);
 
   // Scroll to bottom when messages update
@@ -108,15 +111,11 @@ export default function WhatsAppLiveChatsPage() {
       const res = await fetch('/api/admin/whatsapp/chats', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: activePhone,
-          message: textToSend,
-          action: 'send'
-        })
+        body: JSON.stringify({ phone: activePhone, message: textToSend, action: 'send' })
       });
       const data = await res.json();
       if (data.success) {
-        // Immediate local append
+        // Immediate local append for snappy UX
         setMessages(prev => [
           ...prev,
           {
@@ -131,7 +130,7 @@ export default function WhatsAppLiveChatsPage() {
         ]);
       } else {
         alert(data.error || 'Failed to send WhatsApp message');
-        setInputMessage(textToSend); // restore
+        setInputMessage(textToSend); // restore on failure
       }
     } catch (err: any) {
       alert('Error sending message: ' + err.message);
@@ -151,10 +150,7 @@ export default function WhatsAppLiveChatsPage() {
       const res = await fetch('/api/admin/whatsapp/chats', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: activePhone,
-          action: nextAction
-        })
+        body: JSON.stringify({ phone: activePhone, action: nextAction })
       });
       const data = await res.json();
       if (data.success) {
@@ -167,8 +163,8 @@ export default function WhatsAppLiveChatsPage() {
     }
   };
 
-  const filteredThreads = threads.filter(t => 
-    t.phone_number.includes(search) || 
+  const filteredThreads = threads.filter(t =>
+    t.phone_number.includes(search) ||
     (t.customer_name && t.customer_name.toLowerCase().includes(search.toLowerCase()))
   );
 
@@ -197,17 +193,17 @@ export default function WhatsAppLiveChatsPage() {
       <div className="container-fluid py-3" style={{ height: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column' }}>
         <div className="d-flex justify-content-between align-items-center mb-3">
           <div>
-            <h4 className="m-0 fw-bold">WhatsApp Live Chats</h4>
-            <small className="text-muted">Real-time customer conversations & live agent takeover</small>
+            <h4 className="m-0 fw-bold">WhatsApp Live Inbox</h4>
+            <small className="text-muted">Real-time customer conversations &amp; live agent takeover</small>
           </div>
           <Button variant="outline-primary" size="sm" onClick={() => fetchThreads()}>
-            🔄 Refresh Chats
+            🔄 Refresh
           </Button>
         </div>
 
-        {/* --- MAIN CHAT CONTAINER (WHATSAPP WEB STYLE) --- */}
+        {/* MAIN CHAT CONTAINER — WhatsApp Web style */}
         <div className="card shadow-sm border-0 flex-grow-1 overflow-hidden" style={{ display: 'flex', flexDirection: 'row', borderRadius: '12px' }}>
-          
+
           {/* LEFT PANEL: CONVERSATION LIST */}
           <div style={{ width: '360px', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', background: '#fff' }}>
             {/* Search Header */}
@@ -230,7 +226,8 @@ export default function WhatsAppLiveChatsPage() {
                 </div>
               ) : filteredThreads.length === 0 ? (
                 <div className="p-4 text-center text-muted small">
-                  No WhatsApp conversations found yet.
+                  <p className="fw-bold mb-1">No WhatsApp conversations yet</p>
+                  <p className="mb-0">Once the webhook is active and the DB migration is run, customer messages will appear here automatically.</p>
                 </div>
               ) : (
                 filteredThreads.map(thread => {
@@ -261,9 +258,7 @@ export default function WhatsAppLiveChatsPage() {
                         <div className="text-muted text-truncate small" style={{ maxWidth: '190px' }}>
                           {thread.last_message || 'Active conversation'}
                         </div>
-                        <div>
-                          {getStateBadge(thread.state)}
-                        </div>
+                        <div>{getStateBadge(thread.state)}</div>
                       </div>
                     </div>
                   );
@@ -279,15 +274,15 @@ export default function WhatsAppLiveChatsPage() {
                 {/* Chat Top Header */}
                 <div className="p-3 bg-white border-bottom d-flex justify-content-between align-items-center shadow-sm" style={{ zIndex: 5 }}>
                   <div className="d-flex align-items-center gap-3">
-                    <div 
-                      style={{ 
-                        width: '42px', 
-                        height: '42px', 
-                        borderRadius: '50%', 
-                        background: '#075e54', 
-                        color: '#fff', 
-                        display: 'flex', 
-                        alignItems: 'center', 
+                    <div
+                      style={{
+                        width: '42px',
+                        height: '42px',
+                        borderRadius: '50%',
+                        background: '#075e54',
+                        color: '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
                         justifyContent: 'center',
                         fontWeight: 'bold',
                         fontSize: '16px'
@@ -300,14 +295,14 @@ export default function WhatsAppLiveChatsPage() {
                         {activeCustomer?.name && activeCustomer?.name !== 'Customer' ? activeCustomer.name : activePhone}
                       </div>
                       <small className="text-muted">
-                        +{activePhone} • {activeCustomer?.email || 'Guest shopper'}
+                        +{activePhone} &bull; {activeCustomer?.email || 'Guest shopper'}
                       </small>
                     </div>
                   </div>
 
                   <div className="d-flex align-items-center gap-2">
                     {activeSession && getStateBadge(activeSession.state)}
-                    <Button 
+                    <Button
                       variant={activeSession?.state === 'HUMAN_HANDOFF' ? 'success' : 'outline-danger'}
                       size="sm"
                       className="fw-bold"
@@ -319,11 +314,11 @@ export default function WhatsAppLiveChatsPage() {
                 </div>
 
                 {/* Messages Bubbles Area */}
-                <div 
+                <div
                   className="flex-grow-1 overflow-auto p-3 d-flex flex-column gap-2"
-                  style={{ 
+                  style={{
                     backgroundImage: 'radial-gradient(#d1d5db 1px, transparent 1px)',
-                    backgroundSize: '16px 16px' 
+                    backgroundSize: '16px 16px'
                   }}
                 >
                   {loadingMessages ? (
@@ -332,9 +327,9 @@ export default function WhatsAppLiveChatsPage() {
                     </div>
                   ) : messages.length === 0 ? (
                     <div className="m-auto text-center p-4 bg-white rounded shadow-sm" style={{ maxWidth: '380px' }}>
-                      <h6 className="fw-bold mb-1">No past chat logs found for this customer</h6>
+                      <h6 className="fw-bold mb-1">No chat logs yet for this customer</h6>
                       <p className="text-muted small m-0">
-                        Messages sent and received from now on will automatically appear in this thread in real time.
+                        Messages sent and received from now on will appear here in real time.
                       </p>
                     </div>
                   ) : (
@@ -356,11 +351,22 @@ export default function WhatsAppLiveChatsPage() {
                               position: 'relative'
                             }}
                           >
-                            <div className="d-flex justify-content-between align-items-center gap-2 mb-1" style={{ fontSize: '11px', color: isCustomer ? '#075e54' : '#15803d', fontWeight: 600 }}>
+                            <div
+                              className="d-flex justify-content-between align-items-center gap-2 mb-1"
+                              style={{ fontSize: '11px', color: isCustomer ? '#075e54' : '#15803d', fontWeight: 600 }}
+                            >
                               <span>{isCustomer ? (activeCustomer?.name || 'Customer') : (msg.sender_name || 'Vyra Bot')}</span>
                               <span className="text-muted fw-normal">
-                                {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </span>
+                                {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                {!isCustomer && (
+                                  msg.raw_payload?.status === 'read' ? (
+                                    <span title="Read / Seen" style={{ color: '#0284c7', fontWeight: 'bold', fontSize: '13px', marginLeft: '3px' }}>✓✓</span>
+                                  ) : msg.raw_payload?.status === 'delivered' ? (
+                                    <span title="Delivered" style={{ color: '#64748b', fontWeight: 'bold', fontSize: '13px', marginLeft: '3px' }}>✓✓</span>
+                                  ) : (
+                                    <span title="Sent" style={{ color: '#94a3b8', fontSize: '13px', marginLeft: '3px' }}>✓</span>
+                                  )
+                                )}
                             </div>
                             <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: '#111827' }}>
                               {msg.body}
@@ -384,15 +390,15 @@ export default function WhatsAppLiveChatsPage() {
                     <input
                       type="text"
                       className="form-control"
-                      placeholder="Type a message to customer on WhatsApp..."
+                      placeholder="Type a message to send on WhatsApp..."
                       value={inputMessage}
                       onChange={e => setInputMessage(e.target.value)}
                       disabled={sending}
                       style={{ borderRadius: '24px', paddingLeft: '16px' }}
                     />
-                    <Button 
-                      type="submit" 
-                      variant="success" 
+                    <Button
+                      type="submit"
+                      variant="success"
                       disabled={sending || !inputMessage.trim()}
                       style={{ borderRadius: '24px', padding: '0 24px', background: '#075e54', borderColor: '#075e54' }}
                     >
