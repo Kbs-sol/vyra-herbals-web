@@ -52,6 +52,16 @@ const menuItems = [
     ),
   },
   {
+    name: 'Business Intel',
+    href: '/admin/business-intelligence',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
+        <path d="M18 20V10M12 20V4M6 20V14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M3 20H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+  },
+  {
     name: 'Reviews',
     href: '/admin/reviews',
     icon: (
@@ -186,6 +196,16 @@ const menuItems = [
         <path d="M3 7h11v9H3zM14 10h4l3 3v3h-7z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         <circle cx="7" cy="18" r="1.6" stroke="currentColor" strokeWidth="2" />
         <circle cx="17" cy="18" r="1.6" stroke="currentColor" strokeWidth="2" />
+      </svg>
+    ),
+  },
+  {
+    name: 'Test Lab',
+    href: '/admin/test-lab',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
+        <path d="M14 2v6l3 3-7 11-7-11 3-3V2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M8.5 2h7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
     ),
   },
