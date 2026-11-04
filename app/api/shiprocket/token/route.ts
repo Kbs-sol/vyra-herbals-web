@@ -80,7 +80,7 @@ export async function POST(req: Request) {
     });
     if (!session.ok || !session.data) {
       console.error('[shiprocket/token] session failed:', session.status, session.error);
-      return NextResponse.json({ error: 'Shiprocket checkout is unavailable right now.' }, { status: 502 });
+      return NextResponse.json({ error: session.error || 'Shiprocket checkout is unavailable right now.', srStatus: session.status }, { status: 502 });
     }
 
     // Remember who started this checkout so the finished order can be attached
