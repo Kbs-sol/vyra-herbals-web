@@ -43,6 +43,12 @@ declare global {
         cb?: (r: any) => void,
       ) => void;
     };
+    /** Officially documented Custom Website entry-point (preferred over addToCart). */
+    shiprocketCheckoutCustomHandler?: (opts: {
+      token: string;
+      fallbackUrl?: string;
+      callback?: (r: any) => void;
+    }) => void;
   }
 }
 
@@ -134,7 +140,8 @@ const CheckoutEntry: React.FC<Props> = ({ cartItems, product, quantity = 1 }) =>
     };
   }, []);
 
-  // Shiprocket's own "fallbackUrl" lands here (): go straight to the native flow.
+  // Shiprocket's own "fallbackUrl" or Fastrr redirect params land here.
+  // Clean Fastrr params up without triggering native checkout.
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const sp = new URLSearchParams(window.location.search);
@@ -144,6 +151,16 @@ const CheckoutEntry: React.FC<Props> = ({ cartItems, product, quantity = 1 }) =>
       url.searchParams.delete('native');
       window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
       setTimeout(openNative, 150);
+      return;
+    }
+    // Fastrr appends attributes[fastrr_redirect*] via history.pushState when it
+    // initialises. Strip them silently so Next.js router cannot react to the URL change.
+    const fastrrKeys = [...sp.keys()].filter((k) => k.startsWith('attributes['));
+    if (fastrrKeys.length > 0) {
+      const url = new URL(window.location.href);
+      fastrrKeys.forEach((k) => url.searchParams.delete(k));
+      const qs = url.search === '?' ? '' : url.search;
+      window.history.replaceState({}, '', `${url.pathname}${qs}${url.hash}`);
     }
   }, [openNative]);
 
@@ -199,8 +216,39 @@ const CheckoutEntry: React.FC<Props> = ({ cartItems, product, quantity = 1 }) =>
         num_items: lines.reduce((n, l) => n + l.quantity, 0),
       });
 
-      window.HeadlessCheckout!.addToCart(event, json.token, { fallbackUrl }, () => setBusy(false));
-      setTimeout(() => setBusy(false), 4000); // the iframe owns the screen; re-enable if it is closed
+      // Suppress Fastrr's history.pushState so Next.js App Router does not react to
+      // URL changes and unmount this component (which would remove fastrr-main-container).
+      const _origPush = window.history.pushState.bind(window.history);
+      const restorePush = () => { window.history.pushState = _origPush; };
+      const pushRestoreTimer = setTimeout(restorePush, 15000);
+      (window.history as any).pushState = (
+        state: unknown, title: string, url?: string | URL | null,
+      ) => {
+        if (typeof url === 'string' && url.includes('fastrr_redirect')) {
+          // Convert Fastrr's pushState to a silent replaceState with clean URL
+          // so the browser history entry is not created and Next.js is not notified.
+          try {
+            const cleanUrl = new URL(url, window.location.href);
+            ['attributes[fastrr_redirect_uuid]', 'attributes[fastrr_redirect]', 'attributes[fastrr_redirect_time]'].forEach(
+              (k) => cleanUrl.searchParams.delete(k),
+            );
+            window.history.replaceState(state, title, cleanUrl.toString());
+          } catch { /* ignore malformed urls */ }
+          return;
+        }
+        _origPush(state, title, url);
+      };
+
+      const onDone = () => { clearTimeout(pushRestoreTimer); restorePush(); setBusy(false); };
+
+      // Prefer the officially documented Custom Website handler when available;
+      // fall back to HeadlessCheckout.addToCart.
+      if (typeof window.shiprocketCheckoutCustomHandler === 'function') {
+        window.shiprocketCheckoutCustomHandler({ token: json.token, fallbackUrl, callback: onDone });
+      } else {
+        window.HeadlessCheckout!.addToCart(event, json.token, { fallbackUrl }, onDone);
+      }
+      setTimeout(() => setBusy(false), 4000); // re-enable button if drawer closes without calling callback
     } catch (e) {
       console.warn('[checkout] Shiprocket unavailable, using native checkout:', (e as Error).message);
       setBusy(false);
