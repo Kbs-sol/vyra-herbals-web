@@ -31,11 +31,11 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 
 export const DEFAULT_API_BASE = 'https://checkout-api.shiprocket.com';
 export const STAGING_API_BASE = 'https://fastrr-api-dev.pickrr.com';
-export const UI_SCRIPT_URL = 'https://checkout-ui.shiprocket.com/assets/js/channels/shopify.js';
+export const UI_SCRIPT_URL = 'https://checkout-ui.shiprocket.com/assets/js/channels/custom.js';
 export const UI_STYLE_URL = 'https://checkout-ui.shiprocket.com/assets/styles/shopify.css';
 // Shiprocket documents a separate staging UI bundle; loading the production one
 // against staging credentials would fail, so the UI urls follow the API base.
-export const STAGING_UI_SCRIPT_URL = 'https://customcheckoutfastrr.netlify.app/assets/js/channels/shopify.js';
+export const STAGING_UI_SCRIPT_URL = 'https://customcheckoutfastrr.netlify.app/assets/js/channels/custom.js';
 export const STAGING_UI_STYLE_URL = 'https://customcheckoutfastrr.netlify.app/assets/styles/shopify.css';
 
 export type ShiprocketEnvironment = 'production' | 'staging';
