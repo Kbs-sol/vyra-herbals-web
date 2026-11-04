@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
 import { requireAdmin } from '@/utils/adminAuth';
+import { pushProductChange } from '@/utils/shiprocketCatalogSync';
 
 
 // Force dynamic — API routes touch Supabase / cookies; static analysis at build time would try
@@ -109,6 +110,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) throw error;
+    pushProductChange(data);
 
     return NextResponse.json({
       success: true,
@@ -172,6 +174,7 @@ export async function PUT(request: NextRequest) {
       .single();
 
     if (error) throw error;
+    pushProductChange(data);
 
     return NextResponse.json({
       success: true,
@@ -204,12 +207,15 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    const { data: doomed } = await supabase.from('products').select('*').eq('id', id).maybeSingle();
+
     const { error } = await supabase
       .from('products')
       .delete()
       .eq('id', id);
 
     if (error) throw error;
+    if (doomed) pushProductChange(doomed, { archived: true });
 
     return NextResponse.json({
       success: true,

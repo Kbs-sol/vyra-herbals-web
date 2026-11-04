@@ -7,18 +7,12 @@ export async function handleHumanHandoff(from: string, session: WhatsAppSession)
   await whatsappClient.sendRaw({
     messaging_product: 'whatsapp',
     to: from,
-    type: 'interactive',
-    interactive: {
-      type: 'button',
-      header: { type: 'text', text: '💬 Customer Support' },
-      body: {
-        text: `👋 *Connecting you to our team...*\n\nA team member will be with you shortly. Please feel free to type your question here.\n\n_Support hours: 10 AM – 7 PM, Mon–Sat_\n\nIf you'd like to return to shopping at any point, tap below:`
-      },
-      action: {
-        buttons: [
-          { type: 'reply', reply: { id: 'MAIN_MENU', title: '🏠 Back to Menu' } },
-        ]
-      }
+    type: 'text',
+    text: {
+      body: `👋 Connecting you to our team...\n\nA team member will be with you shortly. Please hold on.\n\n_Our support hours: 10 AM – 7 PM, Mon–Sat_`
     }
   });
+
+  // TODO: In production, this should also send an alert to admin (Slack/email/internal notification)
+  // The admin panel shows HUMAN_HANDOFF sessions with a red badge
 }

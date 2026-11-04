@@ -51,6 +51,8 @@ ${entries}</urlset>`;
     headers: {
       'Content-Type': 'application/xml; charset=utf-8',
       'Cache-Control': 's-maxage=900, stale-while-revalidate=3600',
+      // Explicitly override any x-robots-tag: noindex Vercel might emit for dynamic routes.
+      'X-Robots-Tag': 'index, follow',
     },
   });
 }

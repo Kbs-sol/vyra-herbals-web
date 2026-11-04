@@ -9,7 +9,7 @@ export async function handleProductViewer(from: string, productId: number, sessi
     .from('products')
     .select('id, title, price, regular_price, description, benefits, stock_quantity, quantity, status')
     .eq('id', productId)
-    .or('status.eq.1,status.is.null,status.eq.active')
+    .eq('status', 1)
     .maybeSingle();
 
   if (!product) {
@@ -22,8 +22,8 @@ export async function handleProductViewer(from: string, productId: number, sessi
     return;
   }
 
-  // Stock is treated as unlimited per store settings
-  const stockText = '\n\n✅ *In Stock*';
+  const stock = product.stock_quantity ?? product.quantity ?? 0;
+  const isOos = stock < 1;
   
   // Check if already in cart
   const { data: inCart } = await db
@@ -44,6 +44,12 @@ export async function handleProductViewer(from: string, productId: number, sessi
     ? `\n\n✨ *Key Benefits:*\n${product.benefits.substring(0, 200)}${product.benefits.length > 200 ? '...' : ''}`
     : '';
 
+  const stockText = isOos
+    ? '\n\n\u274c *Currently Out of Stock*'
+    : stock <= 5
+      ? `\n\n\u26a0\ufe0f Only ${stock} left in stock!`
+      : '';
+
   const inCartText = inCart ? `\n\n🛒 Already in cart: ${inCart.quantity} unit(s)` : '';
 
   const bodyText = [
@@ -54,11 +60,32 @@ export async function handleProductViewer(from: string, productId: number, sessi
     inCartText,
   ].join('');
 
+  if (isOos) {
+    await whatsappClient.sendRaw({
+      messaging_product: 'whatsapp',
+      to: from,
+      type: 'interactive',
+      interactive: {
+        type: 'button',
+        body: { text: bodyText },
+        action: {
+          buttons: [
+            { type: 'reply', reply: { id: 'VIEW_CATALOG', title: '← Back to Products' } },
+            { type: 'reply', reply: { id: 'MAIN_MENU', title: '🏠 Main Menu' } },
+          ]
+        }
+      }
+    });
+    return;
+  }
+
   const buttons: any[] = [
     { type: 'reply', reply: { id: 'ADD_TO_CART', title: inCart ? '➕ Add More' : '🛒 Add to Cart' } },
-    { type: 'reply', reply: { id: 'CHECKOUT', title: '✔️ Checkout' } },
     { type: 'reply', reply: { id: 'VIEW_CATALOG', title: '← More Products' } },
   ];
+  if (inCart) {
+    buttons.push({ type: 'reply', reply: { id: 'CHECKOUT', title: '✔️ Checkout' } });
+  }
 
   await whatsappClient.sendRaw({
     messaging_product: 'whatsapp',

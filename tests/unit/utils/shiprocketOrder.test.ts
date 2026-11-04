@@ -51,7 +51,7 @@ function fakeSupabase(seed: Record<string, Row[]>) {
   return { db, from: q };
 }
 
-const cfg = { enabled: true, configured: true, apiKey: 'K', apiSecret: 'S', apiBase: 'https://sr.test' };
+const cfg = { enabled: true, configured: true, killed: false, apiKey: 'K', apiSecret: 'S', apiBase: 'https://sr.test' };
 const OID = '686233cd1ff136306c2bf410';
 const srOrder = (over: Row = {}) => ({
   order_id: OID,
@@ -193,5 +193,28 @@ describe('finalizeShiprocketOrder', () => {
     expect(sb.db.cart.length).toBe(1);
     await r.sideEffects();
     expect(sb.db.cart.length).toBe(0);
+  });
+
+  it('a Buy Now (scope=direct) must NOT wipe the buyer\'s saved cart', async () => {
+    const sb = fakeSupabase({ ...seed(), order_sessions: [{ txn_id: `SR-${OID}`, payload: { source: 'shiprocket', userId: 'user-1', scope: 'direct' } }] });
+    const r: any = await finalizeShiprocketOrder(sb, cfg, OID, fetchReturning(srOrder()));
+    expect(r.scope).toBe('direct');
+    await r.sideEffects();
+    expect(sb.db.cart.length).toBe(1);
+    expect(sb.db.orders.length).toBe(1);
+  });
+
+  it('a cart checkout (default scope) still clears the cart and reports scope=cart', async () => {
+    const sb = fakeSupabase(seed());
+    const r: any = await finalizeShiprocketOrder(sb, cfg, OID, fetchReturning(srOrder()));
+    expect(r.scope).toBe('cart');
+  });
+
+  it('a repeat delivery of a direct-buy order still reports scope=direct (so the return page keeps the cart)', async () => {
+    const sb = fakeSupabase({ ...seed(), order_sessions: [{ txn_id: `SR-${OID}`, payload: { userId: 'user-1', scope: 'direct' } }] });
+    await finalizeShiprocketOrder(sb, cfg, OID, fetchReturning(srOrder()));
+    const again: any = await finalizeShiprocketOrder(sb, cfg, OID, fetchReturning(srOrder()));
+    expect(again.alreadyExisted).toBe(true);
+    expect(again.scope).toBe('direct');
   });
 });

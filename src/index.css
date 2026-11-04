@@ -101,6 +101,16 @@ button:focus-visible {
   padding: 0 !important;
 }
 
+.baner_sects {
+  min-height: 750px;
+}
+
+@media (max-width: 768px) {
+  .baner_sects {
+    min-height: 250px;
+  }
+}
+
 .left_icon {
   position: absolute;
   z-index: 9;

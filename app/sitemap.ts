@@ -44,7 +44,6 @@ const STATIC_ROUTES: Route[] = [
   { url: `${SITE_URL}/concern/scalp-care`, changeFrequency: 'weekly', priority: 0.9, lastModified: new Date() },
   // Contact / About are trust anchors — Google's E-E-A-T evaluators check them
   // explicitly for health-and-beauty. Higher priority than the /faqs page.
-  { url: `${SITE_URL}/shop`, changeFrequency: 'daily', priority: 0.9, lastModified: new Date() },
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -94,3 +93,4 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return routes;
 }
+

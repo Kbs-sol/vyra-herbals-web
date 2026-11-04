@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
 import { requireAdmin } from '@/utils/adminAuth';
+import { pushCategoryChange } from '@/utils/shiprocketCatalogSync';
 
 
 // Force dynamic — API routes touch Supabase / cookies; static analysis at build time would try
@@ -104,6 +105,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) throw error;
+    pushCategoryChange(data);
 
     return NextResponse.json({
       success: true,
@@ -144,6 +146,7 @@ export async function PUT(request: NextRequest) {
       .single();
 
     if (error) throw error;
+    pushCategoryChange(data);
 
     return NextResponse.json({
       success: true,

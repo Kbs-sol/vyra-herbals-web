@@ -225,6 +225,9 @@ ${items}
     headers: {
       'Content-Type': 'application/xml; charset=utf-8',
       'Cache-Control': 's-maxage=900, stale-while-revalidate=3600',
+      // Explicitly allow indexing — Next.js/Vercel can emit x-robots-tag: noindex
+      // for dynamic routes; override so Googlebot/Merchant Center can read this feed.
+      'X-Robots-Tag': 'index, follow',
     },
   });
 }

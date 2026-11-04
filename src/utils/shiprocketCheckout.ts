@@ -27,11 +27,28 @@
  *
  * This file only depends on node:crypto so it is unit-testable in isolation.
  */
-import { createHmac } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 
 export const DEFAULT_API_BASE = 'https://checkout-api.shiprocket.com';
+export const STAGING_API_BASE = 'https://fastrr-api-dev.pickrr.com';
 export const UI_SCRIPT_URL = 'https://checkout-ui.shiprocket.com/assets/js/channels/shopify.js';
 export const UI_STYLE_URL = 'https://checkout-ui.shiprocket.com/assets/styles/shopify.css';
+// Shiprocket documents a separate staging UI bundle; loading the production one
+// against staging credentials would fail, so the UI urls follow the API base.
+export const STAGING_UI_SCRIPT_URL = 'https://customcheckoutfastrr.netlify.app/assets/js/channels/shopify.js';
+export const STAGING_UI_STYLE_URL = 'https://customcheckoutfastrr.netlify.app/assets/styles/shopify.css';
+
+export type ShiprocketEnvironment = 'production' | 'staging';
+
+export const environmentForBase = (apiBase: string): ShiprocketEnvironment =>
+  apiBase.replace(/\/$/, '') === STAGING_API_BASE ? 'staging' : 'production';
+
+export function uiUrlsFor(apiBase: string): { env: ShiprocketEnvironment; scriptUrl: string; styleUrl: string } {
+  const env = environmentForBase(apiBase);
+  return env === 'staging'
+    ? { env, scriptUrl: STAGING_UI_SCRIPT_URL, styleUrl: STAGING_UI_STYLE_URL }
+    : { env, scriptUrl: UI_SCRIPT_URL, styleUrl: UI_STYLE_URL };
+}
 
 /**
  * Shiprocket requires products[].id and products[].variants[].id to be unique
@@ -52,23 +69,76 @@ export const productIdForVariant = (variantId: number | string): number | null =
 };
 
 export interface ShiprocketConfig {
-  /** Feature flag AND credentials present. */
+  /** Credentials present AND not switched off by the env kill switch. This is what makes Shiprocket the default. */
   enabled: boolean;
-  /** Credentials present (server side), regardless of the UI flag. */
+  /** Credentials present (server side). */
   configured: boolean;
+  /** Owner switched Shiprocket off via env (SHIPROCKET_CHECKOUT_ENABLED=false). */
+  killed: boolean;
   apiKey: string;
   apiSecret: string;
   apiBase: string;
+  /** Where the key/secret came from. Set by shiprocketSettings.mergeConfig; absent for plain env reads. */
+  source?: 'admin' | 'env' | 'none';
+  /** Optional shared secret Shiprocket must send in the `x-webhook-token` header. Empty = webhook not token-protected. */
+  webhookToken?: string;
 }
 
-/** Read lazily so a missing var never breaks unrelated routes at build time. */
+const OFF_VALUES = new Set(['false', '0', 'off', 'no', 'disabled']);
+
+/** True when a flag value explicitly says "off". Unset / blank / anything else is NOT off. */
+export const isOffValue = (v: unknown): boolean => OFF_VALUES.has(String(v ?? '').trim().toLowerCase());
+
+/**
+ * Read lazily so a missing var never breaks unrelated routes at build time.
+ *
+ * Default behaviour: once the API key + secret are present Shiprocket is the
+ * primary checkout. There is no "turn it on" flag to forget. To switch it off
+ * without removing keys set SHIPROCKET_CHECKOUT_ENABLED=false (the older
+ * NEXT_PUBLIC_SHIPROCKET_CHECKOUT_ENABLED=false is honoured too). A second,
+ * no-redeploy kill switch lives in the site_settings table (see shiprocketRuntime).
+ */
 export function getShiprocketConfig(env: Record<string, string | undefined> = process.env): ShiprocketConfig {
   const apiKey = (env.SHIPROCKET_CHECKOUT_API_KEY || '').trim();
   const apiSecret = (env.SHIPROCKET_CHECKOUT_API_SECRET || '').trim();
   const apiBase = (env.SHIPROCKET_CHECKOUT_API_BASE || DEFAULT_API_BASE).trim().replace(/\/$/, '');
-  const flag = (env.NEXT_PUBLIC_SHIPROCKET_CHECKOUT_ENABLED || '').trim().toLowerCase() === 'true';
+  const killed = isOffValue(env.SHIPROCKET_CHECKOUT_ENABLED) || isOffValue(env.NEXT_PUBLIC_SHIPROCKET_CHECKOUT_ENABLED);
   const configured = !!apiKey && !!apiSecret;
-  return { enabled: flag && configured, configured, apiKey, apiSecret, apiBase };
+  return { enabled: configured && !killed, configured, killed, apiKey, apiSecret, apiBase };
+}
+
+/**
+ * Constant-time check of the optional webhook shared secret. When no secret is
+ * configured every request passes (backwards compatible); the admin page warns
+ * that the webhook is then unprotected.
+ */
+export function verifyWebhookToken(provided: string | null | undefined, expected: string | null | undefined): boolean {
+  const want = String(expected ?? '');
+  if (!want) return true;
+  const got = String(provided ?? '');
+  const a = createHmac('sha256', 'wh').update(got).digest();
+  const b = createHmac('sha256', 'wh').update(want).digest();
+  return timingSafeEqual(a, b) && got.length > 0;
+}
+
+/**
+ * Turn a raw Shiprocket failure into an instruction a shop owner can act on.
+ * Used by the admin connection test. Never includes secrets.
+ */
+export function explainShiprocketError(status: number | undefined, message: string | undefined): string {
+  const m = String(message || '');
+  if (status === undefined && !/not authori|unauthori|invalid/i.test(m)) {
+    return /timed out/i.test(m)
+      ? 'Shiprocket did not answer in time. Try again in a minute; if it keeps happening check status with Shiprocket support.'
+      : 'Could not reach Shiprocket from the server. Check the API base URL (live: https://checkout-api.shiprocket.com) and try again.';
+  }
+  if (status === 401 || status === 403 || status === 511 || /not authori[sz]ed|unauthori[sz]ed|invalid.*(key|token|signature|hmac)|hmac/i.test(m)) {
+    return 'Shiprocket rejected the API key / secret pair. Re-copy BOTH values from the checkout dashboard (Settings > Platform > Custom-Built > API Key) with no spaces, make sure the secret is not cut short, and that live keys are used with the live environment (staging keys only with staging). If the dashboard itself will not generate keys ("client token is not authorized"), the account is not activated for the Custom platform yet: see "If key generation fails" in docs/SHIPROCKET_SETUP_GUIDE.md and contact Shiprocket support.';
+  }
+  if (status === 404) return 'Shiprocket answered 404: the API base URL is probably wrong for this environment.';
+  if (status === 429) return 'Shiprocket is rate limiting this server. Wait a few minutes and re-test.';
+  if (status && status >= 500) return 'Shiprocket reported a server error. This is on their side: retry later.';
+  return m ? `Shiprocket said: ${m}` : 'Shiprocket returned an unexpected response.';
 }
 
 // ---------------------------------------------------------------------------
@@ -97,8 +167,10 @@ export async function srPost<T = any>(
   payload: Record<string, unknown>,
   fetchImpl: typeof fetch = fetch,
   timeoutMs = 8000,
+  opts: { addTimestamp?: boolean } = {},
 ): Promise<SrCallResult<T>> {
-  const body = JSON.stringify({ ...payload, timestamp: new Date().toISOString() });
+  const addTimestamp = opts.addTimestamp !== false;
+  const body = JSON.stringify(addTimestamp ? { ...payload, timestamp: new Date().toISOString() } : payload);
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
@@ -206,6 +278,27 @@ export async function fetchOrderList(
   );
   if (!r.ok) return r;
   return { ok: true, status: r.status, data: r.data?.result };
+}
+
+/**
+ * Catalogue push webhooks (our site -> Shiprocket). Shiprocket also PULLS our
+ * catalogue, so these only keep its cache fresh after a price / stock change.
+ * The body is the bare product / collection object (no extra fields).
+ */
+export async function pushProductWebhook(
+  cfg: ShiprocketConfig,
+  product: Record<string, unknown>,
+  fetchImpl: typeof fetch = fetch,
+): Promise<SrCallResult> {
+  return srPost(cfg, '/wh/v1/custom/product', product, fetchImpl, 6000, { addTimestamp: false });
+}
+
+export async function pushCollectionWebhook(
+  cfg: ShiprocketConfig,
+  collection: Record<string, unknown>,
+  fetchImpl: typeof fetch = fetch,
+): Promise<SrCallResult> {
+  return srPost(cfg, '/wh/v1/custom/collection', collection, fetchImpl, 6000, { addTimestamp: false });
 }
 
 // ---------------------------------------------------------------------------
