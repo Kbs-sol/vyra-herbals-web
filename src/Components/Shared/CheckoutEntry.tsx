@@ -149,6 +149,7 @@ const CheckoutEntry: React.FC<Props> = ({ cartItems, product, quantity = 1 }) =>
       setForceNative(true);
       const url = new URL(window.location.href);
       url.searchParams.delete('native');
+      [...url.searchParams.keys()].filter((k) => k.startsWith('attributes[')).forEach((k) => url.searchParams.delete(k));
       window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
       setTimeout(openNative, 150);
       return;
@@ -171,7 +172,9 @@ const CheckoutEntry: React.FC<Props> = ({ cartItems, product, quantity = 1 }) =>
   const onShiprocketClick = async (event: React.MouseEvent) => {
     if (busy || !lines.length) return;
     setBusy(true);
-    const fallbackUrl = `${window.location.origin}${window.location.pathname}`;
+    // If Shiprocket cannot start (its servers error, or the buyer taps "Click here to continue"),
+    // custom.js sends the buyer to this URL. ?native=1 makes that land straight in the native checkout.
+    const fallbackUrl = `${window.location.origin}${window.location.pathname}?native=1`;
     try {
       await loadShiprocket(status!.scriptUrl!, status!.styleUrl);
 
@@ -247,7 +250,45 @@ const CheckoutEntry: React.FC<Props> = ({ cartItems, product, quantity = 1 }) =>
         _origPush(state, title, url);
       };
 
-      const onDone = () => { clearTimeout(pushRestoreTimer); restorePush(); setBusy(false); };
+      // Failure guard. When Shiprocket's servers cannot load the session, the iframe posts
+      // {trigger:'headless-redirect', actions:[{action:'redirectTo', data:{url: <fallbackUrl>?attributes[fastrr_redirect]=1..}}]}
+      // and custom.js answers with window.location.href = url: a full page reload that drops the buyer on the
+      // product page with no checkout. Intercept ONLY that fallback redirect (the success redirect to
+      // /shiprocket/return has no fastrr_redirect marker), close the drawer in place and open native checkout.
+      let guardTimer: ReturnType<typeof setTimeout> | undefined;
+      const onFailureMessage = (ev: MessageEvent) => {
+        try {
+          if (!/(^|\.)(pickrr\.com|shiprocket\.(com|in))$/i.test(new URL(ev.origin).hostname)) return;
+          const d: any = typeof ev.data === 'string' ? JSON.parse(ev.data) : ev.data;
+          if (d?.trigger !== 'headless-redirect' || !Array.isArray(d.actions)) return;
+          const act = d.actions.find((a: any) => a?.action === 'redirectTo');
+          const target = act?.data?.url;
+          if (typeof target !== 'string' || !target.includes('fastrr_redirect')) return;
+          ev.stopImmediatePropagation();
+          console.warn('[checkout] Shiprocket could not start; opening native checkout');
+          closeFastrrDrawer();
+          onDone();
+          toast.info('Opening standard checkout...', { position: 'bottom-center', autoClose: 1500 });
+          openNative();
+        } catch { /* never let the guard itself break checkout */ }
+      };
+      const closeFastrrDrawer = () => {
+        ['headless-container', 'fastrr-main-container', 'fastrr-pre-loader'].forEach((id) =>
+          document.getElementById(id)?.remove(),
+        );
+        document.body.style.overflow = 'auto';
+        document.querySelectorAll('.sr-headless-checkout').forEach((e) => e.removeAttribute('disabled'));
+      };
+      const onDone = () => {
+        clearTimeout(pushRestoreTimer);
+        if (guardTimer) clearTimeout(guardTimer);
+        window.removeEventListener('message', onFailureMessage, true);
+        restorePush();
+        setBusy(false);
+      };
+      // capture phase on window runs before custom.js's bubble-phase listener
+      window.addEventListener('message', onFailureMessage, true);
+      guardTimer = setTimeout(() => window.removeEventListener('message', onFailureMessage, true), 10 * 60 * 1000);
 
       // Prefer the officially documented Custom Website handler when available;
       // fall back to HeadlessCheckout.addToCart.

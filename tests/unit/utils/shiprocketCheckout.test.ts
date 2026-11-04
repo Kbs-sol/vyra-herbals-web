@@ -93,8 +93,8 @@ describe('staging vs production UI bundle', () => {
   it('uses the documented staging UI only with the staging API base', () => {
     expect(environmentForBase(STAGING_API_BASE)).toBe('staging');
     expect(environmentForBase('https://checkout-api.shiprocket.com')).toBe('production');
-    expect(uiUrlsFor(STAGING_API_BASE).scriptUrl).toBe('https://customcheckoutfastrr.netlify.app/assets/js/channels/shopify.js');
-    expect(uiUrlsFor('https://checkout-api.shiprocket.com').scriptUrl).toBe('https://checkout-ui.shiprocket.com/assets/js/channels/shopify.js');
+    expect(uiUrlsFor(STAGING_API_BASE).scriptUrl).toBe('https://customcheckoutfastrr.netlify.app/assets/js/channels/custom.js');
+    expect(uiUrlsFor('https://checkout-api.shiprocket.com').scriptUrl).toBe('https://checkout-ui.shiprocket.com/assets/js/channels/custom.js');
     expect(uiUrlsFor('https://checkout-api.shiprocket.com').styleUrl).toBe('https://checkout-ui.shiprocket.com/assets/styles/shopify.css');
   });
 });
