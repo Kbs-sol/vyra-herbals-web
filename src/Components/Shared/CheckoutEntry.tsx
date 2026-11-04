@@ -216,6 +216,14 @@ const CheckoutEntry: React.FC<Props> = ({ cartItems, product, quantity = 1 }) =>
         num_items: lines.reduce((n, l) => n + l.quantity, 0),
       });
 
+      // Tell Shiprocket's custom.js the full cart so it encodes the right items in
+      // the iframe URL hash (#cart=...). The button data-attributes only carry the first
+      // line; the global is used for multi-item carts.
+      (window as any).__fastrr_cart = lines.map((l) => ({
+        variant_id: String(l.id + 9000000000),
+        quantity: l.quantity,
+      }));
+
       // Suppress Fastrr's history.pushState so Next.js App Router does not react to
       // URL changes and unmount this component (which would remove fastrr-main-container).
       const _origPush = window.history.pushState.bind(window.history);
@@ -277,6 +285,8 @@ const CheckoutEntry: React.FC<Props> = ({ cartItems, product, quantity = 1 }) =>
             onClick={onShiprocketClick}
             disabled={busy || !lines.length}
             aria-label="Secure checkout: UPI, cards, wallets and cash on delivery"
+            data-variant-id={lines.length > 0 ? String(lines[0].id + 9000000000) : undefined}
+            data-quantity={lines.length > 0 ? String(lines[0].quantity) : undefined}
           >
             {busy ? 'Opening secure checkout...' : isCart ? 'Proceed to Checkout' : 'Buy Now'}
           </button>
