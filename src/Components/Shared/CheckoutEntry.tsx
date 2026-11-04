@@ -134,7 +134,7 @@ const CheckoutEntry: React.FC<Props> = ({ cartItems, product, quantity = 1 }) =>
     };
   }, []);
 
-  // Shiprocket's own "fallbackUrl" lands here (?native=1): go straight to the native flow.
+  // Shiprocket's own "fallbackUrl" lands here (): go straight to the native flow.
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const sp = new URLSearchParams(window.location.search);
@@ -154,7 +154,7 @@ const CheckoutEntry: React.FC<Props> = ({ cartItems, product, quantity = 1 }) =>
   const onShiprocketClick = async (event: React.MouseEvent) => {
     if (busy || !lines.length) return;
     setBusy(true);
-    const fallbackUrl = `${window.location.origin}${window.location.pathname}?native=1`;
+    const fallbackUrl = `${window.location.origin}${window.location.pathname}`;
     try {
       await loadShiprocket(status!.scriptUrl!, status!.styleUrl);
 
