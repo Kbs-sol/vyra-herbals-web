@@ -50,7 +50,7 @@ export interface AdminSettings {
   buyNow: boolean;
 }
 
-export const DEFAULT_ADMIN_SETTINGS: AdminSettings = { enabled: true, cart: true, buyNow: true };
+export const DEFAULT_ADMIN_SETTINGS: AdminSettings = { enabled: false, cart: true, buyNow: true };
 
 /** Parse the stored JSON value; anything not explicitly `false` stays on. */
 export function parseAdminSettings(v: any): AdminSettings {
