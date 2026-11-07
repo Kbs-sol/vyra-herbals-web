@@ -6,27 +6,16 @@ import { usePathname } from "next/navigation";
 import Utility from "../utils/UtilityFunctions";
 import ErrorBoundary from "../Components/ErrorBoundary";
 
-// Import all components directly for faster hydration (no dynamic imports)
-import Banner from "../Components/Home/Banner";
-import Category from "../Components/Home/Category";
-import ConcernDiscoveryTray from "../Components/Home/ConcernDiscoveryTray";
-import OurProducts from "../Components/Home/OurProducts";
-import Stories from "../Components/Reviews/Stories";
-import Testimonial from "../Components/Reviews/Testimonial";
-import ShipingImage from "../Components/Home/ShipingImage";
-import OurPromise from "../Components/Home/OurPromise";
-import Features from "../Components/Home/Features";
-import Founder from "../Components/Home/Founder";
-import Follow from "../Components/Home/Follow";
-import Certificate from "../Components/Home/Certificate";
-import BestSeller from "../Components/Home/BestSeller";
-import Video from "../Components/Home/Video";
-import OurJourney from "../Components/Home/OurJourney";
-import StickyHairConcern from "../Components/Home/StickyHairConcern";
-import BlogSection from "../Components/Home/BlogSection";
-
-import AllTestimonials from "../Components/Reviews/AllTestimonials";
-import MarketplaceAvailable from "../Components/Common/MarketplaceAvailable";
+// Redesigned homepage sections (see src/Components/Home/redesign)
+import TrustTicker from "../Components/Home/redesign/TrustTicker";
+import EditorialHero from "../Components/Home/redesign/EditorialHero";
+import ConcernRoutineBuilder from "../Components/Home/redesign/ConcernRoutineBuilder";
+import ShopByCategory from "../Components/Home/redesign/ShopByCategory";
+import BestSellersSelector from "../Components/Home/redesign/BestSellersSelector";
+import CertificationBadges from "../Components/Home/redesign/CertificationBadges";
+import TransformationStories from "../Components/Home/redesign/TransformationStories";
+import HerbalPhilosophy from "../Components/Home/redesign/HerbalPhilosophy";
+import HomeFAQ from "../Components/Home/redesign/HomeFAQ";
 
 // Smooth fade-out loader
 const PageLoader = ({ isVisible }: { isVisible: boolean }) => (
@@ -68,85 +57,25 @@ const Home = () => {
     <>
       <PageLoader isVisible={isLoading} />
       <main id="main-content">
-        <ErrorBoundary>
-          <Banner />
-          <ErrorBoundary>
-            <ConcernDiscoveryTray />
-          </ErrorBoundary>
-          <ErrorBoundary>
-            <Category />
-          </ErrorBoundary>
-          
-  
-          
-          
-          <ErrorBoundary>
-            <StickyHairConcern />
-          </ErrorBoundary>
-  
-  
-  
-          <ErrorBoundary>
-            <OurProducts />
-          </ErrorBoundary>
-  
-  
-          <ErrorBoundary>
-            <section id="customerStoriesSection">
-              <Stories />
-            </section>
-          </ErrorBoundary>
-  
-          <ErrorBoundary>
-            <ShipingImage />
-          </ErrorBoundary>
-  
-          <ErrorBoundary>
-            <section id="bestSellers">
-              <BestSeller />
-            </section>
-          </ErrorBoundary>
-          <ErrorBoundary>
-            <Video />
-          </ErrorBoundary>
-          <ErrorBoundary>
-            <Certificate />
-          </ErrorBoundary>
-          <ErrorBoundary>
-            <OurPromise />
-          </ErrorBoundary>
-          <ErrorBoundary>
-            <Founder />
-          </ErrorBoundary>
-          <ErrorBoundary>
-            <OurJourney />
-          </ErrorBoundary>
-          
-          <ErrorBoundary>
-            <section id="customerTestimonials">
-              <Testimonial />
-            </section>
-          </ErrorBoundary>
-  
-          
-          <ErrorBoundary>
-            <AllTestimonials isHomePage={true} />
-          </ErrorBoundary>
-          
-          <ErrorBoundary>
-            <Follow />
-          </ErrorBoundary>
-          <ErrorBoundary>
-            <MarketplaceAvailable />
-          </ErrorBoundary>
-          <ErrorBoundary>
-            <BlogSection />
-          </ErrorBoundary>
-          <ErrorBoundary>
-            <Features />
-          </ErrorBoundary>
-  
-        </ErrorBoundary>
+        {/* 1. Trust ticker */}
+        <ErrorBoundary><TrustTicker /></ErrorBoundary>
+        {/* 2. Editorial hero */}
+        <ErrorBoundary><EditorialHero /></ErrorBoundary>
+        {/* 3. Concern and routine builder (Steps A to D) */}
+        <ErrorBoundary><ConcernRoutineBuilder /></ErrorBoundary>
+        {/* 4. Shop by category */}
+        <ErrorBoundary><ShopByCategory /></ErrorBoundary>
+        {/* 5. Best sellers with size chips (anchor: /#bestSellers) */}
+        <ErrorBoundary><BestSellersSelector /></ErrorBoundary>
+        {/* 6. Certifications */}
+        <ErrorBoundary><CertificationBadges /></ErrorBoundary>
+        {/* 7. Transformation stories (anchors: /#customerStoriesSection, /#customerTestimonials) */}
+        <span id="customerTestimonials" aria-hidden="true" />
+        <ErrorBoundary><TransformationStories /></ErrorBoundary>
+        {/* 8. Hand-made herbal philosophy */}
+        <ErrorBoundary><HerbalPhilosophy /></ErrorBoundary>
+        {/* 9. FAQ (footer is rendered by ConditionalLayout) */}
+        <ErrorBoundary><HomeFAQ /></ErrorBoundary>
       </main>
     </>
   );

@@ -332,8 +332,8 @@ const Header = () => {
               <div className="header-top-welcome text-center">
                 <Slider {...settings}>
                   <p>Welcome to Vyra Herbals: Truth in Every Drop!</p>
-                  <p>FREE Shipping Available on All Products</p>
-                  <p>ISO 9001 : 2015 & GMP Certified</p>
+                  <p>Free Pan-India Delivery on All Products</p>
+                  <p>ISO 9001:2015 & GMP Certified</p>
                   {/* <p>Use coupon code: VYRABIRTHDAY - to get flat Rs.100/- off.</p> */}
                 </Slider>
               </div>

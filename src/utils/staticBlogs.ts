@@ -42,7 +42,7 @@ Here is the truth: stopping persistent hair fall requires **follicular nourishme
 | **Active Herbs** | Trace extracts or synthetic fragrances | 9 Whole Raw Botanicals slow-infused in fresh batches |
 | **Chemical Additives** | Parabens, silicones, artificial preservatives | **Zero Chemicals, Sulphates, or Preservatives** |
 | **Follicle Penetration** | Surface coating; leads to buildup | Deep dermal absorption into the hair bulb |
-| **Crafting Method** | Mass-manufactured industrial vats | **Handmade, small-batch herbal brewing** |
+| **Crafting Method** | Mass-manufactured industrial vats | **Hand-made herbal formulations with cold-infused whole herbs** |
 
 ---
 
@@ -129,8 +129,8 @@ Yes! Leaving the oil overnight gives your roots maximum time to absorb the infus
 
 Experience fresh, chemical-free herbal care crafted with whole-plant botanicals.
 
-- **[👉 Shop Vyra 100% Natural Herbal Hair Oil (100ml / 200ml) — Starting at ₹299](/product/vyra-100-natural-handmade-hair-oil-100ml)**
-- **[👉 Get the Complete Hair Fall Control Combo (Oil + Shampoo) — Special ₹529 Offer](/product/VYRA-100-OIL-200-SHAMPOO-COMBO)**
+- **[Shop Vyra 100% Natural Herbal Hair Oil (100ml / 200ml) — Starting at ₹299](/product/vyra-100-natural-handmade-hair-oil-100ml)**
+- **[Get the Complete Hair Fall Control Combo (Oil + Shampoo) — Special ₹529 Offer](/product/VYRA-100-OIL-200-SHAMPOO-COMBO)**
 
 *Free Delivery Across India • Cash on Delivery (COD) Available • ISO 9001:2015 & GMP Certified*
 `

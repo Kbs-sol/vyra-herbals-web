@@ -154,7 +154,7 @@ const TrackOrder = () => {
                 {MILESTONES.map((m, i) => (
                   <div key={m.label} className={`milestone ${i <= milestoneIndex ? 'done' : ''} ${i === milestoneIndex ? 'current' : ''}`}>
                     <div className="milestone-dot">
-                      {i < milestoneIndex && <span className="check">✓</span>}
+                      {i < milestoneIndex && <span className="check" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>}
                       {i === milestoneIndex && <span className="dot-inner" />}
                     </div>
                     {i < MILESTONES.length - 1 && <div className={`milestone-line ${i < milestoneIndex ? 'done' : ''}`} />}

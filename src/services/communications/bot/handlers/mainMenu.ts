@@ -55,7 +55,7 @@ export async function handleMainMenu(from: string, session: WhatsAppSession) {
       type: 'list',
       header: { type: 'text', text: '🌿 Vyra Herbals' },
       body: { text: `Welcome! What are you looking for today?${cartText}` },
-      footer: { text: 'Natural • Ayurvedic • Trusted' },
+      footer: { text: 'Natural • Herbal • Trusted' },
       action: {
         button: 'Explore ↓',
         sections

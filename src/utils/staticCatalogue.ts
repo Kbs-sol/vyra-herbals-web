@@ -153,7 +153,7 @@ export const STATIC_PRODUCTS: StaticProduct[] = [
     "status": null,
     "brand": null,
     "sku": "VYRA-OIL-500 ",
-    "description": "Premium herbal hair oil crafted with ancient Ayurvedic formulations. This 500ml family-size bottle offers the best value with a powerful blend of natural herbs including Bhringraj, Amla, Brahmi, and Coconut Oil to nourish your scalp, strengthen hair roots, and promote healthy hair growth. Ideal for families and long-term use."
+    "description": "Premium herbal hair oil made with 100% natural botanicals. This 500ml family-size bottle offers the best value with a powerful blend of natural herbs including Bhringraj, Amla, Brahmi, and Coconut Oil to nourish your scalp, strengthen hair roots, and promote healthy hair growth. Ideal for families and long-term use."
   },
   {
     "id": 11,
@@ -192,7 +192,7 @@ export const STATIC_PRODUCTS: StaticProduct[] = [
     "status": null,
     "brand": null,
     "sku": "VYRA-MASK-POWDER",
-    "description": "Traditional Ayurvedic hair mask powder blend containing Amla, Shikakai, Bhringraj, Hibiscus, and Methi. Mix with water, curd, or egg to create a nourishing hair mask that deep conditions hair, reduces hair fall, promotes growth, and adds natural shine. 100% natural with no chemicals or preservatives."
+    "description": "Herbal hair mask powder blend containing Amla, Shikakai, Bhringraj, Hibiscus, and Methi. Mix with water, curd, or egg to create a nourishing hair mask that deep conditions hair, reduces hair fall, promotes growth, and adds natural shine. 100% natural with no chemicals or preservatives."
   },
   {
     "id": 22,
@@ -309,7 +309,7 @@ export const STATIC_PRODUCTS: StaticProduct[] = [
     "status": null,
     "brand": null,
     "sku": "VYRA-HALF-COMB",
-    "description": "Handcrafted neem wood half comb with wide teeth for gentle detangling. Neem has natural antibacterial and antifungal properties that help maintain scalp health. The smooth polished teeth glide through hair without causing breakage or static. Compact size perfect for travel and everyday use."
+    "description": "Hand-made neem wood half comb with wide teeth for gentle detangling. Neem has natural antibacterial and antifungal properties that help maintain scalp health. The smooth polished teeth glide through hair without causing breakage or static. Compact size perfect for travel and everyday use."
   },
   {
     "id": 7,
@@ -322,7 +322,7 @@ export const STATIC_PRODUCTS: StaticProduct[] = [
     "status": null,
     "brand": null,
     "sku": "VYRA-FULL-COMB",
-    "description": "Premium handcrafted neem wood full-size comb with both wide and fine teeth. Neem has natural antibacterial and antifungal properties that help maintain scalp health. Features dual-teeth design - wide teeth for detangling and fine teeth for styling. The smooth polished surface prevents hair breakage and eliminates static."
+    "description": "Premium hand-made neem wood full-size comb with both wide and fine teeth. Neem has natural antibacterial and antifungal properties that help maintain scalp health. Features dual-teeth design - wide teeth for detangling and fine teeth for styling. The smooth polished surface prevents hair breakage and eliminates static."
   },
   {
     "id": 14,
@@ -335,7 +335,7 @@ export const STATIC_PRODUCTS: StaticProduct[] = [
     "status": null,
     "brand": null,
     "sku": "VYRA-COMBS-PACK-2",
-    "description": "Combo pack containing 1 Neem Half Comb and 1 Neem Full Comb. Get the best of both worlds - compact half comb for travel and full-size comb for home use. Handcrafted neem wood with natural antibacterial properties for healthy scalp."
+    "description": "Combo pack containing 1 Neem Half Comb and 1 Neem Full Comb. Get the best of both worlds - compact half comb for travel and full-size comb for home use. Hand-made neem wood with natural antibacterial properties for healthy scalp."
   },
   {
     "id": 10,
