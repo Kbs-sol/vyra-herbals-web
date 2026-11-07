@@ -76,9 +76,17 @@ body {
 }
 
 .header-logo img {
-  height: 38px;
-  width: auto;
+  height: 52px !important;
+  max-height: 52px !important;
+  width: auto !important;
   object-fit: contain;
+}
+
+@media (max-width: 768px) {
+  .header-logo img {
+    height: 44px !important;
+    max-height: 44px !important;
+  }
 }
 
 .navbar-list .navbar-item .navbar-link {
@@ -109,20 +117,37 @@ body {
 }
 
 .login-btn {
-  background: var(--vyra-black) !important;
+  background: #14281d !important;
   color: #ffffff !important;
-  font-size: 0.76rem !important;
+  font-size: 0.78rem !important;
   font-weight: 700 !important;
-  letter-spacing: 0.12em !important;
+  letter-spacing: 0.08em !important;
   text-transform: uppercase !important;
-  padding: 8px 18px !important;
-  border-radius: var(--vyra-radius-box) !important;
+  padding: 8px 16px !important;
+  border-radius: 4px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-decoration: none !important;
   transition: all 0.2s ease !important;
+  box-shadow: 0 2px 8px rgba(20, 40, 29, 0.2) !important;
+}
+
+.login-btn span {
+  color: #ffffff !important;
+  display: inline-block !important;
 }
 
 .login-btn:hover {
-  background: var(--vyra-forest-rich) !important;
+  background: #22422f !important;
   color: #ffffff !important;
+}
+
+@media (max-width: 576px) {
+  .login-btn {
+    padding: 6px 12px !important;
+    font-size: 0.72rem !important;
+  }
 }
 
 /* ==========================================================================

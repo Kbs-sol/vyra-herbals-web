@@ -48,9 +48,9 @@ const Banner = () => {
           <div className="hero-slide">
             <div className="hero-canvas">
               <picture>
-                <source media="(max-width: 768px)" srcSet="/assets/images/vyra-hero-meadow-official.jpg" />
+                <source media="(max-width: 768px)" srcSet="/assets/images/vyra-meadow-mobile.jpg" />
                 <img
-                  src="/assets/images/vyra-hero-meadow-official.jpg"
+                  src="/assets/images/vyra-meadow-desktop.jpg"
                   alt="Vyra Herbals - Botanical Haircare"
                   className="hero-media"
                   fetchPriority="high"
@@ -61,19 +61,19 @@ const Banner = () => {
 
               <div className="hero-content-anchor">
                 <div className="hero-content-container">
-                  <span className="hero-season-tag">BOTANICAL HARVEST • 2026</span>
+                  <span className="hero-season-tag">100% BOTANICAL HAIR CARE</span>
                   <h1 className="hero-title-editorial">
                     TRUTH IN EVERY DROP.
                   </h1>
                   <p className="hero-description-compact">
-                    Small-batch decoctions of 20+ wild Indian herbs, unrefined and cold-pressed for potent follicle restoration.
+                    Freshly handmade in India with 20+ cold-infused wild botanicals for hair fall reduction and natural root strength.
                   </p>
                   <div className="hero-action-row">
                     <Link href="/search?searchtext=all" className="hero-btn-solid">
                       SHOP ALL PRODUCTS
                     </Link>
                     <Link href="/category/hair-oil" className="hero-btn-outline">
-                      HAIR OILS
+                      HERBAL HAIR OILS
                     </Link>
                   </div>
                 </div>
@@ -370,29 +370,35 @@ const StyledHeroSection = styled.section`
   /* Mobile-first Viewport Enhancements */
   @media (max-width: 768px) {
     .hero-canvas {
-      height: 82vh;
-      min-height: 480px;
+      height: 74vh;
+      min-height: 440px;
     }
 
     .hero-content-anchor {
-      padding: 1.8rem 1.25rem 2.5rem;
+      padding: 1.5rem 1.25rem 2rem;
+    }
+
+    .hero-season-tag {
+      font-size: 0.68rem;
+      margin-bottom: 0.4rem;
     }
 
     .hero-title-editorial {
-      font-size: 2.1rem;
-      line-height: 1.1;
-      margin-bottom: 0.5rem;
+      font-size: 1.75rem;
+      line-height: 1.15;
+      letter-spacing: -0.01em;
+      margin-bottom: 0.45rem;
     }
 
     .hero-description-compact {
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       line-height: 1.45;
-      margin-bottom: 1.25rem;
+      margin-bottom: 1.1rem;
     }
 
     .hero-btn-solid,
     .hero-btn-outline {
-      padding: 13px 20px;
+      padding: 12px 18px;
       font-size: 0.74rem;
       width: 100%;
       text-align: center;
@@ -405,7 +411,7 @@ const StyledHeroSection = styled.section`
     .slick-dots {
       right: 50%;
       transform: translateX(50%);
-      bottom: 12px;
+      bottom: 10px;
     }
   }
 `;
