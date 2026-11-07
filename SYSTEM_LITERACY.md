@@ -1,4 +1,4 @@
-# Vyra Herbals — System Literacy
+# Vyra Herbals — System Literacy 
 
 > **Read this first.** It is the single source of truth for how the site is
 > built, what it depends on, and how to keep it running. If something in the
