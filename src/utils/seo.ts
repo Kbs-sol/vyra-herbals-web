@@ -329,7 +329,7 @@ export function organizationJsonLd() {
       jobTitle: FOUNDER.jobTitle,
       image: FOUNDER.image,
       description:
-        'Vyra Herbals was founded in 2023 after a personal hair-loss journey, formulating 100% natural, handmade herbal hair oil, chemical-free shampoo, and hair masks with 9 traditional herbs including rosemary, neem, and bhringraj — drawing on India\'s Ayurvedic heritage but chemical-free by modern standards.',
+        'Vyra Herbals was founded in 2023 after a personal hair-loss journey, formulating 100% natural, handmade herbal hair oil, chemical-free shampoo, and hair masks with 9 traditional herbs including rosemary, neem, and bhringraj — formulated using traditional 100% natural, chemical-free herbal extraction methods.',
     },
     foundingDate: '2023',
     foundingLocation: {
@@ -349,7 +349,7 @@ export function organizationJsonLd() {
       'Dandruff treatment',
       'Scalp health',
       // Long-tail cultural signal retained so "ayurvedic" queries still match.
-      'Ayurvedic hair care',
+      'Pure herbal hair care',
     ],
     naics: '446120', // Cosmetics, Beauty Supplies, and Perfume Stores
     description: BRAND_DEFAULT_DESCRIPTION,

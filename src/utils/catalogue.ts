@@ -1,3 +1,4 @@
+import { STATIC_BLOGS } from '@/utils/staticBlogs';
 import { createServerSupabase } from '@/utils/supabaseClient';
 import { STATIC_PRODUCTS } from '@/utils/staticCatalogue';
 
