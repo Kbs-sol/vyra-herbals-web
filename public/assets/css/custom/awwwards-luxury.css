@@ -1,10 +1,11 @@
 /* ==========================================================================
-   VYRA HERBALS - AWWWARDS EDITORIAL BOTANICAL LUXURY DESIGN SYSTEM
-   Non-breaking modern tokens & refined micro-interactions
+   VYRA HERBALS - AWWWARDS & BLUORNG-INSPIRED MINIMALIST LUXURY DESIGN SYSTEM
+   Mobile-First Architecture: Clean High-Street Geometry, Zero Clutter Pills
    ========================================================================== */
 
 :root {
-  /* Editorial Luxury Color System */
+  /* Brand Earth & Forest Palette */
+  --vyra-black: #0b140e;
   --vyra-forest-dark: #122319;
   --vyra-forest-rich: #1b3827;
   --vyra-forest-leaf: #2e593c;
@@ -14,791 +15,347 @@
   --vyra-gold-primary: #b58934;
   --vyra-gold-light: #cfa858;
   --vyra-gold-warm: #dfc282;
-  --vyra-gold-glow: rgba(181, 137, 52, 0.15);
 
-  --vyra-canvas: #faf8f5;
-  --vyra-canvas-alt: #f3efe8;
+  --vyra-canvas: #ffffff;
+  --vyra-canvas-alt: #f8f9f8;
   --vyra-card-bg: #ffffff;
   
-  --vyra-text-ink: #17221b;
-  --vyra-text-body: #4a574f;
-  --vyra-text-muted: #758279;
+  --vyra-text-primary: #0b140e;
+  --vyra-text-body: #3c4a41;
+  --vyra-text-muted: #78857d;
   
-  --vyra-border-subtle: rgba(27, 56, 39, 0.08);
-  --vyra-border-gold: rgba(181, 137, 52, 0.25);
+  --vyra-border-hairline: rgba(11, 20, 14, 0.08);
+  --vyra-border-dark: #0b140e;
   
-  --vyra-shadow-soft: 0 10px 30px -10px rgba(18, 35, 25, 0.07);
-  --vyra-shadow-hover: 0 20px 40px -12px rgba(18, 35, 25, 0.14);
-  --vyra-shadow-glow: 0 0 25px rgba(181, 137, 52, 0.18);
-  
-  --vyra-radius-sm: 8px;
-  --vyra-radius-md: 14px;
-  --vyra-radius-lg: 20px;
+  --vyra-radius-box: 2px;
+  --vyra-radius-card: 4px;
   --vyra-radius-pill: 9999px;
   
   --vyra-transition-spring: cubic-bezier(0.16, 1, 0.3, 1);
-  --vyra-transition-smooth: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Base Body Enhancements */
+/* Base Body Reset */
 body {
   background-color: var(--vyra-canvas) !important;
-  color: var(--vyra-text-body);
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  color: var(--vyra-text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Editorial Serif & Heading Treatments */
-.font-editorial,
-.section-header .title,
-.about-company h2,
-.product-name a,
-.banner-content h1 {
-  font-family: var(--font-cormorant, Georgia, "Times New Roman", serif) !important;
-  letter-spacing: -0.015em;
-  font-weight: 600;
-}
+/* ==========================================================================
+   MOBILE-FIRST HEADER & NAVIGATION (BLUORNG MINIMALIST LOOK)
+   ========================================================================== */
 
-/* Subtle Luxe Subtitles across sections */
-.section-header .subtitle {
-  font-family: inherit;
-  font-size: 0.76rem !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.22em !important;
-  text-transform: uppercase !important;
-  color: var(--vyra-gold-primary) !important;
-  display: inline-block;
-  margin-bottom: 8px;
-  position: relative;
-}
-
-.section-header .subtitle::after {
-  content: "";
-  display: inline-block;
-  width: 24px;
-  height: 1px;
-  background: var(--vyra-gold-primary);
-  margin-left: 10px;
-  vertical-align: middle;
-  opacity: 0.6;
-}
-
-.section-header .title {
-  color: var(--vyra-forest-dark) !important;
-  font-size: clamp(1.9rem, 3.2vw, 2.75rem) !important;
-  line-height: 1.18 !important;
-  font-weight: 600 !important;
-}
-
-.section-header .title-divider {
-  width: 48px;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--vyra-gold-primary), transparent);
-  margin: 12px auto 0;
-  border-radius: 2px;
-}
-
-/* Top Announcement Marquee Bar Refinement */
 .header-top {
-  background: linear-gradient(90deg, #122319 0%, #1c3827 50%, #122319 100%) !important;
-  color: #f7f4ea !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  font-size: 0.82rem;
-  letter-spacing: 0.04em;
-  font-weight: 500;
-  padding: 6px 0 !important;
+  background: #0b140e !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+  font-size: 0.72rem !important;
+  letter-spacing: 0.16em !important;
+  text-transform: uppercase !important;
+  font-weight: 700 !important;
+  padding: 8px 0 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-/* Luxury Modern Header Container */
 .header-part {
-  background: rgba(255, 255, 255, 0.94) !important;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border-bottom: 1px solid var(--vyra-border-subtle) !important;
-  box-shadow: 0 4px 20px rgba(18, 35, 25, 0.03) !important;
+  background: rgba(255, 255, 255, 0.98) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--vyra-border-hairline) !important;
+  padding: 12px 0 !important;
   transition: all 0.3s ease;
 }
 
-/* Product Cards: Editorial Luxury Apothecary Treatment */
-.styled-product-card,
-.product-card {
-  background: #ffffff !important;
-  border: 1px solid rgba(27, 56, 39, 0.07) !important;
-  border-radius: var(--vyra-radius-md) !important;
-  box-shadow: 0 4px 18px rgba(18, 35, 25, 0.03) !important;
-  transition: transform 0.4s var(--vyra-transition-spring), box-shadow 0.4s var(--vyra-transition-spring), border-color 0.3s ease !important;
-  overflow: hidden;
-  position: relative;
-}
-
-.styled-product-card:hover,
-.product-card:hover {
-  transform: translateY(-5px) !important;
-  box-shadow: 0 16px 36px rgba(18, 35, 25, 0.09) !important;
-  border-color: rgba(181, 137, 52, 0.35) !important;
-}
-
-.product-card .product-media {
-  background: #fbfbf9;
-  border-radius: calc(var(--vyra-radius-md) - 2px) calc(var(--vyra-radius-md) - 2px) 0 0;
-  overflow: hidden;
-  position: relative;
-}
-
-.product-card .product-media img {
-  transition: transform 0.7s var(--vyra-transition-spring);
-}
-
-.product-card:hover .product-media img {
-  transform: scale(1.04);
-}
-
-/* Wishlist Button Pill */
-.product-wish {
-  background: rgba(255, 255, 255, 0.9) !important;
-  backdrop-filter: blur(6px);
-  border-radius: 50% !important;
-  width: 34px !important;
-  height: 34px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08) !important;
-  transition: all 0.25s ease !important;
-}
-
-.product-wish:hover {
-  transform: scale(1.12) !important;
-  background: #ffffff !important;
-  color: #c93b2b !important;
-}
-
-/* Refined Add to Cart Button */
-.product-add {
-  background: var(--vyra-forest-rich) !important;
-  color: #ffffff !important;
-  border: 1px solid transparent !important;
-  border-radius: var(--vyra-radius-pill) !important;
-  font-size: 0.85rem !important;
-  font-weight: 600 !important;
-  letter-spacing: 0.03em !important;
-  padding: 10px 18px !important;
-  transition: all 0.3s var(--vyra-transition-spring) !important;
-  box-shadow: 0 4px 14px rgba(27, 56, 39, 0.16) !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 8px !important;
-}
-
-.product-add:hover {
-  background: var(--vyra-forest-dark) !important;
-  transform: translateY(-2px) !important;
-  box-shadow: 0 8px 22px rgba(27, 56, 39, 0.26) !important;
-}
-
-.product-add.goto-cart {
-  background: linear-gradient(135deg, #1b3827, #244b34) !important;
-  border: 1px solid var(--vyra-gold-primary) !important;
-  color: #fff !important;
-}
-
-/* Category Circle Cards */
-.category-card {
-  transition: transform 0.4s var(--vyra-transition-spring), box-shadow 0.4s var(--vyra-transition-spring) !important;
-}
-
-.category-card:hover {
-  transform: translateY(-6px) !important;
-}
-
-.category-card .category-media {
-  border-radius: 50% !important;
-  box-shadow: 0 6px 20px rgba(18, 35, 25, 0.06) !important;
-  border: 2px solid transparent !important;
-  transition: all 0.3s ease !important;
-}
-
-.category-card:hover .category-media {
-  border-color: var(--vyra-gold-primary) !important;
-  box-shadow: 0 10px 28px rgba(181, 137, 52, 0.22) !important;
-}
-
-/* Floating WhatsApp Touch */
-.floating-whatsapp {
-  box-shadow: 0 8px 24px rgba(37, 211, 102, 0.35) !important;
-  transition: transform 0.3s var(--vyra-transition-spring) !important;
-}
-
-.floating-whatsapp:hover {
-  transform: scale(1.08) translateY(-2px) !important;
-}
-
-/* Elegant Pill Tags */
-.badge-herbal {
-  background: var(--vyra-sage-light);
-  color: var(--vyra-forest-rich);
-  font-size: 0.72rem;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: var(--vyra-radius-pill);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-/* Footer Luxury Polish */
-.footer-part {
-  background: #0f1c14 !important;
-  color: #d1d8d3 !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
-  position: relative;
-  overflow: hidden;
-}
-
-.footer-part::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--vyra-gold-primary), transparent);
-  opacity: 0.8;
-}
-
-.footer-part .footer-desc {
-  color: #a4b3a8 !important;
-  font-size: 0.9rem !important;
-  line-height: 1.7 !important;
-}
-
-.footer-bottom {
-  border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
-  background: #0a140e !important;
-}
-
-/* ==========================================================================
-   AWWWARDS NAVIGATION & HEADER REFINEMENT
-   ========================================================================== */
-
-.fixed-header {
+.header-part.fixed-header {
   position: fixed !important;
   top: 0;
   left: 0;
   right: 0;
   z-index: 1000;
-  animation: slideDownHeader 0.35s var(--vyra-transition-spring);
-  box-shadow: 0 10px 30px rgba(18, 35, 25, 0.08) !important;
-}
-
-@keyframes slideDownHeader {
-  from {
-    transform: translateY(-100%);
-  }
-  to {
-    transform: translateY(0);
-  }
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
 }
 
 .header-logo img {
-  height: 44px;
+  height: 38px;
   width: auto;
   object-fit: contain;
-  transition: transform 0.3s ease;
-}
-
-.header-logo:hover img {
-  transform: scale(1.03);
 }
 
 .navbar-list .navbar-item .navbar-link {
-  font-size: 0.92rem !important;
-  font-weight: 500 !important;
-  color: var(--vyra-text-ink) !important;
-  letter-spacing: 0.02em;
+  font-size: 0.8rem !important;
+  font-weight: 700 !important;
+  color: var(--vyra-text-primary) !important;
+  letter-spacing: 0.12em !important;
+  text-transform: uppercase !important;
   padding: 8px 14px !important;
-  border-radius: var(--vyra-radius-pill);
-  transition: all 0.25s ease !important;
+  transition: color 0.2s ease !important;
 }
 
 .navbar-list .navbar-item .navbar-link:hover {
   color: var(--vyra-gold-primary) !important;
-  background: var(--vyra-sage-wash);
 }
 
-.header-widget {
-  background: transparent !important;
-  border: none !important;
-  position: relative;
-  display: flex !important;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.2s ease;
+/* Search input on header */
+.search-section input {
+  border-radius: var(--vyra-radius-box) !important;
+  border: 1px solid var(--vyra-border-hairline) !important;
+  font-size: 0.85rem !important;
+  padding: 8px 14px !important;
 }
 
-.header-widget:hover {
-  transform: translateY(-2px);
-}
-
-.header-widget a {
-  color: var(--vyra-forest-rich) !important;
-  font-size: 1.18rem;
-  display: flex;
-  align-items: center;
-  position: relative;
-}
-
-.header-widget a sup {
-  background: var(--vyra-gold-primary) !important;
-  color: #fff !important;
-  font-size: 0.68rem;
-  font-weight: 700;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: absolute;
-  top: -8px;
-  right: -10px;
-  box-shadow: 0 2px 6px rgba(181, 137, 52, 0.4);
+.search-section input:focus {
+  border-color: var(--vyra-black) !important;
+  outline: none;
 }
 
 .login-btn {
-  background: var(--vyra-forest-rich) !important;
+  background: var(--vyra-black) !important;
   color: #ffffff !important;
+  font-size: 0.76rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.12em !important;
+  text-transform: uppercase !important;
   padding: 8px 18px !important;
-  border-radius: var(--vyra-radius-pill) !important;
-  font-size: 0.85rem !important;
-  font-weight: 600 !important;
-  letter-spacing: 0.03em;
-  box-shadow: 0 3px 12px rgba(27, 56, 39, 0.2);
-  transition: all 0.25s ease !important;
+  border-radius: var(--vyra-radius-box) !important;
+  transition: all 0.2s ease !important;
 }
 
 .login-btn:hover {
-  background: var(--vyra-forest-dark) !important;
-  transform: translateY(-1px);
-  color: #fff !important;
-}
-
-/* Subtle editorial treatment for StickyHairConcern */
-.sticky-hair-concern-wrapper {
-  background: linear-gradient(180deg, #ffffff 0%, var(--vyra-canvas) 100%);
-  padding: 40px 0;
-  border-top: 1px solid var(--vyra-border-subtle);
-  border-bottom: 1px solid var(--vyra-border-subtle);
-}
-
-/* Luxury Founder Section Elevation */
-.about-company {
-  background: #ffffff !important;
-  position: relative;
-  overflow: hidden;
-  padding: 70px 0 !important;
-}
-
-.about-company .about-img {
-  position: relative;
-  border-radius: var(--vyra-radius-lg);
-  overflow: hidden;
-  box-shadow: var(--vyra-shadow-hover);
-}
-
-.about-company .about-img img {
-  transition: transform 0.8s var(--vyra-transition-spring);
-  width: 100%;
-  height: auto;
-  display: block;
-}
-
-.about-company .about-img:hover img {
-  transform: scale(1.03);
-}
-
-.about-company .fondr-titl {
-  position: absolute;
-  bottom: 18px;
-  left: 18px;
-  right: 18px;
-  background: rgba(18, 35, 25, 0.82);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  padding: 16px 20px;
-  border-radius: var(--vyra-radius-md);
-  color: #fff;
-}
-
-.about-company .fondr-titl h4 {
-  font-family: var(--font-cormorant, Georgia, serif);
-  font-size: 1.4rem;
-  margin: 0;
-  color: #fff;
-}
-
-.about-company .fondr-titl h5 {
-  font-size: 0.82rem;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: #dfc282;
-  margin: 4px 0 0;
-  font-weight: 600;
+  background: var(--vyra-forest-rich) !important;
+  color: #ffffff !important;
 }
 
 /* ==========================================================================
-   PRODUCT DETAILS PAGE - AWWWARDS APOTHECARY LUXURY STYLING
+   MOBILE-FIRST 2-COLUMN PRODUCT GRID (BLUORNG E-COMMERCE STANDARD)
    ========================================================================== */
 
-.bredcum_out {
-  background: var(--vyra-canvas-alt) !important;
-  border-bottom: 1px solid var(--vyra-border-subtle);
-  padding: 12px 0;
-}
-
-.breadcrumbs .items {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: 0.84rem;
-  color: var(--vyra-text-muted);
-  gap: 8px;
-  align-items: center;
-}
-
-.breadcrumbs .items a {
-  color: var(--vyra-forest-leaf);
-  transition: color 0.2s ease;
-}
-
-.breadcrumbs .items a:hover {
-  color: var(--vyra-gold-primary);
-}
-
-.breadcrumbs .items .cms_page strong {
-  color: var(--vyra-text-ink);
-  font-weight: 600;
-}
-
-/* Gallery & Media Area */
-.details-gallery {
-  background: #ffffff;
-  border: 1px solid var(--vyra-border-subtle);
-  border-radius: var(--vyra-radius-lg);
-  padding: 24px;
-  box-shadow: var(--vyra-shadow-soft);
-  position: relative;
-}
-
-.details-preview {
-  margin: 0 0 20px 0;
-  padding: 0;
-  list-style: none;
-  text-align: center;
-}
-
-.details-preview img {
-  border-radius: var(--vyra-radius-md);
-  max-width: 100%;
-  height: auto;
-  transition: transform 0.4s var(--vyra-transition-spring);
-}
-
-.details-thumb-slider .slide-item {
-  padding: 6px;
-}
-
-.details-thumb-slider .img-wrapper {
-  border: 2px solid transparent;
-  border-radius: var(--vyra-radius-sm);
-  cursor: pointer;
-  padding: 4px;
-  background: #fbfbf9;
-  transition: all 0.25s ease;
-}
-
-.details-thumb-slider .slide-item.active .img-wrapper,
-.details-thumb-slider .img-wrapper:hover {
-  border-color: var(--vyra-gold-primary);
-  box-shadow: 0 4px 12px rgba(181, 137, 52, 0.2);
-}
-
-/* Right Content Area: Editorial Styling */
-.details-content {
-  padding: 10px 0 10px 20px;
-}
-
-.details-name {
-  font-family: var(--font-cormorant, Georgia, serif) !important;
-  font-size: clamp(2rem, 3.2vw, 2.7rem) !important;
-  color: var(--vyra-forest-dark) !important;
-  font-weight: 600 !important;
-  line-height: 1.2 !important;
-  margin-bottom: 12px;
-}
-
-.details-content p {
-  color: var(--vyra-text-body);
-  line-height: 1.7;
-  font-size: 0.95rem;
-}
-
-.user-stat {
-  background: rgba(207, 168, 88, 0.12) !important;
-  color: #8b6820 !important;
-  border: 1px solid rgba(207, 168, 88, 0.35) !important;
-  border-radius: var(--vyra-radius-pill) !important;
-  padding: 4px 14px !important;
-  font-size: 0.78rem !important;
-  font-weight: 600 !important;
-  letter-spacing: 0.02em;
-}
-
-.details-price {
-  font-size: 2.2rem !important;
-  font-weight: 700 !important;
-  color: var(--vyra-forest-rich) !important;
-  margin-right: 12px;
-}
-
-/* Quantity & Action Buttons */
-.details-add-group {
-  margin: 24px 0;
-  gap: 12px;
-}
-
-.details-add-group .btn-premium,
-.details-add-group .btn-checkout {
-  background: linear-gradient(135deg, #cfa858, #b58934) !important;
-  color: #122319 !important;
-  border-radius: var(--vyra-radius-pill) !important;
-  font-weight: 700 !important;
-  font-size: 1rem !important;
-  padding: 14px 28px !important;
-  box-shadow: 0 8px 22px rgba(181, 137, 52, 0.3) !important;
-  transition: all 0.3s ease !important;
-  border: none;
-}
-
-.details-add-group .btn-premium:hover,
-.details-add-group .btn-checkout:hover {
-  background: linear-gradient(135deg, #dfc282, #cfa858) !important;
-  transform: translateY(-2px);
-  box-shadow: 0 12px 28px rgba(181, 137, 52, 0.4) !important;
-}
-
-/* Accordion: Luxury Treatment */
-.speci_out .accordion-item {
-  border: 1px solid var(--vyra-border-subtle) !important;
-  border-radius: var(--vyra-radius-md) !important;
-  margin-bottom: 12px;
-  overflow: hidden;
-  background: #ffffff;
-}
-
-.speci_out .accordion-button {
-  font-family: inherit;
-  font-weight: 600;
-  color: var(--vyra-forest-dark) !important;
+.deals-part,
+.shop-part {
   background: #ffffff !important;
-  padding: 16px 20px;
-  box-shadow: none !important;
-  text-transform: capitalize;
+  padding: 3rem 0 !important;
 }
 
-.speci_out .accordion-button:not(.collapsed) {
+.section-header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+
+.section-header .subtitle {
+  font-size: 0.72rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.24em !important;
+  text-transform: uppercase !important;
   color: var(--vyra-gold-primary) !important;
-  background: var(--vyra-sage-wash) !important;
+  display: block;
+  margin-bottom: 6px;
 }
 
-.speci_out .details-cont {
-  padding: 10px 0;
-  color: var(--vyra-text-body);
-  line-height: 1.8;
-  font-size: 0.92rem;
+.section-header .title {
+  font-size: clamp(1.8rem, 3.2vw, 2.6rem) !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em !important;
+  text-transform: uppercase !important;
+  color: var(--vyra-black) !important;
 }
 
-/* Botanical Ingredients Section Spotlight */
-.ingredients-section {
-  background: #ffffff;
-  border-radius: var(--vyra-radius-lg);
-  border: 1px solid var(--vyra-border-subtle);
-  padding: 40px 24px;
-  margin: 40px 0;
-  box-shadow: var(--vyra-shadow-soft);
+.section-header .title-divider {
+  display: none !important;
 }
 
-.ingredient-card {
-  background: #fbfbf9;
-  border: 1px solid var(--vyra-border-subtle);
-  border-radius: var(--vyra-radius-md);
-  padding: 20px;
-  text-align: center;
-  transition: transform 0.3s var(--vyra-transition-spring), box-shadow 0.3s ease;
-}
-
-.ingredient-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 28px rgba(18, 35, 25, 0.08);
-  border-color: var(--vyra-border-gold);
-}
-
-/* ==========================================================================
-   CART & BILL SUMMARY - AWWWARDS EDITORIAL LUXURY
-   ========================================================================== */
-
-.cart-list-item {
+/* Product Cards - Sharp Minimalist Framing */
+.product-card {
   background: #ffffff !important;
-  border: 1px solid var(--vyra-border-subtle) !important;
-  border-radius: var(--vyra-radius-md) !important;
-  padding: 18px !important;
-  box-shadow: 0 4px 18px rgba(18, 35, 25, 0.03) !important;
-  transition: all 0.3s var(--vyra-transition-spring) !important;
-}
-
-.cart-list-item:hover {
-  box-shadow: var(--vyra-shadow-hover) !important;
-  border-color: rgba(181, 137, 52, 0.3) !important;
-}
-
-.cart-list-item img {
-  border-radius: var(--vyra-radius-sm);
-  background: #fbfbf9;
-}
-
-.cart-list-item .price-calc {
-  background: var(--vyra-sage-wash) !important;
-  color: var(--vyra-forest-rich) !important;
-  font-size: 0.92rem;
-  border: 1px solid var(--vyra-border-subtle);
-  border-radius: var(--vyra-radius-sm) !important;
-}
-
-/* Coupon & Bill Summary Cards */
-.coupon-input-wrapper {
-  background: #ffffff;
-  border: 1px dashed var(--vyra-border-gold);
-  border-radius: var(--vyra-radius-md);
-  padding: 16px 20px;
+  border: 1px solid var(--vyra-border-hairline) !important;
+  border-radius: var(--vyra-radius-card) !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  transition: transform 0.3s var(--vyra-transition-spring), border-color 0.2s ease !important;
+  overflow: hidden;
   margin-bottom: 20px;
 }
 
-.bill-summary-card {
-  background: #ffffff;
-  border: 1px solid var(--vyra-border-subtle);
-  border-radius: var(--vyra-radius-lg);
-  padding: 24px;
-  box-shadow: var(--vyra-shadow-soft);
+.product-card:hover {
+  border-color: var(--vyra-black) !important;
+  transform: translateY(-3px) !important;
 }
 
-.bill-heading {
-  font-family: var(--font-cormorant, Georgia, serif);
-  font-size: 1.45rem;
-  color: var(--vyra-forest-dark);
-  margin-bottom: 16px;
-  border-bottom: 1px solid var(--vyra-border-subtle);
-  padding-bottom: 8px;
-}
-
-/* ==========================================================================
-   USER ACCOUNT & ORDER DETAILS ELEVATION
-   ========================================================================== */
-
-.order-detail-card,
-.account-profile-card {
-  background: #ffffff;
-  border: 1px solid var(--vyra-border-subtle);
-  border-radius: var(--vyra-radius-lg);
-  padding: 28px;
-  box-shadow: var(--vyra-shadow-soft);
-  margin-bottom: 24px;
-}
-
-.account-avatar-circle {
-  width: 72px;
-  height: 72px;
-  background: linear-gradient(135deg, var(--vyra-sage-light), #ffffff);
-  border: 2px solid var(--vyra-gold-primary);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.8rem;
-  color: var(--vyra-forest-dark);
-  font-weight: 700;
-  box-shadow: 0 4px 14px rgba(181, 137, 52, 0.2);
-}
-
-.order-timeline-step.active .step-marker {
-  background: var(--vyra-gold-primary) !important;
-  box-shadow: 0 0 0 4px var(--vyra-gold-glow) !important;
-}
-
-.order-badge-status {
-  padding: 6px 14px;
-  border-radius: var(--vyra-radius-pill);
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  background: var(--vyra-sage-wash);
-  color: var(--vyra-forest-rich);
-  border: 1px solid rgba(27, 56, 39, 0.12);
-}
-
-/* ==========================================================================
-   ABOUT & CONTACT - EDITORIAL REFINEMENT
-   ========================================================================== */
-
-.about-us,
-.contact-form {
-  background: #ffffff;
-  border: 1px solid var(--vyra-border-subtle);
-  border-radius: var(--vyra-radius-lg);
-  padding: 40px;
-  box-shadow: var(--vyra-shadow-soft);
-}
-
-.about-us h3,
-.contact-form h2 {
-  font-family: var(--font-cormorant, Georgia, serif) !important;
-  font-size: clamp(2rem, 3.2vw, 2.8rem) !important;
-  color: var(--vyra-forest-dark);
-  font-weight: 600;
-}
-
-.contact-form input,
-.contact-form textarea {
-  border: 1px solid var(--vyra-border-subtle);
-  border-radius: var(--vyra-radius-sm);
-  padding: 12px 16px;
-  font-size: 0.95rem;
-  transition: all 0.25s ease;
+.product-card .product-media {
+  background: #f8f9f8;
+  aspect-ratio: 1 / 1;
   width: 100%;
+  position: relative;
+  overflow: hidden;
 }
 
-.contact-form input:focus,
-.contact-form textarea:focus {
-  border-color: var(--vyra-gold-primary);
-  outline: none;
-  box-shadow: 0 0 0 3px var(--vyra-gold-glow);
+.product-card .product-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s var(--vyra-transition-spring);
 }
 
-.contact-form button[type="submit"] {
-  background: linear-gradient(135deg, #cfa858, #b58934) !important;
-  color: #122319 !important;
-  border-radius: var(--vyra-radius-pill) !important;
-  font-weight: 700;
-  padding: 12px 32px;
-  border: none;
-  box-shadow: 0 6px 20px rgba(181, 137, 52, 0.3);
-  transition: all 0.3s ease;
+.product-card:hover .product-media img {
+  transform: scale(1.05);
 }
 
-.contact-form button[type="submit"]:hover {
-  background: linear-gradient(135deg, #dfc282, #cfa858) !important;
-  transform: translateY(-2px);
-  box-shadow: 0 10px 28px rgba(181, 137, 52, 0.45);
+.product-card .product-content {
+  padding: 14px 12px !important;
+}
+
+.product-card .product-name a {
+  font-size: 0.88rem !important;
+  font-weight: 700 !important;
+  line-height: 1.35 !important;
+  color: var(--vyra-black) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.02em !important;
+  transition: color 0.2s ease;
+}
+
+.product-card .product-name a:hover {
+  color: var(--vyra-gold-primary) !important;
+}
+
+.product-card .product-price {
+  margin: 8px 0 12px !important;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.product-card .product-price .price {
+  font-size: 1.15rem !important;
+  font-weight: 800 !important;
+  color: var(--vyra-black) !important;
+}
+
+.product-card .product-price .text-muted {
+  font-size: 0.85rem !important;
+}
+
+.product-card .product-price .discount {
+  font-size: 0.74rem !important;
+  font-weight: 700 !important;
+  color: var(--vyra-forest-rich) !important;
+  background: var(--vyra-sage-light);
+  padding: 2px 6px;
+  border-radius: var(--vyra-radius-box);
+}
+
+/* Sharp Tactile Add to Cart */
+.product-add {
+  background: var(--vyra-black) !important;
+  color: #ffffff !important;
+  font-size: 0.74rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.12em !important;
+  text-transform: uppercase !important;
+  padding: 10px 14px !important;
+  width: 100% !important;
+  border-radius: var(--vyra-radius-box) !important;
+  border: 1px solid var(--vyra-black) !important;
+  transition: all 0.2s ease !important;
+  box-shadow: none !important;
+}
+
+.product-add:hover {
+  background: var(--vyra-forest-rich) !important;
+  border-color: var(--vyra-forest-rich) !important;
+  color: #ffffff !important;
+}
+
+.product-add.goto-cart {
+  background: var(--vyra-forest-rich) !important;
+  border-color: var(--vyra-forest-rich) !important;
+}
+
+/* Wishlist Icon Minimalist Overlay */
+.product-card .product-wish {
+  background: #ffffff !important;
+  border: 1px solid var(--vyra-border-hairline) !important;
+  border-radius: var(--vyra-radius-box) !important;
+  width: 32px !important;
+  height: 32px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: none !important;
+}
+
+/* ==========================================================================
+   MOBILE PRODUCT PAGE (BLUORNG STYLE FULL-WIDTH PDP)
+   ========================================================================= */
+
+.details-gallery {
+  background: #f8f9f8 !important;
+  border: 1px solid var(--vyra-border-hairline) !important;
+  border-radius: var(--vyra-radius-card) !important;
+  padding: 12px !important;
+  box-shadow: none !important;
+}
+
+.details-name {
+  font-size: clamp(1.7rem, 3.5vw, 2.4rem) !important;
+  font-weight: 800 !important;
+  text-transform: uppercase !important;
+  letter-spacing: -0.01em !important;
+  color: var(--vyra-black) !important;
+}
+
+.details-price {
+  font-size: 2rem !important;
+  font-weight: 800 !important;
+  color: var(--vyra-black) !important;
+}
+
+/* Mobile Sticky Bottom CTA Bar (High-Street Streetwear standard) */
+@media (max-width: 768px) {
+  .details-add-group {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    padding: 12px 16px;
+    margin: 0 -15px !important;
+    border-top: 1px solid var(--vyra-border-hairline);
+    z-index: 99;
+    box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.06);
+  }
+
+  .details-add-group .btn-checkout,
+  .details-add-group .btn-premium {
+    width: 100% !important;
+    border-radius: var(--vyra-radius-box) !important;
+    padding: 14px 20px !important;
+    font-size: 0.85rem !important;
+    letter-spacing: 0.12em !important;
+    text-transform: uppercase !important;
+  }
+}
+
+/* Footer Minimalist Dark Theme */
+.footer-part {
+  background: #0b140e !important;
+  color: rgba(255, 255, 255, 0.75) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.footer-part h3 {
+  color: #ffffff !important;
+  font-size: 0.82rem !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase !important;
+  font-weight: 800 !important;
+}
+
+.footer-part a {
+  color: rgba(255, 255, 255, 0.7) !important;
+  font-size: 0.85rem !important;
+  transition: color 0.2s ease;
+}
+
+.footer-part a:hover {
+  color: #dfc282 !important;
 }
