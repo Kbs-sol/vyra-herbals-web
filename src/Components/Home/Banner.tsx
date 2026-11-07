@@ -116,10 +116,10 @@ const Banner = () => {
         </Slider>
       </div>
 
-      {/* Bluorng-Style Marquee Ticker */}
+      {/* High-Street Running Marquee Ticker */}
       <div className="hero-ticker-bar">
         <div className="ticker-track">
-          <span>COLD-PRESSED AYURVEDIC HERBS</span>
+          <span>COLD-INFUSED BOTANICAL HERBS</span>
           <span className="ticker-bullet">•</span>
           <span>FREE SHIPPING ALL OVER INDIA</span>
           <span className="ticker-bullet">•</span>
@@ -127,9 +127,9 @@ const Banner = () => {
           <span className="ticker-bullet">•</span>
           <span>HANDMADE IN SMALL BATCHES</span>
           <span className="ticker-bullet">•</span>
-          <span>ZERO SULFATES & PARABENS</span>
+          <span>100% CHEMICAL-FREE & NO SULFATES</span>
           <span className="ticker-bullet">•</span>
-          <span>COLD-PRESSED AYURVEDIC HERBS</span>
+          <span>COLD-INFUSED BOTANICAL HERBS</span>
           <span className="ticker-bullet">•</span>
           <span>FREE SHIPPING ALL OVER INDIA</span>
           <span className="ticker-bullet">•</span>
