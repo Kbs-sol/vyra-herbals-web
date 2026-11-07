@@ -16,14 +16,14 @@ const Founder = () => {
               <div className="founder-image-box">
                 <img
                   src="/assets/images/vyra-founder.webp"
-                  alt="Sahera Banu, founder and formulator of Vyra Herbals"
+                  alt="Sahera Banu, founder and creator of Vyra Herbals"
                   width={800}
                   height={838}
                   loading="lazy"
                   className="founder-portrait"
                 />
                 <div className="founder-badge-caption">
-                  <span className="caption-tag">FOUNDER & FORMULATOR</span>
+                  <span className="caption-tag">FOUNDER & CREATOR</span>
                   <h4 className="caption-name">Sahera Banu</h4>
                 </div>
               </div>
@@ -32,24 +32,24 @@ const Founder = () => {
             {/* Narrative Column */}
             <div className="col-lg-7 order-1 order-lg-2">
               <div className="founder-narrative-content">
-                <span className="section-eyebrow">OUR ORIGIN STORY</span>
+                <span className="section-eyebrow">OUR STORY</span>
                 <h2 className="founder-quote-heading">
-                  “I didn’t start a company. I started experimenting in my kitchen because my own hair was falling out.”
+                  “I started this journey not as a businesswoman, but as someone struggling with hair problems, just like you.”
                 </h2>
                 
                 <p className="founder-lead-text">
-                  Like millions of Indian men and women, I dealt with postpartum hair fall, alarming thinning, and lifeless breakage. Commercial shelves were crowded with artificial fragrances, concealed sulfates, and empty marketing promises that only aggravated my scalp.
+                  At Vyra Herbals, every bottle tells a story—my story. I faced significant challenges with my hair, dealing with thinning, excessive breakage, and a complete lack of shine. After trying countless products with no results, it became one of the toughest, most frustrating periods of my life.
                 </p>
 
                 <p className="founder-body-text">
-                  Frustrated by the lack of honesty in hair care, I turned to the kitchen: slow-infusing cold-pressed coconut oil with hand-sourced Amla, Bhringraj, Rosemary leaves, Fenugreek, and fresh Hibiscus petals. When family and friends saw my hair transform, they asked for their own bottles. That personal journey of care and transparency is what powers every batch of Vyra Herbals today.
+                  There were moments when I felt like giving up entirely. But then, something shifted. I decided to take matters into my own hands and started experimenting with natural ingredients at home. Over time, my hair became noticeably stronger, glossier, and healthier. When I shared my homemade formulations with friends facing similar struggles, their hair transformed too—and Vyra Herbals was born.
                 </p>
 
                 <div className="founder-action-box">
-                  <Link href="/about" className="founder-story-link">
-                    Read Our Complete Story <FiArrowRight className="ms-1" />
+                  <Link href="/about#story-continue-reading" className="founder-story-link">
+                    Continue Reading Our Story <FiArrowRight className="ms-1" />
                   </Link>
-                  <span className="founder-signoff">Handmade in India • 100% Chemical-Free</span>
+                  <span className="founder-signoff">Handmade in India • 100% Natural Herbal Care</span>
                 </div>
               </div>
             </div>
@@ -137,16 +137,16 @@ const StyledFounderSection = styled.section`
   }
 
   .founder-quote-heading {
-    font-size: clamp(1.4rem, 2.5vw, 2rem);
+    font-size: clamp(1.35rem, 2.4vw, 1.95rem);
     font-weight: 700;
-    line-height: 1.3;
+    line-height: 1.35;
     color: #0b140e;
     margin-bottom: 1.4rem;
     letter-spacing: -0.01em;
   }
 
   .founder-lead-text {
-    font-size: 0.96rem;
+    font-size: 0.95rem;
     line-height: 1.65;
     color: #18231c;
     font-weight: 500;
