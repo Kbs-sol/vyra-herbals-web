@@ -48,9 +48,9 @@ const Banner = () => {
           <div className="hero-slide">
             <div className="hero-canvas">
               <picture>
-                <source media="(max-width: 768px)" srcSet="/assets/images/vyra-meadow-banner.png" />
+                <source media="(max-width: 768px)" srcSet="/assets/images/vyra-hero-meadow-official.jpg" />
                 <img
-                  src="/assets/images/vyra-meadow-banner.png"
+                  src="/assets/images/vyra-hero-meadow-official.jpg"
                   alt="Vyra Herbals - Botanical Haircare"
                   className="hero-media"
                   fetchPriority="high"
@@ -171,9 +171,9 @@ const StyledHeroSection = styled.section`
     inset: 0;
     background: linear-gradient(
       180deg,
-      rgba(11, 20, 14, 0.2) 0%,
-      rgba(11, 20, 14, 0.45) 50%,
-      rgba(11, 20, 14, 0.88) 100%
+      rgba(11, 20, 14, 0.35) 0%,
+      rgba(11, 20, 14, 0.6) 45%,
+      rgba(11, 20, 14, 0.92) 100%
     );
     pointer-events: none;
   }
@@ -190,6 +190,7 @@ const StyledHeroSection = styled.section`
 
   .hero-content-container {
     max-width: 640px;
+    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
   }
 
   .hero-season-tag {

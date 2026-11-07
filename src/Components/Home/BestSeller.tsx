@@ -1,77 +1,58 @@
 'use client';
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { API_PATH } from "../../constants";
-import { useState, useEffect } from "react";
 import ProductCard2 from "../Shared/ProductCard2";
 import { ProductCard2Skeleton } from "../Common/SkeletonComponents";
-
-import { Product } from "@/types";
+import { STATIC_PRODUCTS } from "../../utils/staticCatalogue";
 
 const BestSeller = () => {
-  const [handpickedProducts, setHandpickedProducts] = useState<Product[]>([]);
+  const [bestsellers, setBestsellers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch first 4 best seller products
   useEffect(() => {
-    const fetchFeaturedProducts = async () => {
+    const fetchBestsellers = async () => {
       try {
         setIsLoading(true);
-        // 1. Fetch featured selection
         const featuredRes = await fetch('/api/featured');
         const featuredData = await featuredRes.json();
 
         let targetIds: number[] = [];
-
         if (featuredData.success && Array.isArray(featuredData.data) && featuredData.data.length > 0) {
-          // Sort by position and extract product_ids
-          const sortedItems = featuredData.data
+          targetIds = featuredData.data
             .sort((a: any, b: any) => a.position - b.position)
-            .filter((item: any) => item.product_id); // Filter out empty slots
-
-          targetIds = sortedItems.map((item: any) => item.product_id);
+            .filter((item: any) => item.product_id)
+            .map((item: any) => item.product_id);
         }
 
-        // 2. Fetch products details
-        let postData: any = {};
+        const postData = targetIds.length > 0
+          ? { ids: targetIds }
+          : { extra_condition: " ORDER BY id ASC LIMIT 4" };
 
-        if (targetIds.length > 0) {
-          postData = { ids: targetIds };
-        } else {
-          // Fallback to default behavior if no featured products selected
-          postData = { extra_condition: " ORDER BY id ASC LIMIT 4" };
-        }
-
-        const requestOptions = {
+        const response = await fetch(`${API_PATH}/products/with-reviews`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(postData),
-        };
+        });
 
-        const response = await fetch(`${API_PATH}/products/with-reviews`, requestOptions);
         if (!response.ok) throw new Error("Failed to fetch products");
-
         const data = await response.json();
 
-        // 3. If we used targetIds, we need to sort the result to match the ID order
-        // because SQL 'IN' clause doesn't guarantee order
-        if (targetIds.length > 0) {
-          const sortedData = targetIds
-            .map(id => data.find((p: any) => p.id === id))
-            .filter(p => !!p); // Remove any undefined (e.g. if product was deleted)
-          setHandpickedProducts(sortedData as any);
+        if (Array.isArray(data) && data.length > 0) {
+          setBestsellers(data);
         } else {
-          setHandpickedProducts(data);
+          // Fallback to top curated static combo & oil bestsellers
+          setBestsellers(STATIC_PRODUCTS.slice(0, 4));
         }
-
       } catch (error) {
-        console.error("Error fetching featured products:", error);
+        console.warn("DB offline or empty, falling back to static catalogue for Best Sellers:", error);
+        setBestsellers(STATIC_PRODUCTS.slice(0, 4));
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchFeaturedProducts();
+    fetchBestsellers();
   }, []);
 
   return (
@@ -79,22 +60,21 @@ const BestSeller = () => {
       <div className="container">
         <div className="row">
           <div className="col-lg-12">
-            <div className="section-header text-center mb-5">
-              <span className="subtitle">POPULAR PICKS</span>
+            <div className="section-header text-center mb-4">
+              <span className="subtitle">CUSTOMER PROVEN</span>
               <h2 className="title">Best Sellers / Popular Now</h2>
-              <div className="title-divider"></div>
             </div>
           </div>
         </div>
 
-        <div className="row row-cols-1 row-cols-md-1 row-cols-lg-2 row-cols-xl-2">
+        <div className="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-3">
           {isLoading ? (
-            Array(2).fill(0).map((_, i) => <ProductCard2Skeleton key={i} />)
-          ) : handpickedProducts.length > 0 ? (
-            handpickedProducts.map((product, index) => (
-              <ProductCard2 key={product.id ?? `bestseller-${index}`} product={product} />
+            Array(4).fill(0).map((_, i) => <ProductCard2Skeleton key={i} />)
+          ) : (
+            bestsellers.map((product, index) => (
+              <ProductCard2 key={product.id ?? `best-${index}`} product={product} />
             ))
-          ) : null}
+          )}
         </div>
       </div>
     </section>
