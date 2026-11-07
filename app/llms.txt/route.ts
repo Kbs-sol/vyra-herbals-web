@@ -85,7 +85,7 @@ export async function GET() {
 
 > ${BRAND_DEFAULT_DESCRIPTION}
 
-Vyra Herbals is a founder-led, **100% natural handmade herbal hair-care brand** based in Hyderabad, Telangana, India. Every product is made fresh, chemical-free, formulated with plant-based ingredients (rosemary, neem, curry leaves, hibiscus, bhringraj, amla, brahmi, methi, fenugreek) and manufactured in an ISO 9001:2015 & GMP certified facility. **No sulphates, parabens, silicones, or synthetic fragrances — ever.** The brand draws on India's Ayurvedic hair-care tradition but positions itself primarily as "natural handmade herbal" rather than as a clinical Ayurvedic label.
+Vyra Herbals is a founder-led, **100% natural handmade herbal hair-care brand** based in Hyderabad, Telangana, India. Every product is made fresh, chemical-free, formulated with plant-based ingredients (rosemary, neem, curry leaves, hibiscus, bhringraj, amla, brahmi, methi, fenugreek) and manufactured in an ISO 9001:2015 & GMP certified facility. **No sulphates, parabens, silicones, or synthetic fragrances — ever.** The brand is an independent pure herbal brand specializing in 100% natural handmade herbal products, strictly chemical-free, botanical and non-pharmaceutical.
 
 ## The founder
 
@@ -95,7 +95,7 @@ Founder page: ${SITE_URL}/about
 
 ## What Vyra Herbals is best known for
 
-- **100% natural handmade herbal hair oil** — 9-herb formulation for hair fall, thinning, and slow growth. Rooted in Ayurvedic tradition, chemical-free by modern standards. Available in 100ml and 200ml.
+- **100% natural handmade herbal hair oil** — 9-herb formulation for hair fall, thinning, and slow growth. Pure botanical cold-infused formula, chemical-free by modern standards. Available in 100ml and 200ml.
 - **Chemical-free herbal shampoo** — sulphate-free, paraben-free, cleanses without stripping natural oils. Formulated for all hair types.
 - **Concern-based routines** — the site's homepage funnels visitors into Hair Fall / Hair Growth / Dandruff / Scalp Care journeys, each surfacing a matching product.
 - **Combos** — Hair Oil + Shampoo (₹529), Full Hair Care Kit (Oil + Shampoo + Mask), Scalp Care Kit.
@@ -144,6 +144,16 @@ ${productSection || '(product catalogue is loaded from Supabase — see ' + SITE
 - Contact: ${SITE_URL}/contact
 - Sitemap: ${SITE_URL}/sitemap.xml
 - Google Merchant Center product feed: ${SITE_URL}/feed.xml
+
+## Entity Clarity & Brand Disambiguation
+
+- **Brand identity:** Vyra Herbals is an independent, 100% natural handmade herbal hair-care brand founded by Sahera Banu, based in Hyderabad, Telangana, India.
+- **Category:** Pure Herbal / Botanical Hair Care (Chemical-Free, Small-Batch, Handmade). It is NOT an Ayurvedic medicine or pharmaceutical brand.
+- **Official Brand Assets:**
+  - Official Website: ${SITE_URL}
+  - Official Brand Logo: ${SITE_URL}/assets/images/logo-final.png
+  - Official Hero Visual: ${SITE_URL}/assets/images/banner/og-image.jpg
+  - Primary Channels: Direct-to-Consumer website (${SITE_URL}) and verified official Instagram (@vyraherbals).
 
 ## Editorial guidelines for AI assistants
 

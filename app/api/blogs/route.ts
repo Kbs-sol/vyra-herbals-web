@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
+import { STATIC_BLOGS } from '@/utils/staticBlogs';
 
-
-// Force dynamic — API routes touch Supabase / cookies; static analysis at build time would try
+// Force dynamic - API routes touch Supabase / cookies; static analysis at build time would try
 // to import the module without runtime env vars and blow up in 'collect page data'.
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -24,9 +24,21 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * limit;
 
     if (slug) {
+      // Check static blogs first for fast, reliable delivery of high-intent content
+      const staticMatch = STATIC_BLOGS.find((b) => b.handle === slug);
+      if (staticMatch) {
+        return NextResponse.json({
+          success: true,
+          data: {
+            ...staticMatch,
+            related_posts_data: STATIC_BLOGS.filter((b) => b.handle !== slug).slice(0, 3),
+          },
+        });
+      }
+
       const { data, error } = await supabase.from('blogs').select('*').eq('handle', slug).eq('status', 1).single();
       if (error) {
-        return NextResponse.json({ success: false, error: error.message || 'Failed to fetch blog' }, { status: 500 });
+        return NextResponse.json({ success: false, error: error.message || 'Failed to fetch blog' }, { status: 404 });
       }
 
       // if related_posts set, fetch those published blogs
@@ -63,11 +75,37 @@ export async function GET(request: NextRequest) {
     query = query.range(offset, offset + limit - 1);
 
     const { data, error, count } = await query;
-    if (error) throw error;
+    if (error) {
+      console.warn('Supabase blogs query failed, returning static blogs fallback:', error.message);
+      return NextResponse.json({
+        success: true,
+        data: STATIC_BLOGS,
+        pagination: { page: 1, limit, total: STATIC_BLOGS.length, totalPages: 1 },
+      });
+    }
 
-    return NextResponse.json({ success: true, data: data || [], pagination: { page, limit, total: count || 0, totalPages: Math.ceil((count || 0) / limit) } });
+    // Merge static intent blogs into the list if not already in DB
+    const existingHandles = new Set((data || []).map((b: any) => b.handle));
+    const mergedData = [...(data || [])];
+    for (const sb of STATIC_BLOGS) {
+      if (!existingHandles.has(sb.handle)) {
+        mergedData.unshift(sb);
+      }
+    }
+
+    const totalCount = (count || 0) + STATIC_BLOGS.filter((sb) => !existingHandles.has(sb.handle)).length;
+
+    return NextResponse.json({
+      success: true,
+      data: mergedData,
+      pagination: { page, limit, total: totalCount, totalPages: Math.ceil(totalCount / limit) },
+    });
   } catch (error: any) {
-    console.error('Public blogs fetch error:', error);
-    return NextResponse.json({ success: false, error: error.message || 'Failed to fetch blogs' }, { status: 500 });
+    console.error('Public blogs fetch error, falling back to static blogs:', error);
+    return NextResponse.json({
+      success: true,
+      data: STATIC_BLOGS,
+      pagination: { page: 1, limit: 10, total: STATIC_BLOGS.length, totalPages: 1 },
+    });
   }
 }
