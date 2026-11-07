@@ -9,6 +9,7 @@ import ErrorBoundary from "../Components/ErrorBoundary";
 // Import all components directly for faster hydration (no dynamic imports)
 import Banner from "../Components/Home/Banner";
 import Category from "../Components/Home/Category";
+import ConcernDiscoveryTray from "../Components/Home/ConcernDiscoveryTray";
 import OurProducts from "../Components/Home/OurProducts";
 import Stories from "../Components/Reviews/Stories";
 import Testimonial from "../Components/Reviews/Testimonial";
@@ -69,6 +70,9 @@ const Home = () => {
       <main id="main-content">
         <ErrorBoundary>
           <Banner />
+          <ErrorBoundary>
+            <ConcernDiscoveryTray />
+          </ErrorBoundary>
           <ErrorBoundary>
             <Category />
           </ErrorBoundary>
