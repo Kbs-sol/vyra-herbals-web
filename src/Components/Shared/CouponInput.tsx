@@ -36,7 +36,7 @@ const CouponInput: React.FC = () => {
             {appliedCoupon ? (
                 <div className="applied">
                     <div className="applied-info">
-                        <span className="badge">✓ {appliedCoupon.code}</span>
+                        <span className="badge">{appliedCoupon.code} applied</span>
                         <span className="saved">You saved ₹{appliedCoupon.discount}</span>
                         {appliedCoupon.description && (
                             <span className="desc">{appliedCoupon.description}</span>

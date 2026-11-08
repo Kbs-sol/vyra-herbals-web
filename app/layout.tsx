@@ -76,7 +76,6 @@ export const metadata: Metadata = {
     'natural hair growth oil',
     // Retained long-tail cultural signals — kept low in the list on purpose.
     'herbal hair care',
-    'ayurvedic hair care',
     'GMP certified hair oil',
     'ISO 9001:2015 hair care',
   ],

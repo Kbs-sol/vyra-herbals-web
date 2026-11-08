@@ -73,7 +73,7 @@ const OurProducts = () => {
         <div className="row">
           <div className="col-lg-12 text-center mt-4">
             <Link href="/search?searchtext=all" className="hero-btn-solid d-inline-block">
-              VIEW ALL FORMULATIONS →
+              VIEW ALL FORMULATIONS
             </Link>
           </div>
         </div>

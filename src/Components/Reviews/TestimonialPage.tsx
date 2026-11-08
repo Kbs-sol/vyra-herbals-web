@@ -154,7 +154,7 @@ const TestimonialPage = () => {
                         className={`filter-chip ${selectedRating === star ? 'active' : ''}`} 
                         onClick={() => setSelectedRating(star)}
                     >
-                        {star} ★
+                        {star} stars
                     </button>
                 ))}
             </div>

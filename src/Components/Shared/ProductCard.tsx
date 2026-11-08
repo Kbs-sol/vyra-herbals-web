@@ -87,7 +87,7 @@ const ProductCard = ({ product, isImageLazy = true }: { product: any; isImageLaz
                 </Link>
               </>
             ) : (
-              <span className="rating-unreviewed">★ 100% Herbal Formulation</span>
+              <span className="rating-unreviewed">100% Herbal Formulation</span>
             )}
           </div>
 
