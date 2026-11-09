@@ -34,6 +34,9 @@ import Utility from "../utils/UtilityFunctions";
 import StarRatings from "../Components/Common/StarRatings";
 import Pagination from "../Components/Common/Pagination";
 import QuantitySelector from "../Components/Common/QuantitySelector";
+import VariantSelector from "../Components/Common/VariantSelector";
+import { useOrderCounts, orderCountLabel } from "../Components/Common/useOrderCounts";
+import { getFamilyForProductId } from "../utils/variantFamilies";
 import IngredientsSection from "../Components/Product/IngredientsSection";
 
 import { trackEvent } from "@/utils/analytics";
@@ -77,6 +80,8 @@ const Singleproducts: React.FC<SingleproductsProps> = ({ initialProduct = null }
   const { cartCount, updateCartCount } = useCart();
 
   const [qty, setQty] = useState(1);
+  const orderCounts = useOrderCounts();
+  const hasProductRef = React.useRef(!!initialProduct);
   const [hasAutoTriggeredCheckout, setHasAutoTriggeredCheckout] = useState(false);
 
 
@@ -143,7 +148,8 @@ const Singleproducts: React.FC<SingleproductsProps> = ({ initialProduct = null }
 
     const fetchData = async () => {
       try {
-        setIsProductLoading(true);
+        // Switching size keeps the page on screen instead of flashing the loader.
+        if (!hasProductRef.current) setIsProductLoading(true);
         setProductError(null);
 
         let requestData = { product_handle: productHandle };
@@ -167,6 +173,7 @@ const Singleproducts: React.FC<SingleproductsProps> = ({ initialProduct = null }
 
         const data = await response.json();
         setProduct(data);
+        hasProductRef.current = true;
         setMainImage(data.image_url);
 
         // Track ViewContent event
@@ -428,6 +435,11 @@ const Singleproducts: React.FC<SingleproductsProps> = ({ initialProduct = null }
     setCurrentPage(pageNumber);
   };
 
+  const orderSocialProof = (() => {
+    const fam = getFamilyForProductId(product?.id);
+    const count = fam ? orderCounts?.families?.[fam.key] : orderCounts?.products?.[String(product?.id)];
+    return orderCountLabel(count);
+  })();
   const productPrice = Number(product?.price || 0) as number;
   const regularPrice = Number(product?.regular_price || 0) as number;
 
@@ -530,12 +542,12 @@ const Singleproducts: React.FC<SingleproductsProps> = ({ initialProduct = null }
             </div>
             <div className="col-lg-6">
               <div className="details-content">
-                <span className="mb-1 user-stat d-inline-block d-xl-none">
-                  <SVGIcon iconName={"line-graph"} className={undefined} />
-                  {(product.ordered_count_30_days || 0) +
-                    "+" +
-                    " People ordered this in last 30 days"}
-                </span>
+                {orderSocialProof && (
+                  <span className="mb-1 user-stat d-inline-block d-xl-none">
+                    <SVGIcon iconName={"line-graph"} className={undefined} />
+                    {orderSocialProof}
+                  </span>
+                )}
                 <h3 className="details-name"> {product.title} </h3>
                 <p> {product.description} </p>
 
@@ -572,23 +584,17 @@ const Singleproducts: React.FC<SingleproductsProps> = ({ initialProduct = null }
                     )}
                     % Off
                   </span>
-                  <span className="ms-3 user-stat d-none d-xl-inline-block">
-                    <SVGIcon iconName={"line-graph"} className={undefined} />
-                    {(product.ordered_count_30_days || 0) +
-                      "+" +
-                      " People ordered this in last 30 days"}
-                  </span>
+                  {orderSocialProof && (
+                    <span className="ms-3 user-stat d-none d-xl-inline-block">
+                      <SVGIcon iconName={"line-graph"} className={undefined} />
+                      {orderSocialProof}
+                    </span>
+                  )}
                 </div>
 
                 <p>Tax included. Shipping calculated at checkout.</p>
 
-                {/* <div className='size_out'>
-                            <span>Size</span>
-                            <div className="d-flex">
-                                <button>100ml</button>
-                                <button>200ml</button>
-                            </div>
-                        </div> */}
+                <VariantSelector product={product} />
                 <div className="details-list-group mt-3 mb-3 d-flex align-items-center gap-3">
                   <AddToWishlistButton
                     productId={product?.id}

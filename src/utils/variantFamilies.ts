@@ -31,6 +31,18 @@ export const FAMILIES: VariantFamily[] = [
   { key: 'kit-healthy-hair', name: 'Healthy Hair Kit', ids: [38], defaultId: 38 },
 ];
 
+/** Shopper-facing size / pack label per product id (shown on chips). */
+export const VARIANT_LABELS: Record<number, string> = {
+  1: '100 ml', 2: '200 ml', 3: '500 ml', 11: 'Pack of 3 (100 ml)', 12: 'Pack of 2 (200 ml)',
+  4: '200 ml', 5: '500 ml', 13: 'Pack of 2 (200 ml)',
+  9: 'Single pack', 10: 'Single pack', 8: 'Single piece',
+  6: 'Half comb', 7: 'Full comb', 14: 'Pack of 2',
+  15: 'Oil 100 ml + Shampoo 200 ml', 16: 'Oil 200 ml + Shampoo 200 ml', 17: 'Oil 500 ml + Shampoo 200 ml',
+  18: 'Oil 100 ml + Shampoo 500 ml', 19: 'Oil 200 ml + Shampoo 500 ml', 20: 'Oil 500 ml + Shampoo 500 ml',
+  21: 'Combo set',
+  22: 'Mini', 23: 'Complete', 24: 'Mini', 25: 'Complete', 26: 'Mini', 27: 'Complete', 28: 'Complete set', 38: 'Complete set',
+};
+
 export const getFamilyByKey = (key: string) => FAMILIES.find((f) => f.key === key);
 
 export const getFamilyForProductId = (id: number | string | null | undefined) => {
@@ -74,6 +86,7 @@ export const variantSortValue = (p: any): number => {
 /** Short chip label for a variant ("100 ml", "250 ml", ...). */
 export const variantLabel = (p: any): string => {
   if (p?.variant_label) return String(p.variant_label);
+  if (VARIANT_LABELS[Number(p?.id)]) return VARIANT_LABELS[Number(p.id)];
   const text = `${p?.size || ''} ${p?.title || ''}`;
   const m = text.match(/(\d+(?:\.\d+)?)\s*(ml|gm|g|l|kg)\b/i);
   if (m) return `${m[1]} ${m[2].toLowerCase() === 'gm' ? 'g' : m[2].toLowerCase()}`;
