@@ -847,7 +847,9 @@ const StyledHeader = styled.section`
       padding: 0.4rem 0;
       
       .header-content {
-        margin-bottom: 2.8rem; /* Increased to accommodate search bar */
+        position: relative; /* anchors the absolute search bar to this row, not the whole header */
+        margin-bottom: 0;
+        padding-bottom: 3rem; /* room for the search bar; category pills sit below it */
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -863,7 +865,7 @@ const StyledHeader = styled.section`
 
         .search-section {
           position: absolute;
-          bottom: 0.4rem;
+          bottom: 0.15rem;
           left: 0.75rem;
           right: 0.75rem;
           width: calc(100% - 1.5rem);
