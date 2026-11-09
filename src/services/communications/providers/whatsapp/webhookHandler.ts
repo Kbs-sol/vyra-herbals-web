@@ -51,7 +51,8 @@ export function verifyWebhookHandshake(params: {
   token: string | null;
   challenge: string | null;
 }): string | null {
-  const expectedToken = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN;
+  const expectedToken =
+    process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || process.env.WHATSAPP_VERIFY_TOKEN;
   if (params.mode === 'subscribe' && params.token === expectedToken && params.challenge) {
     return params.challenge;
   }

@@ -66,8 +66,8 @@ export async function handleCart(from: string, session: WhatsAppSession) {
       action: {
         buttons: [
           { type: 'reply', reply: { id: 'CHECKOUT', title: '✔️ Checkout' } },
+          { type: 'reply', reply: { id: 'EDIT_CART', title: '✏️ Edit Cart' } },
           { type: 'reply', reply: { id: 'VIEW_CATALOG', title: '➕ Add More' } },
-          { type: 'reply', reply: { id: 'MAIN_MENU', title: '🏠 Menu' } },
         ]
       }
     }
@@ -140,11 +140,80 @@ export async function handleAddToCart(from: string, session: WhatsAppSession) {
       action: {
         buttons: [
           { type: 'reply', reply: { id: 'CHECKOUT', title: '✔️ Checkout' } },
-          { type: 'reply', reply: { id: 'VIEW_CATALOG', title: '➕ More Products' } },
+          { type: 'reply', reply: { id: 'EDIT_CART', title: '✏️ Edit / Qty' } },
           { type: 'reply', reply: { id: 'VIEW_CART', title: '🛒 View Cart' } },
         ]
       }
     }
+  });
+}
+
+export async function handleEditCart(from: string, session: WhatsAppSession) {
+  const db = getSupabaseAdmin();
+  const items = await getCartItems(db, from);
+
+  if (items.length === 0) {
+    await handleCart(from, session);
+    return;
+  }
+
+  const rows: any[] = [];
+  let total = 0;
+
+  for (const item of items) {
+    const product = item.products;
+    if (!product) continue;
+    const lineTotal = product.price * item.quantity;
+    total += lineTotal;
+    const shortTitle = product.title.length > 14 ? product.title.substring(0, 14) + '..' : product.title;
+
+    rows.push({
+      id: `QTY_INC_${item.product_id}`,
+      title: `➕ Add 1: ${shortTitle}`.substring(0, 24),
+      description: `Qty now: ${item.quantity} (+\u20b9${product.price})`,
+    });
+
+    if (item.quantity > 1) {
+      rows.push({
+        id: `QTY_DEC_${item.product_id}`,
+        title: `➖ Less 1: ${shortTitle}`.substring(0, 24),
+        description: `Qty now: ${item.quantity} (-\u20b9${product.price})`,
+      });
+    }
+
+    rows.push({
+      id: `REMOVE_${item.product_id}`,
+      title: `🗑️ Remove: ${shortTitle}`.substring(0, 24),
+      description: `Remove ${item.quantity} item(s) from cart`,
+    });
+  }
+
+  // Quick action row
+  rows.push({
+    id: 'CHECKOUT',
+    title: '✔️ Proceed to Checkout',
+    description: `Pay \u20b9${total} & enter delivery address`,
+  });
+
+  await whatsappClient.sendRaw({
+    messaging_product: 'whatsapp',
+    to: from,
+    type: 'interactive',
+    interactive: {
+      type: 'list',
+      header: { type: 'text', text: '✏️ Edit Cart' },
+      body: { text: `Manage your cart items below. You can increase, decrease or remove items before ordering.` },
+      footer: { text: `Total: \u20b9${total}` },
+      action: {
+        button: 'Modify Items ↓',
+        sections: [
+          {
+            title: 'Cart Items & Actions',
+            rows: rows.slice(0, 10), // WhatsApp max 10 rows
+          },
+        ],
+      },
+    },
   });
 }
 

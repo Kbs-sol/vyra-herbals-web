@@ -1,6 +1,6 @@
 import { whatsappClient } from '../../providers/whatsapp/client';
 import { updateSession, type WhatsAppSession } from '../sessionManager';
-import { createServerSupabase } from '@/utils/supabaseClient';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 export async function handleOrderReceived(from: string, orderData: any, session: WhatsAppSession) {
   const items = orderData.product_items || [];
@@ -25,22 +25,31 @@ export async function handleOrderReceived(from: string, orderData: any, session:
     });
   }
 
-  const db = createServerSupabase();
+  const db = getSupabaseAdmin();
+
+  const now = new Date();
+  const generatedId = now.getTime();
+  const generatedOrderId = `ORD-${generatedId}`;
 
   // Create Draft Order in Database
   const { data: orderRow, error } = await db
     .from('orders')
     .insert([{
-      total: totalAmount,
+      id: generatedId,
+      order_id: generatedOrderId,
+      total_amount: totalAmount,
       status: 'pending', // Draft
-      phone: from,
-      order_source: 'whatsapp',
-      shipping_address: {}, // Will fill next step
+      source: 'whatsapp',
+      shipping_data: { phone: from },
+      shipping_address: '',
+      items: dbItems,
+      payment_method: 'online',
     }])
     .select('id')
     .single();
 
   if (error || !orderRow) {
+    console.error('[orderReceiver] draft order creation failed:', error);
     await sendText(from, 'Sorry, we encountered an issue processing your cart. Please try again later.');
     return;
   }

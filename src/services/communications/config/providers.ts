@@ -9,9 +9,9 @@ export function getWhatsAppConfig(): ProviderConfig {
 }
 
 export const FEATURE_FLAGS = {
-  ORDER_PLACED: () => process.env.WHATSAPP_SEND_ORDER_PLACED === 'true',
+  ORDER_PLACED: () => process.env.WHATSAPP_SEND_ORDER_PLACED !== 'false',
   PAYMENT_CONFIRMED: () => process.env.WHATSAPP_SEND_PAYMENT_CONFIRMED === 'true',
   SHIPMENT_CREATED: () => process.env.WHATSAPP_SEND_SHIPMENT_CREATED === 'true',
-  DELIVERY_STATUS_UPDATED: () => process.env.WHATSAPP_SEND_DELIVERY_UPDATES === 'true',
+  DELIVERY_STATUS_UPDATED: () => process.env.WHATSAPP_SEND_DELIVERY_UPDATES !== 'false',
   REFUND_INITIATED: () => process.env.WHATSAPP_SEND_REFUND_INITIATED === 'true',
 } as const;

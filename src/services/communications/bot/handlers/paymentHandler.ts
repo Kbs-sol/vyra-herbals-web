@@ -42,14 +42,21 @@ async function buildOrderFromCart(db: any, phone: string, draftOrderId: number |
   }
 
   // Create new draft order
+  const now = new Date();
+  const generatedId = now.getTime();
+  const generatedOrderId = `ORD-${generatedId}`;
+
   const { data: order, error } = await db
     .from('orders')
     .insert([{
+      id: generatedId,
+      order_id: generatedOrderId,
       status: 'pending',
       source: 'whatsapp',
       items: itemsJson,
       total_amount: total,
       payment_method: 'online',
+      shipping_data: { phone },
     }])
     .select('id')
     .single();
@@ -71,12 +78,12 @@ async function buildOrderFromCart(db: any, phone: string, draftOrderId: number |
 
 export async function handleCheckout(from: string, session: WhatsAppSession) {
   const db = getSupabaseAdmin();
-  const cartItems = await db
+  const { data: cartItems } = await db
     .from('whatsapp_cart_items')
     .select('id')
     .eq('phone', from);
 
-  if (!cartItems.data || cartItems.data.length === 0) {
+  if (!cartItems || cartItems.length === 0) {
     await sendText(from, 'Your cart is empty. Type *Menu* to browse products.');
     return;
   }
