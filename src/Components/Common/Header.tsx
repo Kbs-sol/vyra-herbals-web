@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Offcanvas from "react-bootstrap/Offcanvas";
@@ -9,12 +9,13 @@ import { FaBarsStaggered } from "react-icons/fa6";
 import { useCart } from "../Contexts/CartContext";
 import { useWishlist } from "../Contexts/WishlistContext";
 import { useAuth } from "../Contexts/AuthContext";
-import Slider from "react-slick";
 import SearchBar from "../Shared/SearchBar";
 import styled, { createGlobalStyle } from "styled-components";
 import { FaShoppingCart, FaUserCircle, FaHeart } from "react-icons/fa";
 import { Accordion, Dropdown } from "react-bootstrap";
 import { Category } from "@/types";
+import { Truck } from "lucide-react";
+import { QUICK_CATEGORIES } from "@/utils/collections";
 
 const GlobalMobileMenuStyle = createGlobalStyle`
   .styled-offcanvas {
@@ -256,25 +257,6 @@ const Header = () => {
     fetchCategories();
   }, []);
 
-  // Custom arrow component to avoid passing currentSlide/slideCount to DOM
-  const HiddenArrow = ({ className, style, onClick }: any) => (
-    <span className={className} style={{ ...style, display: 'none' }} onClick={onClick} />
-  );
-
-  const settings = {
-    fade: true,
-    infinite: true,
-    speed: 300,
-    slidesToShow: 1,
-    slidesToScroll: 1,
-    waitForAnimate: false,
-    autoplay: true,
-    autoplaySpeed: 3000,
-    cssEase: "linear",
-    nextArrow: <HiddenArrow />,
-    prevArrow: <HiddenArrow />,
-  };
-
   // Remove useQuery custom hook (not needed)
 
   const handleSearch = () => {
@@ -301,6 +283,19 @@ const Header = () => {
   }, [pathname, searchParams]);
 
   const [isSticky, setIsSticky] = useState(false);
+  const headerRef = useRef<HTMLElement | null>(null);
+  const [headerHeight, setHeaderHeight] = useState(0);
+
+  // Remember the header's natural height so the page does not jump when it becomes fixed.
+  useEffect(() => {
+    if (isSticky) return;
+    const measure = () => {
+      if (headerRef.current) setHeaderHeight(headerRef.current.offsetHeight);
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [isSticky, categories.length]);
 
 
   useEffect(() => {
@@ -325,23 +320,16 @@ const Header = () => {
     <>
       <GlobalMobileMenuStyle />
       <div className="backdrop"></div>
-      <section className="header-top">
+      <section className="header-top" aria-label="Shipping offer">
         <div className="container">
-          <div className="row">
-            <div className="col-md-12 col-lg-12">
-              <div className="header-top-welcome text-center">
-                <Slider {...settings}>
-                  <p>Welcome to Vyra Herbals: Truth in Every Drop!</p>
-                  <p>Free Pan-India Delivery on All Products</p>
-                  <p>ISO 9001:2015 & GMP Certified</p>
-                  {/* <p>Use coupon code: VYRABIRTHDAY - to get flat Rs.100/- off.</p> */}
-                </Slider>
-              </div>
-            </div>
-          </div>
+          <p className="header-top-shipping">
+            <Truck size={15} strokeWidth={2} aria-hidden="true" />
+            <span>Free Shipping on All Orders Across India</span>
+          </p>
         </div>
       </section>
-      <StyledHeader className={`header-part ${isSticky ? 'fixed-header' : ''}`}>
+      {isSticky && <div aria-hidden="true" style={{ height: headerHeight }} />}
+      <StyledHeader ref={headerRef} className={`header-part ${isSticky ? 'fixed-header' : ''}`}>
 
         <div className="container">
           <div className="header-content">
@@ -516,6 +504,21 @@ const Header = () => {
             </div>
           </div>
         </div>
+        <nav className="quick-categories" aria-label="Shop by category">
+          <ul>
+            {QUICK_CATEGORIES.map((c) => {
+              const href = `/category/${c.slug}`;
+              const active = pathname === href;
+              return (
+                <li key={c.slug}>
+                  <Link href={href} className={active ? 'active' : ''} aria-current={active ? 'page' : undefined}>
+                    {c.label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
       </StyledHeader>
 
       <OffCanvasWrapper>
@@ -648,6 +651,46 @@ const Header = () => {
 export default Header;
 
 const StyledHeader = styled.section`
+  .quick-categories {
+    border-top: 1px solid rgba(27, 59, 43, 0.08);
+    margin-top: 0.45rem;
+    padding-top: 0.45rem;
+
+    ul {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+      list-style: none;
+      margin: 0 auto;
+      max-width: 1320px;
+      overflow-x: auto;
+      padding: 0 0.75rem 0.15rem;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    ul::-webkit-scrollbar { display: none; }
+    li { flex: 0 0 auto; margin: 0; }
+    a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 36px;
+      padding: 0 16px;
+      border-radius: 999px;
+      border: 1px solid rgba(27, 59, 43, 0.18);
+      background: #faf7f2;
+      color: #1b3b2b;
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    }
+    a:hover, a.active { background: #1b3b2b; color: #fff; border-color: #1b3b2b; }
+    @media (max-width: 576px) {
+      ul { justify-content: flex-start; }
+    }
+  }
     &.header-part {
     padding: 0.5rem 0;
     background: var(--white);

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/utils/supabaseClient';
+import { categoriesForSlug, getCollection } from '@/utils/collections';
 
 
 // Force dynamic — API routes touch Supabase / cookies; static analysis at build time would try
@@ -19,7 +20,16 @@ export async function POST(req: Request) {
     }
 
     const supabase = createServerSupabase();
-    let query = supabase.from('products').select('*').eq('category', categoryValue);
+    // Shopper collections (kits, tools, mask) span several DB categories.
+    const slug = String(categoryValue).trim().toLowerCase().replace(/[\s_]+/g, '-');
+    let query = supabase.from('products').select('*');
+    if (getCollection(slug)) {
+      const wanted = categoriesForSlug(slug);
+      const spaced = wanted.map((c) => c.replace(/-/g, ' '));
+      query = query.in('category', Array.from(new Set([...wanted, ...spaced])));
+    } else {
+      query = query.eq('category', categoryValue);
+    }
     
     if (typeof extra_condition === 'string') {
       const limitMatch = extra_condition.match(/LIMIT\s+(\d+)/i);
