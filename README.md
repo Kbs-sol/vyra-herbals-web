@@ -31,6 +31,16 @@ A Next.js 15 (App Router) storefront + admin panel + WhatsApp integration + paym
 | Consent | None (DPDP-non-compliant) | Two-button consent banner + Google Consent Mode v2 + Meta `fbq('consent')` gating |
 | Product feed | ❌ None | `/feed.xml` — Google Merchant Center compliant, ALSO carries Meta Commerce fields |
 
+## November 2026 mobile conversion redesign
+
+Homepage -> concern selector -> recommended routine -> cart -> checkout. Free-shipping bar, category strip,
+real chat reviews (admin managed), Before & After, size selector on every product, live "N+ people ordered
+this month" counter, five collection pages, simplified checkout form and Shiprocket-ready checkout.
+Full details, file map and go-live checklist: [`docs/REDESIGN_PLAN_2026-11.md`](./docs/REDESIGN_PLAN_2026-11.md).
+
+**Run in Supabase (once):** `supabase/migrations/20261108_chat_reviews.sql` and
+`supabase/migrations/20261109_remove_ayurvedic_copy.sql`.
+
 ## Quick start
 
 ```bash
@@ -89,6 +99,7 @@ The admin panel is at `/admin` (guarded by login at `/admin/login`). Highlights:
 | **Media Library** | `/admin/media` | **Bulk image manager — paste URL or upload, reorder, delete, no other product fields touched.** |
 | Orders | `/admin/orders` | Order list + status transitions + shipment sync |
 | Reviews | `/admin/reviews` | Approve / reject customer reviews |
+| **Chat Reviews** | `/admin/chat-reviews` | Upload WhatsApp / Instagram chat screenshots shown on the homepage (order, show/hide) |
 | WhatsApp Inbox | /admin/whatsapp | Live customer conversations, 24-h window enforcement, template-send fallback |
 | Live Chats | /admin/chats | Full WhatsApp live chat - thread list, 4s polling, instant send, bot takeover |
 | Business Intel | /admin/business-intelligence | Revenue charts, AOV, order splits, lead funnel, 30-day trends |

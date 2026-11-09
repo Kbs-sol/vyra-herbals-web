@@ -501,7 +501,7 @@ permanent token** in production:
 
 - **Auth:** JWT cookie `admin_token` signed with `JWT_SECRET`. `requireAdmin(request)` in `src/utils/adminAuth.ts` gates every admin API route. Fail loud when `JWT_SECRET` is missing.
 - **Login:** `/admin/login` — supports both `ADMIN_PASSWORD_HASH` (scrypt) and `ADMIN_PASSWORD` (plaintext fallback for staging).
-- **Sections:** Dashboard, Orders (with iCarry sync, WhatsApp resend, PDF invoice via `jspdf`), Products, Categories, Ingredients, Blogs, Reviews, Testimonials, Coupons, Customers, Inquiries, Settings, Before-After (image gallery), WhatsApp Inbox, WhatsApp Broadcast.
+- **Sections:** Dashboard, Orders (with iCarry sync, WhatsApp resend, PDF invoice via `jspdf`), Products, Categories, Ingredients, Blogs, Reviews, Testimonials, Coupons, Customers, Inquiries, Settings, Before-After (image gallery), Chat Reviews (`/admin/chat-reviews`, table `chat_reviews`), WhatsApp Inbox, WhatsApp Broadcast.
 - **Data:** every admin API route pulls through `getSupabaseAdmin()` (service-role key, bypasses RLS). Never call service-role from the browser.
 - **Noindex:** `app/admin/layout.tsx` sets `robots: 'noindex, nofollow'` sitewide for /admin/*.
 
@@ -636,6 +636,16 @@ Run this after the first Vercel deploy of this repo:
 - [ ] Upload the homepage hero video to YouTube, paste ID into `NEXT_PUBLIC_HOME_HERO_VIDEO_ID`.
 - [ ] Rich Results Test on 3 different product pages: green.
 - [ ] GSC → URL Inspection on the top 3 category pages, "Request indexing".
+
+## 17. Nov 2026 conversion redesign (quick reference)
+
+- **Variant families** (`src/utils/variantFamilies.ts`): sizes stay separate product rows; the storefront groups them. New size = add its id to a family.
+- **Collections** (`src/utils/collections.ts`): hair-oil, shampoo, kits, tools, mask. `/api/products/by-category` and `app/category/[categoryName]` accept these slugs.
+- **Order counter**: `GET /api/products/order-counts` (30-day distinct successful orders, 10-min cache, hidden under 5).
+- **Chat reviews**: table `chat_reviews` (public read where status=1), admin CRUD at `/api/admin/chat-reviews`, homepage `ChatProof`.
+- **Concern flow**: `ConcernFlow` is shared by the homepage section and the mobile bottom sheet (`openConcernSelector()`).
+- **Checkout**: native form is PIN-first with optional landmark/house/email; Shiprocket remains primary when enabled (see `docs/REDESIGN_PLAN_2026-11.md`).
+- **Brand rule**: the word "Ayurvedic" is not used anywhere; migration `20261109_remove_ayurvedic_copy.sql` fixes stored descriptions.
 
 ## 16. Where to send help
 
