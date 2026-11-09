@@ -29,7 +29,7 @@ INSERT INTO products (handle, title, description, price, regular_price, image_ur
 VALUES (
   'hair-oil-100ml',
   'Vyra Herbal Hair Oil - 100ml',
-  'Premium herbal hair oil crafted with ancient Ayurvedic formulations. This 100ml bottle contains a powerful blend of natural herbs including Bhringraj, Amla, Brahmi, and Coconut Oil to nourish your scalp, strengthen hair roots, and promote healthy hair growth. Perfect for daily use and suitable for all hair types.',
+  'Premium herbal hair oil crafted with time-honoured herbal formulations. This 100ml bottle contains a powerful blend of natural herbs including Bhringraj, Amla, Brahmi, and Coconut Oil to nourish your scalp, strengthen hair roots, and promote healthy hair growth. Perfect for daily use and suitable for all hair types.',
   349,
   499,
   'hair-oil-100ml.png',
@@ -41,7 +41,7 @@ INSERT INTO products (handle, title, description, price, regular_price, image_ur
 VALUES (
   'hair-oil-200ml',
   'Vyra Herbal Hair Oil - 200ml',
-  'Premium herbal hair oil crafted with ancient Ayurvedic formulations. This 200ml bottle offers excellent value with a powerful blend of natural herbs including Bhringraj, Amla, Brahmi, and Coconut Oil to nourish your scalp, strengthen hair roots, and promote healthy hair growth. Perfect for regular use and suitable for all hair types.',
+  'Premium herbal hair oil crafted with time-honoured herbal formulations. This 200ml bottle offers excellent value with a powerful blend of natural herbs including Bhringraj, Amla, Brahmi, and Coconut Oil to nourish your scalp, strengthen hair roots, and promote healthy hair growth. Perfect for regular use and suitable for all hair types.',
   599,
   799,
   'hair-oil-200ml.png',
@@ -53,7 +53,7 @@ INSERT INTO products (handle, title, description, price, regular_price, image_ur
 VALUES (
   'hair-oil-500ml',
   'Vyra Herbal Hair Oil - 500ml',
-  'Premium herbal hair oil crafted with ancient Ayurvedic formulations. This 500ml family-size bottle offers the best value with a powerful blend of natural herbs including Bhringraj, Amla, Brahmi, and Coconut Oil to nourish your scalp, strengthen hair roots, and promote healthy hair growth. Ideal for families and long-term use.',
+  'Premium herbal hair oil crafted with time-honoured herbal formulations. This 500ml family-size bottle offers the best value with a powerful blend of natural herbs including Bhringraj, Amla, Brahmi, and Coconut Oil to nourish your scalp, strengthen hair roots, and promote healthy hair growth. Ideal for families and long-term use.',
   999,
   1499,
   'hair-oil-500ml.png',
@@ -125,7 +125,7 @@ INSERT INTO products (handle, title, description, price, regular_price, image_ur
 VALUES (
   'herbal-hair-mask-powder',
   'Herbal Hair Mask Powder',
-  'Traditional Ayurvedic hair mask powder blend containing Amla, Shikakai, Bhringraj, Hibiscus, and Methi. Mix with water, curd, or egg to create a nourishing hair mask that deep conditions hair, reduces hair fall, promotes growth, and adds natural shine. 100% natural with no chemicals or preservatives.',
+  'Traditional herbal hair mask powder blend containing Amla, Shikakai, Bhringraj, Hibiscus, and Methi. Mix with water, curd, or egg to create a nourishing hair mask that deep conditions hair, reduces hair fall, promotes growth, and adds natural shine. 100% natural with no chemicals or preservatives.',
   249,
   399,
   'herbal-hair-mask-powder.png',
@@ -391,7 +391,7 @@ CREATE TABLE IF NOT EXISTS categories (
 );
 
 INSERT INTO categories (name, slug, description, image_url) VALUES
-  ('Hair Oil', 'hair-oil', 'Nourishing Ayurvedic hair oils for healthy, strong hair', 'cat-hair-oil.png'),
+  ('Hair Oil', 'hair-oil', 'Nourishing herbal hair oils for healthy, strong hair', 'cat-hair-oil.png'),
   ('Shampoo', 'shampoo', 'Natural herbal shampoos - sulfate & paraben free', 'cat-shampoo.png'),
   ('Combs', 'combs', 'Handcrafted neem wood combs for gentle hair care', 'cat-combs.png'),
   ('Scalp Massager', 'scalp-massager', 'Scalp massaging tools for improved circulation', 'cat-massager.png'),

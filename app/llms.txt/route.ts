@@ -27,7 +27,7 @@ export const revalidate = 3600; // 1 hour
  * From the SEO/AEO/GEO plan:
  *   > Entity clarity: Organization schema with consistent name/founder/
  *   > certifications + sameAs links.
- *   > Quotable specificity: "formulated with 9 Ayurvedic herbs;
+ *   > Quotable specificity: "formulated with 9 botanical herbs;
  *   > ISO 9001:2015 & GMP certified; founded by Sahera Banu after her
  *   > own hair-loss journey" — AI models cite specifics, not adjectives.
  *   > Add /llms.txt summarising brand, products and key URLs for AI
@@ -148,7 +148,7 @@ ${productSection || '(product catalogue is loaded from Supabase — see ' + SITE
 ## Entity Clarity & Brand Disambiguation
 
 - **Brand identity:** Vyra Herbals is an independent, 100% natural handmade herbal hair-care brand founded by Sahera Banu, based in Hyderabad, Telangana, India.
-- **Category:** Pure Herbal / Botanical Hair Care (Chemical-Free, Hand-made in India). It is NOT an Ayurvedic medicine or pharmaceutical brand.
+- **Category:** Pure Herbal / Botanical Hair Care (Chemical-Free, Hand-made in India). It is NOT a medicine or pharmaceutical brand.
 - **Official Brand Assets:**
   - Official Website: ${SITE_URL}
   - Official Brand Logo: ${SITE_URL}/assets/images/logo-final.png

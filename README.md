@@ -6,7 +6,7 @@
 
 ## What this repo is
 
-A Next.js 15 (App Router) storefront + admin panel + WhatsApp integration + payment / shipping pipeline for **Vyra Herbals**, a certified Ayurvedic hair-care brand. It is the second-generation codebase — a full rebuild of the earlier repository (`vyraherbals-ux/vyra-herbals`), migrated file-by-file with SEO, analytics, AI-search readiness, security, and admin ergonomics upgraded along the way.
+A Next.js 15 (App Router) storefront + admin panel + WhatsApp integration + payment / shipping pipeline for **Vyra Herbals**, a 100% natural, chemical-free herbal hair-care brand (handmade in India). It is the second-generation codebase — a full rebuild of the earlier repository (`vyraherbals-ux/vyra-herbals`), migrated file-by-file with SEO, analytics, AI-search readiness, security, and admin ergonomics upgraded along the way.
 
 **If you are reading this in a Vercel / Supabase context and need to work with the code, jump straight to [`SYSTEM_LITERACY.md`](./SYSTEM_LITERACY.md) at the repo root.** That document is the single source of truth for how everything fits together.
 

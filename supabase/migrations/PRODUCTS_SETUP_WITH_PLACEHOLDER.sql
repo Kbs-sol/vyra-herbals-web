@@ -30,7 +30,7 @@ INSERT INTO products (handle, title, description, price, regular_price, image_ur
 VALUES (
   'hair-oil-100ml',
   'Vyra Herbal Hair Oil - 100ml',
-  'Premium herbal hair oil crafted with ancient Ayurvedic formulations. This 100ml bottle contains a powerful blend of natural herbs including Bhringraj, Amla, Brahmi, and Coconut Oil to nourish your scalp, strengthen hair roots, and promote healthy hair growth. Perfect for daily use and suitable for all hair types.',
+  'Premium herbal hair oil crafted with time-honoured herbal formulations. This 100ml bottle contains a powerful blend of natural herbs including Bhringraj, Amla, Brahmi, and Coconut Oil to nourish your scalp, strengthen hair roots, and promote healthy hair growth. Perfect for daily use and suitable for all hair types.',
   349,
   499,
   '/assets/images/vyra_placeholder.png',
@@ -42,7 +42,7 @@ INSERT INTO products (handle, title, description, price, regular_price, image_ur
 VALUES (
   'hair-oil-200ml',
   'Vyra Herbal Hair Oil - 200ml',
-  'Premium herbal hair oil crafted with ancient Ayurvedic formulations. This 200ml bottle offers excellent value with a powerful blend of natural herbs including Bhringraj, Amla, Brahmi, and Coconut Oil to nourish your scalp, strengthen hair roots, and promote healthy hair growth. Perfect for regular use and suitable for all hair types.',
+  'Premium herbal hair oil crafted with time-honoured herbal formulations. This 200ml bottle offers excellent value with a powerful blend of natural herbs including Bhringraj, Amla, Brahmi, and Coconut Oil to nourish your scalp, strengthen hair roots, and promote healthy hair growth. Perfect for regular use and suitable for all hair types.',
   599,
   799,
   '/assets/images/vyra_placeholder.png',
@@ -54,7 +54,7 @@ INSERT INTO products (handle, title, description, price, regular_price, image_ur
 VALUES (
   'hair-oil-500ml',
   'Vyra Herbal Hair Oil - 500ml',
-  'Premium herbal hair oil crafted with ancient Ayurvedic formulations. This 500ml family-size bottle offers the best value with a powerful blend of natural herbs including Bhringraj, Amla, Brahmi, and Coconut Oil to nourish your scalp, strengthen hair roots, and promote healthy hair growth. Ideal for families and long-term use.',
+  'Premium herbal hair oil crafted with time-honoured herbal formulations. This 500ml family-size bottle offers the best value with a powerful blend of natural herbs including Bhringraj, Amla, Brahmi, and Coconut Oil to nourish your scalp, strengthen hair roots, and promote healthy hair growth. Ideal for families and long-term use.',
   999,
   1499,
   '/assets/images/vyra_placeholder.png',
@@ -126,7 +126,7 @@ INSERT INTO products (handle, title, description, price, regular_price, image_ur
 VALUES (
   'herbal-hair-mask-powder',
   'Herbal Hair Mask Powder',
-  'Traditional Ayurvedic hair mask powder blend containing Amla, Shikakai, Bhringraj, Hibiscus, and Methi. Mix with water, curd, or egg to create a nourishing hair mask that deep conditions hair, reduces hair fall, promotes growth, and adds natural shine. 100% natural with no chemicals or preservatives.',
+  'Traditional herbal hair mask powder blend containing Amla, Shikakai, Bhringraj, Hibiscus, and Methi. Mix with water, curd, or egg to create a nourishing hair mask that deep conditions hair, reduces hair fall, promotes growth, and adds natural shine. 100% natural with no chemicals or preservatives.',
   249,
   399,
   '/assets/images/vyra_placeholder.png',
@@ -154,7 +154,7 @@ INSERT INTO products (handle, title, description, price, regular_price, image_ur
 VALUES (
   'hair-oil-100ml-combo',
   'Vyra Hair Oil 100ml - Pack of 3',
-  'Value pack containing 3 bottles of our premium 100ml Herbal Hair Oil. Perfect for monthly use or sharing with family. Each bottle contains the same powerful Ayurvedic blend of Bhringraj, Amla, Brahmi, and Coconut Oil. Save more with this combo offer.',
+  'Value pack containing 3 bottles of our premium 100ml Herbal Hair Oil. Perfect for monthly use or sharing with family. Each bottle contains the same powerful herbal blend of Bhringraj, Amla, Brahmi, and Coconut Oil. Save more with this combo offer.',
   899,
   1497,
   '/assets/images/vyra_placeholder.png',
@@ -166,7 +166,7 @@ INSERT INTO products (handle, title, description, price, regular_price, image_ur
 VALUES (
   'hair-oil-200ml-combo',
   'Vyra Hair Oil 200ml - Pack of 2',
-  'Value pack containing 2 bottles of our premium 200ml Herbal Hair Oil. Ideal for couples or extended use. Each bottle contains the same powerful Ayurvedic blend of Bhringraj, Amla, Brahmi, and Coconut Oil. Great savings with this combo offer.',
+  'Value pack containing 2 bottles of our premium 200ml Herbal Hair Oil. Ideal for couples or extended use. Each bottle contains the same powerful herbal blend of Bhringraj, Amla, Brahmi, and Coconut Oil. Great savings with this combo offer.',
   999,
   1598,
   '/assets/images/vyra_placeholder.png',

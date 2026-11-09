@@ -72,7 +72,7 @@ This section is deliberately blunt. Nothing here is a criticism of the earlier t
 - There was **no `/llms.txt`** — the newer file convention (llmstxt.org) that lets brands hand LLMs a curated summary of themselves.
 - There was no HowTo / Speakable structured data — the two schemas AI assistants preferentially quote from.
 
-**Consequence:** When a user asked ChatGPT or Perplexity "what's a good Ayurvedic hair oil for hair fall in India?" — Vyra Herbals literally could not be part of the answer. The site was not in the training set (opt-out) and not in the retrieval set (opt-out).
+**Consequence:** When a user asked ChatGPT or Perplexity "what's a good herbal hair oil for hair fall in India?" — Vyra Herbals literally could not be part of the answer. The site was not in the training set (opt-out) and not in the retrieval set (opt-out).
 
 ### 2.3 Meta Pixel was leaking 20–40 % of purchase events
 
@@ -96,7 +96,7 @@ This section is deliberately blunt. Nothing here is a criticism of the earlier t
 - The old repo had **no product feed** and **no plan to build one**.
 - Meta Commerce Manager requires the same style of feed to enable Instagram Shopping tagging. Also absent.
 
-**Consequence:** Zero surface area on Google's free product listings. Zero Instagram Shop tags on organic posts. In beauty / Ayurveda categories, **~30 % of e-commerce clicks originate from a Google Shopping surface or an Instagram Shop tag**. The old site had opted out of both.
+**Consequence:** Zero surface area on Google's free product listings. Zero Instagram Shop tags on organic posts. In herbal beauty categories, **~30 % of e-commerce clicks originate from a Google Shopping surface or an Instagram Shop tag**. The old site had opted out of both.
 
 ### 2.6 The admin panel needed help too
 
@@ -175,7 +175,7 @@ This section is the answer to *"…and how does this actually help?"*. Each bull
 
 ### 4.2 AI-search-driven discovery (fix §3.2)
 
-- **Allowing GPTBot / ClaudeBot / PerplexityBot in `robots.txt`**: this is opting the site into the training and retrieval indexes for ChatGPT, Claude, Perplexity, and Meta AI. Beauty and Ayurveda queries are heavily searched via AI chat (India has one of the highest ChatGPT-per-capita rates in the world for consumer queries). Being cited in an AI answer creates *branded* traffic in a way traditional SEO can't match — the user is already in trust mode before they click.
+- **Allowing GPTBot / ClaudeBot / PerplexityBot in `robots.txt`**: this is opting the site into the training and retrieval indexes for ChatGPT, Claude, Perplexity, and Meta AI. Beauty and herbal hair-care queries are heavily searched via AI chat (India has one of the highest ChatGPT-per-capita rates in the world for consumer queries). Being cited in an AI answer creates *branded* traffic in a way traditional SEO can't match — the user is already in trust mode before they click.
 - **`/llms.txt` and `/ai.txt`**: give the LLM a *curated* view of the brand. Rather than the LLM guessing what Vyra Herbals sells from scattered blog posts, it now has an authoritative summary and a citation preference declared by the brand.
 - **HowTo + Speakable schema**: HowTo is the schema LLMs quote most frequently (measured by Perplexity's citation graph and Google's SGE panel composition). A well-tagged HowTo block on `/concern/hair-fall` is essentially a bid to be the quoted source when an LLM answers "how do I stop hair fall".
 
