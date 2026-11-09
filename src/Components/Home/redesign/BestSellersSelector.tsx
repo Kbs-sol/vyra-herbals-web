@@ -8,22 +8,23 @@ import { useCart } from "../../Contexts/CartContext";
 import { addToCart as trackAddToCart } from "../../../utils/analytics";
 import { BRAND, BREAKPOINTS, formatINR } from "./brand";
 import { useCatalogue, CatalogueProduct } from "./useCatalogue";
+import { useOrderCounts, orderCountLabel } from "../../Common/useOrderCounts";
 
 interface Variant {
   id: number;
   label: string;
 }
 interface Family {
-  key: string;
+  key: string; // matches variantFamilies key (for live order counts)
   name: string;
   blurb: string;
   variants: Variant[];
   defaultIndex: number;
 }
 
-const FAMILIES: Family[] = [
+const BEST_SELLERS: Family[] = [
   {
-    key: "oil",
+    key: "hair-oil",
     name: "Herbal Hair Oil",
     blurb: "Cold-infused whole herbs in virgin botanical oils for root nourishment.",
     variants: [
@@ -44,14 +45,14 @@ const FAMILIES: Family[] = [
     defaultIndex: 0,
   },
   {
-    key: "mask",
+    key: "hair-mask",
     name: "Herbal Hair Mask Powder",
     blurb: "A conditioning herb blend you mix fresh before each use.",
     variants: [{ id: 9, label: "Single pack" }],
     defaultIndex: 0,
   },
   {
-    key: "comb",
+    key: "neem-comb",
     name: "Neem Wood Comb",
     blurb: "Gentle, low-snag detangling from the ends upward.",
     variants: [
@@ -63,10 +64,52 @@ const FAMILIES: Family[] = [
   },
 ];
 
-const ALL_IDS = FAMILIES.flatMap((f) => f.variants.map((v) => v.id));
+const KITS: Family[] = [
+  {
+    key: "kit-hair-growth",
+    name: "Hair Growth Kit",
+    blurb: "Oil, shampoo and scalp tool to support stronger, fuller-looking hair.",
+    variants: [
+      { id: 26, label: "Mini" },
+      { id: 27, label: "Complete" },
+    ],
+    defaultIndex: 1,
+  },
+  {
+    key: "kit-hair-care",
+    name: "Hair Care Kit",
+    blurb: "A balanced everyday routine in one box: wash, oil and detangle.",
+    variants: [
+      { id: 22, label: "Mini" },
+      { id: 23, label: "Complete" },
+    ],
+    defaultIndex: 1,
+  },
+  {
+    key: "kit-scalp-care",
+    name: "Scalp Care Kit",
+    blurb: "Focused care for a clean, calm, well-nourished scalp.",
+    variants: [
+      { id: 24, label: "Mini" },
+      { id: 25, label: "Complete" },
+    ],
+    defaultIndex: 1,
+  },
+  {
+    key: "kit-all-in-one",
+    name: "All-in-One Hair Growth Kit",
+    blurb: "Everything we make for hair, together at the best value.",
+    variants: [{ id: 28, label: "Complete set" }],
+    defaultIndex: 0,
+  },
+];
+
+const ALL_IDS = [...BEST_SELLERS, ...KITS].flatMap((f) => f.variants.map((v) => v.id));
 
 const FamilyCard = ({ family, catalogue }: { family: Family; catalogue: CatalogueProduct[] }) => {
   const { addItemToCart, cartItems } = useCart();
+  const counts = useOrderCounts();
+  const social = orderCountLabel(counts?.families?.[family.key]);
   const [idx, setIdx] = useState(family.defaultIndex);
   const [busy, setBusy] = useState(false);
 
@@ -131,6 +174,8 @@ const FamilyCard = ({ family, catalogue }: { family: Family; catalogue: Catalogu
           </div>
         )}
 
+        {social && <p className="bs-social">{social}</p>}
+
         <div className="bs-price" aria-live="polite">
           <strong>{formatINR(price)}</strong>
           {mrp > price && <s>{formatINR(mrp)}</s>}
@@ -153,6 +198,8 @@ const FamilyCard = ({ family, catalogue }: { family: Family; catalogue: Catalogu
 
 const BestSellersSelector = () => {
   const catalogue = useCatalogue(ALL_IDS);
+  const [tab, setTab] = useState<"best" | "kits">("best");
+  const list = tab === "best" ? BEST_SELLERS : KITS;
   return (
     <Section id="bestSellers" aria-labelledby="bs-heading">
       <div className="container">
@@ -160,14 +207,46 @@ const BestSellersSelector = () => {
           <span className="eyebrow">
             <Star size={13} strokeWidth={2} aria-hidden="true" /> Customer favourites
           </span>
-          <h2 id="bs-heading">Best sellers, in your size</h2>
+          <h2 id="bs-heading">Best sellers and recommended kits</h2>
           <p>Pick a size, see the price instantly, add to cart in one tap.</p>
         </header>
-        <ul className="bs-grid">
-          {FAMILIES.map((f) => (
+
+        <div className="bs-tabs" role="tablist" aria-label="Product groups">
+          <button
+            type="button"
+            role="tab"
+            id="bs-tab-best"
+            aria-selected={tab === "best"}
+            aria-controls="bs-panel"
+            className={tab === "best" ? "is-on" : ""}
+            onClick={() => setTab("best")}
+          >
+            Best Sellers
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="bs-tab-kits"
+            aria-selected={tab === "kits"}
+            aria-controls="bs-panel"
+            className={tab === "kits" ? "is-on" : ""}
+            onClick={() => setTab("kits")}
+          >
+            Recommended Kits
+          </button>
+        </div>
+
+        <ul className="bs-grid" id="bs-panel" role="tabpanel" aria-labelledby={`bs-tab-${tab}`}>
+          {list.map((f) => (
             <FamilyCard key={f.key} family={f} catalogue={catalogue} />
           ))}
         </ul>
+
+        <div className="bs-more">
+          <Link href={tab === "best" ? "/category/hair-oil" : "/category/kits"}>
+            {tab === "best" ? "Shop all products" : "See all kits and combos"}
+          </Link>
+        </div>
       </div>
     </Section>
   );
@@ -205,6 +284,52 @@ const Section = styled.section`
   .head p {
     margin: 0;
     color: ${BRAND.muted};
+  }
+  .bs-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin: 0 auto 24px;
+    padding: 4px;
+    width: fit-content;
+    max-width: 100%;
+    background: ${BRAND.white};
+    border: 1px solid ${BRAND.line};
+    border-radius: 999px;
+  }
+  .bs-tabs button {
+    min-height: 44px;
+    padding: 0 22px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: ${BRAND.forest};
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+  .bs-tabs button.is-on {
+    background: ${BRAND.forest};
+    color: ${BRAND.white};
+  }
+  .bs-social {
+    margin: -6px 0 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: ${BRAND.sage};
+  }
+  .bs-more {
+    text-align: center;
+    margin-top: 24px;
+  }
+  .bs-more a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    color: ${BRAND.forest};
+    font-weight: 700;
+    text-decoration: underline;
   }
   .bs-grid {
     list-style: none;

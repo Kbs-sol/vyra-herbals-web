@@ -7,14 +7,14 @@ import Utility from "../utils/UtilityFunctions";
 import ErrorBoundary from "../Components/ErrorBoundary";
 
 // Redesigned homepage sections (see src/Components/Home/redesign)
-import TrustTicker from "../Components/Home/redesign/TrustTicker";
 import EditorialHero from "../Components/Home/redesign/EditorialHero";
 import ConcernRoutineBuilder from "../Components/Home/redesign/ConcernRoutineBuilder";
-import ShopByCategory from "../Components/Home/redesign/ShopByCategory";
 import BestSellersSelector from "../Components/Home/redesign/BestSellersSelector";
 import CertificationBadges from "../Components/Home/redesign/CertificationBadges";
-import TransformationStories from "../Components/Home/redesign/TransformationStories";
-import HerbalPhilosophy from "../Components/Home/redesign/HerbalPhilosophy";
+import ChatProof from "../Components/Home/redesign/ChatProof";
+import BeforeAfter from "../Components/Home/redesign/BeforeAfter";
+import ConcernSheet from "../Components/Home/redesign/ConcernSheet";
+import Founder from "../Components/Home/Founder";
 import HomeFAQ from "../Components/Home/redesign/HomeFAQ";
 
 // Smooth fade-out loader
@@ -57,25 +57,27 @@ const Home = () => {
     <>
       <PageLoader isVisible={isLoading} />
       <main id="main-content">
-        {/* 1. Trust ticker */}
-        <ErrorBoundary><TrustTicker /></ErrorBoundary>
-        {/* 2. Editorial hero */}
+        {/* 1-3. Free-shipping bar, header and quick categories live in the global Header */}
+        {/* 4. Hero with "What's Your Hair Concern?" CTA */}
         <ErrorBoundary><EditorialHero /></ErrorBoundary>
-        {/* 3. Concern and routine builder (Steps A to D) */}
+        {/* 5. Concern -> routine -> add recommended products */}
         <ErrorBoundary><ConcernRoutineBuilder /></ErrorBoundary>
-        {/* 4. Shop by category */}
-        <ErrorBoundary><ShopByCategory /></ErrorBoundary>
-        {/* 5. Best sellers with size chips (anchor: /#bestSellers) */}
-        <ErrorBoundary><BestSellersSelector /></ErrorBoundary>
-        {/* 6. Certifications */}
-        <ErrorBoundary><CertificationBadges /></ErrorBoundary>
-        {/* 7. Transformation stories (anchors: /#customerStoriesSection, /#customerTestimonials) */}
+        {/* 6. Real WhatsApp + Instagram chat reviews (anchors: /#customerTestimonials, /#customerStoriesSection) */}
         <span id="customerTestimonials" aria-hidden="true" />
-        <ErrorBoundary><TransformationStories /></ErrorBoundary>
-        {/* 8. Hand-made herbal philosophy */}
-        <ErrorBoundary><HerbalPhilosophy /></ErrorBoundary>
-        {/* 9. FAQ (footer is rendered by ConditionalLayout) */}
+        <span id="customerStoriesSection" aria-hidden="true" />
+        <ErrorBoundary><ChatProof /></ErrorBoundary>
+        {/* 7. Before & After */}
+        <ErrorBoundary><BeforeAfter /></ErrorBoundary>
+        {/* 8. Best sellers + recommended kits (anchor: /#bestSellers) */}
+        <ErrorBoundary><BestSellersSelector /></ErrorBoundary>
+        {/* 9. Short founder story */}
+        <ErrorBoundary><Founder /></ErrorBoundary>
+        {/* 10. Trust and certifications */}
+        <ErrorBoundary><CertificationBadges /></ErrorBoundary>
+        {/* 11. FAQ (footer is rendered by ConditionalLayout) */}
         <ErrorBoundary><HomeFAQ /></ErrorBoundary>
+        {/* Mobile bottom sheet opened by the hero CTA */}
+        <ConcernSheet />
       </main>
     </>
   );
