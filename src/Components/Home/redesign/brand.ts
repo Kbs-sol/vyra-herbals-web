@@ -56,7 +56,7 @@ export const CONCERNS: ConcernDef[] = [
     howHerbsWork:
       "Cold-infused whole herbs in virgin botanical oils nourish the scalp and strengthen strands from the roots, while a gentle sulfate-free wash cleans without stripping. A neem wood comb detangles from the ends upward to cut mechanical breakage.",
     expectation:
-      "Hair care is a habit, not a quick fix. With consistent use, most people notice stronger roots and a calmer scalp in about 2 to 3 months.",
+      "Hair care is a habit, not a quick fix. With consistent use, most people notice stronger roots and a calmer scalp in about 6 to 8 weeks.",
     productIds: [2, 4, 7],
     why: {
       2: "Weekly warm-oil root massage",
@@ -73,7 +73,7 @@ export const CONCERNS: ConcernDef[] = [
     howHerbsWork:
       "Warm herbal oil massage encourages circulation to the scalp and feeds the roots, a clean scalp lets that nourishment work, and a scalp massager makes the ritual deeper and easier to stick with.",
     expectation:
-      "Growth is slow by nature. Stay consistent for 2 to 3 months and look for visible root strength and a healthier-feeling scalp.",
+      "Growth is slow by nature. Stay consistent for 6 to 8 weeks and look for visible root strength and a healthier-feeling scalp.",
     productIds: [2, 4, 8],
     why: {
       2: "Root-nourishing herbal oil",
@@ -90,7 +90,7 @@ export const CONCERNS: ConcernDef[] = [
     howHerbsWork:
       "A sulfate-free herbal shampoo cleanses build-up without harsh stripping, and a light herbal oil massage before wash keeps the scalp comfortable. A neem wood comb helps distribute natural oils evenly.",
     expectation:
-      "Scalp comfort builds with regular use. Most people feel a calmer, cleaner scalp within 2 to 3 months of a consistent routine.",
+      "Scalp comfort builds with regular use. Most people feel a calmer, cleaner scalp within 6 to 8 weeks of a consistent routine.",
     productIds: [4, 1, 7],
     why: {
       4: "Sulfate-free scalp cleanse",
@@ -107,7 +107,7 @@ export const CONCERNS: ConcernDef[] = [
     howHerbsWork:
       "Virgin botanical oils seal in moisture before wash, a sulfate-free shampoo cleans without over-stripping, and a herbal hair mask powder blend adds a conditioning treatment you mix fresh.",
     expectation:
-      "Softness shows up early, lasting smoothness takes longer. Stay consistent for 2 to 3 months for hair that feels stronger and easier to manage.",
+      "Softness shows up early, lasting smoothness takes longer. Stay consistent for 6 to 8 weeks for hair that feels stronger and easier to manage.",
     productIds: [2, 4, 9],
     why: {
       2: "Seals in moisture before wash",
@@ -135,5 +135,35 @@ export const ROUTINE_STEPS: RoutineStepCopy[] = [
     when: "Every day",
     detail:
       "Detangle gently with the neem wood comb, starting from the ends and working upward to the roots.",
+  },
+];
+
+export interface ExpertTip {
+  icon: "Droplets" | "Waves" | "Hand" | "CalendarCheck";
+  title: string;
+  detail: string;
+}
+
+/** Vyra-specific expert tips shown under every concern routine. */
+export const EXPERT_TIPS: ExpertTip[] = [
+  {
+    icon: "Droplets",
+    title: "Oil 2 to 3 times a week",
+    detail: "Massage Vyra Herbal Hair Oil into the scalp, focusing on the roots rather than the lengths.",
+  },
+  {
+    icon: "Waves",
+    title: "Wash without stripping",
+    detail: "Use Vyra sulfate-free shampoo so you cleanse the scalp without stripping its natural oils.",
+  },
+  {
+    icon: "Hand",
+    title: "Massage while you oil",
+    detail: "Work the oil in with the Vyra Neem Comb or Scalp Massager to boost circulation and spread it evenly.",
+  },
+  {
+    icon: "CalendarCheck",
+    title: "Stay consistent for 6 to 8 weeks",
+    detail: "Herbal care builds slowly. Give the routine 6 to 8 weeks before judging your results.",
   },
 ];

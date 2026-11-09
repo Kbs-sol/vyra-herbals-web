@@ -15,18 +15,24 @@ import {
   Feather,
   Leaf,
   Clock,
+  Droplets,
+  Waves,
+  Hand,
+  CalendarCheck,
 } from "lucide-react";
 import { useCart } from "../../Contexts/CartContext";
 import { addToCart as trackAddToCart } from "../../../utils/analytics";
-import { BRAND, BREAKPOINTS, CONCERNS, ROUTINE_STEPS, formatINR, ConcernDef } from "./brand";
+import { BRAND, BREAKPOINTS, CONCERNS, ROUTINE_STEPS, EXPERT_TIPS, formatINR, ConcernDef } from "./brand";
 import { useCatalogue } from "./useCatalogue";
 
 const CONCERN_ICONS = { TrendingDown, Zap, Shield, Droplet } as const;
 const ROUTINE_ICONS = [Moon, Sun, Feather] as const;
+const TIP_ICONS = { Droplets, Waves, Hand, CalendarCheck } as const;
 
 const ALL_IDS = Array.from(new Set(CONCERNS.flatMap((c) => c.productIds)));
 
-const ConcernRoutineBuilder = () => {
+export const ConcernFlow = ({ inSheet = false }: { inSheet?: boolean }) => {
+  const idp = inSheet ? "sheet-" : "";
   const { addItemToCart } = useCart();
   const [activeKey, setActiveKey] = useState<ConcernDef["key"]>(CONCERNS[0].key);
   const [unchecked, setUnchecked] = useState<Record<number, boolean>>({});
@@ -89,12 +95,18 @@ const ConcernRoutineBuilder = () => {
     const next =
       (index + (e.key === "ArrowRight" ? 1 : -1) + CONCERNS.length) % CONCERNS.length;
     switchConcern(CONCERNS[next].key);
-    document.getElementById(`concern-tab-${CONCERNS[next].key}`)?.focus();
+    document.getElementById(`${idp}concern-tab-${CONCERNS[next].key}`)?.focus();
   };
 
   return (
-    <Section id="concern-builder" aria-labelledby="builder-heading">
+    <ConcernStyles
+      id={inSheet ? undefined : "concern-builder"}
+      as={inSheet ? "div" : "section"}
+      className={inSheet ? "in-sheet" : undefined}
+      aria-labelledby={inSheet ? undefined : "builder-heading"}
+    >
       <div className="container">
+        {!inSheet && (
         <header className="builder-head">
           <span className="eyebrow">Your hair, your routine</span>
           <h2 id="builder-heading">Tell us your concern. Get a routine that fits.</h2>
@@ -103,10 +115,11 @@ const ConcernRoutineBuilder = () => {
             and the exact products and weekly steps to follow.
           </p>
         </header>
+        )}
 
         {/* Step A */}
         <div className="step-label">
-          <span className="step-num">A</span> Choose your main concern
+          1. Choose your main concern
         </div>
         <div className="concern-tabs" role="tablist" aria-label="Hair concerns">
           {CONCERNS.map((c, i) => {
@@ -115,11 +128,11 @@ const ConcernRoutineBuilder = () => {
             return (
               <button
                 key={c.key}
-                id={`concern-tab-${c.key}`}
+                id={`${idp}concern-tab-${c.key}`}
                 role="tab"
                 type="button"
                 aria-selected={on}
-                aria-controls="concern-panel"
+                aria-controls={`${idp}concern-panel`}
                 tabIndex={on ? 0 : -1}
                 className={`concern-tab${on ? " is-active" : ""}`}
                 onClick={() => switchConcern(c.key)}
@@ -133,15 +146,15 @@ const ConcernRoutineBuilder = () => {
         </div>
 
         <div
-          id="concern-panel"
+          id={`${idp}concern-panel`}
           role="tabpanel"
-          aria-labelledby={`concern-tab-${concern.key}`}
+          aria-labelledby={`${idp}concern-tab-${concern.key}`}
           className="builder-grid"
         >
           {/* Step B */}
           <article className="insight-card" key={concern.key}>
             <div className="step-label">
-              <span className="step-num">B</span> Why it happens, how we help
+              Why it happens, how we help
             </div>
             <h3>Root cause</h3>
             <p>{concern.rootCause}</p>
@@ -158,7 +171,7 @@ const ConcernRoutineBuilder = () => {
           {/* Step C */}
           <aside className="routine-card" aria-label="Recommended products">
             <div className="step-label">
-              <span className="step-num">C</span> Your recommended routine
+              2. Your recommended routine
             </div>
             <ul className="pick-list">
               {products.map((p) => {
@@ -196,6 +209,7 @@ const ConcernRoutineBuilder = () => {
               })}
             </ul>
 
+            <div className="cta-bar">
             <div className="totals" aria-live="polite">
               <span>
                 {selected.length} of {products.length} selected
@@ -223,7 +237,7 @@ const ConcernRoutineBuilder = () => {
                   {busy
                     ? "Adding..."
                     : selected.length
-                    ? `ADD ${selected.length} RECOMMENDED PRODUCT${selected.length > 1 ? "S" : ""} TO CART \u2014 ${formatINR(total)}`
+                    ? `ADD RECOMMENDED PRODUCTS (${selected.length}) \u2014 ${formatINR(total)}`
                     : "SELECT AT LEAST ONE PRODUCT"}
                 </>
               )}
@@ -233,6 +247,7 @@ const ConcernRoutineBuilder = () => {
                 Review cart and checkout
               </Link>
             )}
+            </div>
             <p className="micro">
               <Leaf size={14} strokeWidth={1.75} aria-hidden="true" /> 100% natural, free pan-India
               delivery, secure checkout.
@@ -243,7 +258,7 @@ const ConcernRoutineBuilder = () => {
         {/* Step D */}
         <div className="routine-timeline">
           <div className="step-label">
-            <span className="step-num">D</span> Your simple weekly routine
+            Your simple weekly routine
           </div>
           <ol className="timeline">
             {ROUTINE_STEPS.map((s, i) => {
@@ -264,14 +279,36 @@ const ConcernRoutineBuilder = () => {
             })}
           </ol>
         </div>
+        {/* Expert tips */}
+        <div className="expert-tips">
+          <div className="step-label">Expert tips for best results</div>
+          <ul className="tips-grid">
+            {EXPERT_TIPS.map((t) => {
+              const Icon = TIP_ICONS[t.icon];
+              return (
+                <li key={t.title} className="tip">
+                  <span className="tip-icon">
+                    <Icon size={22} strokeWidth={1.75} aria-hidden="true" />
+                  </span>
+                  <div>
+                    <h4>{t.title}</h4>
+                    <p>{t.detail}</p>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       </div>
-    </Section>
+    </ConcernStyles>
   );
 };
 
+const ConcernRoutineBuilder = () => <ConcernFlow />;
+
 export default ConcernRoutineBuilder;
 
-const Section = styled.section`
+export const ConcernStyles = styled.section`
   background: ${BRAND.linen};
   padding: 72px 0;
   color: ${BRAND.charcoal};
@@ -641,6 +678,72 @@ const Section = styled.section`
     color: rgba(255, 255, 255, 0.86);
   }
 
+
+  .cta-bar .add-all {
+    min-height: 58px;
+    font-size: 15px;
+    box-shadow: 0 10px 26px rgba(27, 59, 43, 0.3);
+  }
+  .expert-tips {
+    margin-top: 24px;
+    background: ${BRAND.white};
+    border: 1px solid ${BRAND.line};
+    border-radius: 18px;
+    padding: 28px;
+  }
+  .tips-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+  }
+  .tip {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .tip-icon {
+    flex: none;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: ${BRAND.sageSoft};
+    color: ${BRAND.forest};
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .tip h4 {
+    margin: 2px 0 4px;
+    font-size: 14.5px;
+    font-weight: 700;
+    color: ${BRAND.forest};
+  }
+  .tip p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.55;
+    color: ${BRAND.muted};
+  }
+  &.in-sheet {
+    padding: 0;
+    background: transparent;
+  }
+  &.in-sheet .container {
+    padding: 0;
+  }
+  &.in-sheet .routine-timeline {
+    margin-top: 20px;
+  }
+
+  @media (max-width: ${BREAKPOINTS.tablet}) {
+    .tips-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
   @media (max-width: ${BREAKPOINTS.tablet}) {
     padding: 56px 0;
     .concern-tabs {
@@ -655,6 +758,38 @@ const Section = styled.section`
   }
   @media (max-width: ${BREAKPOINTS.mobile}) {
     padding: 44px 0;
+    /* Products + CTA first on phones: shortest path to cart */
+    .routine-card {
+      order: -1;
+    }
+    .builder-grid {
+      display: flex;
+      flex-direction: column;
+    }
+    .tips-grid {
+      grid-template-columns: 1fr;
+    }
+    .expert-tips {
+      padding: 20px;
+    }
+    .cta-bar {
+      position: sticky;
+      bottom: 0;
+      z-index: 5;
+      margin: 0 -20px -20px;
+      padding: 10px 20px 14px;
+      background: ${BRAND.white};
+      border-top: 1px solid ${BRAND.line};
+      box-shadow: 0 -10px 24px rgba(27, 59, 43, 0.1);
+      border-radius: 0 0 18px 18px;
+    }
+    .cta-bar .totals {
+      padding: 4px 2px 8px;
+      border-top: 0;
+    }
+    .micro {
+      display: none;
+    }
     .concern-tabs {
       display: flex;
       overflow-x: auto;

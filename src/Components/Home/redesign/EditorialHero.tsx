@@ -3,7 +3,8 @@
 import React from "react";
 import Link from "next/link";
 import styled from "styled-components";
-import { ArrowRight, Leaf } from "lucide-react";
+import { ArrowRight, Leaf, ShieldCheck, Truck, Sprout } from "lucide-react";
+import { openConcernSelector } from "./ConcernSheet";
 import { BRAND, BREAKPOINTS } from "./brand";
 
 const EditorialHero = () => (
@@ -13,19 +14,25 @@ const EditorialHero = () => (
         <span className="hero-eyebrow">
           <Leaf size={14} strokeWidth={1.75} aria-hidden="true" /> Vyra Herbals
         </span>
-        <h1 id="hero-heading">Rooted in Nature. Real Herbal Care.</h1>
+        <h1 id="hero-heading">100% Natural Herbal Hair Care</h1>
         <p>
-          Hand-made in India with 20+ cold-infused whole herbs and virgin botanical oils for
-          natural root nourishment, hair fall control, and scalp balance.
+          Chemical-free and handmade in India with 20+ cold-infused whole herbs and virgin
+          botanical oils for hair fall, thinning, dandruff and dryness.
         </p>
         <div className="hero-cta">
-          <Link href="/search?searchtext=all" className="btn-primary">
-            Shop All Products <ArrowRight size={18} strokeWidth={2} aria-hidden="true" />
+          <button type="button" className="btn-primary" onClick={openConcernSelector}>
+            What&apos;s Your Hair Concern? <ArrowRight size={18} strokeWidth={2} aria-hidden="true" />
+          </button>
+          <Link href="/search?searchtext=all" className="btn-secondary">
+            Shop All Products
           </Link>
-          <a href="#concern-builder" className="btn-secondary">
-            Explore Hair Concerns
-          </a>
         </div>
+        <ul className="hero-points" aria-label="Why Vyra">
+          <li><Sprout size={16} strokeWidth={1.75} aria-hidden="true" /> Chemical-free</li>
+          <li><Leaf size={16} strokeWidth={1.75} aria-hidden="true" /> Handmade in India</li>
+          <li><Truck size={16} strokeWidth={1.75} aria-hidden="true" /> Free shipping</li>
+          <li><ShieldCheck size={16} strokeWidth={1.75} aria-hidden="true" /> Secure checkout</li>
+        </ul>
       </div>
       <div className="hero-media">
         <picture>
@@ -105,6 +112,26 @@ const Hero = styled.section`
     text-decoration: none;
     transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, color 0.2s ease;
   }
+  button.btn-primary {
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .hero-points {
+    list-style: none;
+    margin: 22px 0 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    color: ${BRAND.forest};
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .hero-points li {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
   .btn-primary {
     background: ${BRAND.forest};
     color: ${BRAND.white};
@@ -160,6 +187,9 @@ const Hero = styled.section`
       margin-inline: auto;
     }
     .hero-cta {
+      justify-content: center;
+    }
+    .hero-points {
       justify-content: center;
     }
   }
