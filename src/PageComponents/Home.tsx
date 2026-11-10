@@ -6,26 +6,16 @@ import { usePathname } from "next/navigation";
 import Utility from "../utils/UtilityFunctions";
 import ErrorBoundary from "../Components/ErrorBoundary";
 
-// Import all components directly for faster hydration (no dynamic imports)
-import Banner from "../Components/Home/Banner";
-import Category from "../Components/Home/Category";
-import OurProducts from "../Components/Home/OurProducts";
-import Stories from "../Components/Reviews/Stories";
-import Testimonial from "../Components/Reviews/Testimonial";
-import ShipingImage from "../Components/Home/ShipingImage";
-import OurPromise from "../Components/Home/OurPromise";
-import Features from "../Components/Home/Features";
+// Redesigned homepage sections (see src/Components/Home/redesign)
+import EditorialHero from "../Components/Home/redesign/EditorialHero";
+import ConcernRoutineBuilder from "../Components/Home/redesign/ConcernRoutineBuilder";
+import BestSellersSelector from "../Components/Home/redesign/BestSellersSelector";
+import CertificationBadges from "../Components/Home/redesign/CertificationBadges";
+import ChatProof from "../Components/Home/redesign/ChatProof";
+import BeforeAfter from "../Components/Home/redesign/BeforeAfter";
+import ConcernSheet from "../Components/Home/redesign/ConcernSheet";
 import Founder from "../Components/Home/Founder";
-import Follow from "../Components/Home/Follow";
-import Certificate from "../Components/Home/Certificate";
-import BestSeller from "../Components/Home/BestSeller";
-import Video from "../Components/Home/Video";
-import OurJourney from "../Components/Home/OurJourney";
-import StickyHairConcern from "../Components/Home/StickyHairConcern";
-import BlogSection from "../Components/Home/BlogSection";
-
-import AllTestimonials from "../Components/Reviews/AllTestimonials";
-import MarketplaceAvailable from "../Components/Common/MarketplaceAvailable";
+import HomeFAQ from "../Components/Home/redesign/HomeFAQ";
 
 // Smooth fade-out loader
 const PageLoader = ({ isVisible }: { isVisible: boolean }) => (
@@ -67,82 +57,27 @@ const Home = () => {
     <>
       <PageLoader isVisible={isLoading} />
       <main id="main-content">
-        <ErrorBoundary>
-          <Banner />
-          <ErrorBoundary>
-            <Category />
-          </ErrorBoundary>
-          
-  
-          
-          
-          <ErrorBoundary>
-            <StickyHairConcern />
-          </ErrorBoundary>
-  
-  
-  
-          <ErrorBoundary>
-            <OurProducts />
-          </ErrorBoundary>
-  
-  
-          <ErrorBoundary>
-            <section id="customerStoriesSection">
-              <Stories />
-            </section>
-          </ErrorBoundary>
-  
-          <ErrorBoundary>
-            <ShipingImage />
-          </ErrorBoundary>
-  
-          <ErrorBoundary>
-            <section id="bestSellers">
-              <BestSeller />
-            </section>
-          </ErrorBoundary>
-          <ErrorBoundary>
-            <Video />
-          </ErrorBoundary>
-          <ErrorBoundary>
-            <Certificate />
-          </ErrorBoundary>
-          <ErrorBoundary>
-            <OurPromise />
-          </ErrorBoundary>
-          <ErrorBoundary>
-            <Founder />
-          </ErrorBoundary>
-          <ErrorBoundary>
-            <OurJourney />
-          </ErrorBoundary>
-          
-          <ErrorBoundary>
-            <section id="customerTestimonials">
-              <Testimonial />
-            </section>
-          </ErrorBoundary>
-  
-          
-          <ErrorBoundary>
-            <AllTestimonials isHomePage={true} />
-          </ErrorBoundary>
-          
-          <ErrorBoundary>
-            <Follow />
-          </ErrorBoundary>
-          <ErrorBoundary>
-            <MarketplaceAvailable />
-          </ErrorBoundary>
-          <ErrorBoundary>
-            <BlogSection />
-          </ErrorBoundary>
-          <ErrorBoundary>
-            <Features />
-          </ErrorBoundary>
-  
-        </ErrorBoundary>
+        {/* 1-3. Free-shipping bar, header and quick categories live in the global Header */}
+        {/* 4. Hero with "What's Your Hair Concern?" CTA */}
+        <ErrorBoundary><EditorialHero /></ErrorBoundary>
+        {/* 5. Concern -> routine -> add recommended products */}
+        <ErrorBoundary><ConcernRoutineBuilder /></ErrorBoundary>
+        {/* 6. Real WhatsApp + Instagram chat reviews (anchors: /#customerTestimonials, /#customerStoriesSection) */}
+        <span id="customerTestimonials" aria-hidden="true" />
+        <span id="customerStoriesSection" aria-hidden="true" />
+        <ErrorBoundary><ChatProof /></ErrorBoundary>
+        {/* 7. Before & After */}
+        <ErrorBoundary><BeforeAfter /></ErrorBoundary>
+        {/* 8. Best sellers + recommended kits (anchor: /#bestSellers) */}
+        <ErrorBoundary><BestSellersSelector /></ErrorBoundary>
+        {/* 9. Short founder story */}
+        <ErrorBoundary><Founder /></ErrorBoundary>
+        {/* 10. Trust and certifications */}
+        <ErrorBoundary><CertificationBadges /></ErrorBoundary>
+        {/* 11. FAQ (footer is rendered by ConditionalLayout) */}
+        <ErrorBoundary><HomeFAQ /></ErrorBoundary>
+        {/* Mobile bottom sheet opened by the hero CTA */}
+        <ConcernSheet />
       </main>
     </>
   );

@@ -119,7 +119,7 @@ You asked about Google Shopping tab visibility. This is the single biggest immed
    - Google Lens shopping shelf
    - Google image search shopping filter
 
-**Expected impact:** Kama Ayurveda, Just Herbs, Blue Nectar, Mamaearth all show up in Shopping tab today. You don't. Once approved, expect **10-30% lift in commercial-intent traffic** within 6 weeks.
+**Expected impact:** Just Herbs, Blue Nectar, Mamaearth all show up in Shopping tab today. You don't. Once approved, expect **10-30% lift in commercial-intent traffic** within 6 weeks.
 
 ### 3.2 CRITICAL — Google Business Profile for Hyderabad
 
@@ -181,9 +181,9 @@ You have 7 blog posts, all at positions 28-50 (pages 3-5 of Google). Not thin co
 | 3 | How to Use Rosemary Leaves for Hair Growth (3 methods) | "how to use rosemary leaves for hair growth" | Easy — long-tail |
 | 4 | Hair Oiling: When, How Often, How Long | "how many times a week oil hair" | Easy — question query |
 | 5 | Onion vs Rosemary vs Neem Oil for Hair | "which oil best hair growth" | Medium — comparison query |
-| 6 | Why Is My Hair Falling Out? 9 Causes + Ayurvedic Fix | "why is my hair falling" | Medium — informational |
+| 6 | Why Is My Hair Falling Out? 9 Causes + Natural Herbal Fix | "why is my hair falling" | Medium — informational |
 | 7 | Sulphate-Free Shampoo: What It Means & Who Needs It | "sulphate free shampoo india" | Medium |
-| 8 | Postpartum Hair Fall: The Ayurvedic Recovery Guide | "postpartum hair fall treatment" | Easy — niche |
+| 8 | Postpartum Hair Fall: The Herbal Recovery Guide | "postpartum hair fall treatment" | Easy — niche |
 | 9 | Premature Greying: Herbs That Actually Help | "premature greying home remedies" | Medium |
 | 10 | Complete Guide to Neem for Hair | "neem for hair benefits" | Easy |
 | 11 | The 15-Minute Oiling Ritual: Step-by-Step Video | "how to oil hair properly" | Medium |

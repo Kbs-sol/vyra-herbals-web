@@ -23,7 +23,7 @@ import type { Metadata } from 'next';
 export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_ORIGIN || 'https://vyraherbals.com').replace(/\/$/, '');
 export const SITE_NAME = 'Vyra Herbals';
 // Primary brand descriptor — leads with intent-heavy keywords: "natural",
-// "herbal", "handmade", "chemical-free". "Ayurvedic" retained only in cultural
+// "herbal", "handmade", "chemical-free". The word "Ayurvedic" is intentionally not used.
 // long-tail slots, not as the primary positioning.
 export const BRAND_DEFAULT_DESCRIPTION =
   '100% natural, handmade herbal hair care from Vyra Herbals — chemical-free, sulphate-free, paraben-free. Made fresh in India, ISO 9001:2015 & GMP certified. Free shipping across India.';
@@ -348,7 +348,7 @@ export function organizationJsonLd() {
       'Hair fall treatment',
       'Dandruff treatment',
       'Scalp health',
-      // Long-tail cultural signal retained so "ayurvedic" queries still match.
+      // Long-tail keyword group.
       'Pure herbal hair care',
     ],
     naics: '446120', // Cosmetics, Beauty Supplies, and Perfume Stores

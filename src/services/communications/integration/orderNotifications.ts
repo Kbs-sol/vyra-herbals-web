@@ -169,6 +169,15 @@ export async function notifyDeliveryStatusChanged(
     const status = canonicalDeliveryStatus(rawStatus);
     if (!status) return; // booked/pending/label-created — not customer-facing
 
+    // Only 'Delivered' is approved in Meta by default; intermediate statuses require custom approved templates
+    const hasCustomTemplate =
+      !!process.env.WHATSAPP_TEMPLATE_SHIPMENT_PICKED ||
+      !!process.env.WHATSAPP_TEMPLATE_IN_TRANSIT ||
+      !!process.env.WHATSAPP_TEMPLATE_OUT_FOR_DELIVERY;
+    if (status !== 'Delivered' && !hasCustomTemplate) {
+      return;
+    }
+
     const shipping = readShippingData(order);
 
     await automationEngine.emit(

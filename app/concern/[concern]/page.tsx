@@ -81,7 +81,7 @@ const CONCERNS: Record<string, ConcernContent> = {
       },
       {
         heading: 'Ingredients that actually reduce hair fall',
-        body: 'Rosemary essential oil (peer-reviewed comparable to 2% minoxidil), neem (kills bacteria that inflame follicles), curry leaves (protein and amino acids), bhringraj (the Ayurvedic "king of herbs" for hair), hibiscus (natural conditioner, slows DHT-driven loss), amla (vitamin C for collagen), brahmi, methi (fenugreek), and virgin coconut oil as the carrier.',
+        body: 'Rosemary essential oil (peer-reviewed comparable to 2% minoxidil), neem (kills bacteria that inflame follicles), curry leaves (protein and amino acids), bhringraj, hibiscus (natural conditioner, slows DHT-driven loss), amla (vitamin C for collagen), brahmi, methi (fenugreek), and virgin coconut oil as the carrier.',
       },
     ],
     faqs: [
@@ -103,7 +103,6 @@ const CONCERNS: Record<string, ConcernContent> = {
       'rosemary hair oil',
       'stop hair fall naturally',
       'postpartum hair fall',
-      'ayurvedic hair oil', // retained low priority for long-tail traffic
     ],
     howTo: {
       name: 'How to apply herbal hair oil to reduce hair fall',
@@ -184,7 +183,6 @@ const CONCERNS: Record<string, ConcernContent> = {
       'grow hair faster naturally',
       'herbal hair regrowth',
       'chemical-free hair growth',
-      'ayurvedic hair growth', // retained low priority for long-tail traffic
     ],
     howTo: {
       name: 'How to use rosemary leaves for hair growth',
@@ -327,7 +325,6 @@ const CONCERNS: Record<string, ConcernContent> = {
       'scalp exfoliation',
       'healthy scalp routine',
       'herbal scalp treatment',
-      'ayurvedic scalp treatment', // retained low priority for long-tail traffic
     ],
     howTo: {
       name: 'How to build a weekly natural herbal scalp care routine',

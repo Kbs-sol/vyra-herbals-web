@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Open_Sans } from 'next/font/google';
+import { Open_Sans, Cormorant_Garamond } from 'next/font/google';
 import Script from 'next/script';
 import { Suspense } from 'react';
 import { AuthProvider } from '@/Components/Contexts/AuthContext';
@@ -31,12 +31,22 @@ import '../public/assets/css/custom/main.css';
 import '../public/assets/css/custom/index.css';
 import '../public/assets/css/custom/about.css';
 import '../public/assets/css/custom/product-details.css';
+import '../public/assets/css/custom/awwwards-luxury.css';
 
 const openSans = Open_Sans({
   subsets: ['latin'],
   weight: ['300', '400', '500', '600', '700', '800'],
   style: ['normal', 'italic'],
   display: 'swap',
+  variable: '--font-opensans',
+});
+
+const cormorant = Cormorant_Garamond({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  style: ['normal', 'italic'],
+  display: 'swap',
+  variable: '--font-cormorant',
 });
 
 // Root metadata: acts as a fallback + template for pages that do not export
@@ -66,7 +76,6 @@ export const metadata: Metadata = {
     'natural hair growth oil',
     // Retained long-tail cultural signals — kept low in the list on purpose.
     'herbal hair care',
-    'ayurvedic hair care',
     'GMP certified hair oil',
     'ISO 9001:2015 hair care',
   ],
@@ -149,7 +158,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Vyra Herbals" />
       </head>
-      <body className={openSans.className} suppressHydrationWarning={true}>
+      <body className={[openSans.className, cormorant.variable].join(' ')} suppressHydrationWarning={true}>
         {/*
          * Unified analytics loader — GA4, Microsoft Clarity, Meta Pixel and
          * (optionally) a second ads pixel are all initialised from one place.

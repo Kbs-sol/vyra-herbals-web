@@ -55,8 +55,11 @@ export async function handleConfirmAddress(from: string, session: WhatsAppSessio
 
   const db = getSupabaseAdmin();
 
-  // Update order with confirmed address
-  await db.from('orders').update({ shipping_address: address }).eq('id', draftOrderId);
+  // Update order with confirmed address and shipping details
+  await db.from('orders').update({
+    shipping_address: address,
+    shipping_data: { phone: from, address },
+  }).eq('id', draftOrderId);
 
   // Get order total for payment
   const { data: order } = await db

@@ -1,6 +1,6 @@
 import { whatsappClient } from '../../providers/whatsapp/client';
 import { updateSession, type WhatsAppSession } from '../sessionManager';
-import { createServerSupabase } from '@/utils/supabaseClient';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 export async function handleTracking(from: string, session: WhatsAppSession) {
   // Reset state to avoid getting stuck
@@ -8,15 +8,31 @@ export async function handleTracking(from: string, session: WhatsAppSession) {
     await updateSession(from, { state: 'IDLE', context: {} });
   }
 
-  const db = createServerSupabase();
+  const db = getSupabaseAdmin();
 
-  // Find most recent order for this phone
-  const { data: orders, error } = await db
+  const last10 = from.slice(-10);
+  // Find users with this phone
+  const { data: matchedUsers } = await db
+    .from('users')
+    .select('id')
+    .or(`phone.eq.${from},phone.eq.${last10},phone.eq.+91${last10}`);
+
+  const userIds = (matchedUsers || []).map((u: any) => u.id);
+
+  // Find most recent orders for this phone or user
+  let query = db
     .from('orders')
-    .select('id, status, created_at')
-    .eq('phone', from)
+    .select('id, status, created_at, awb_code, tracking_id')
     .order('created_at', { ascending: false })
     .limit(3);
+
+  if (userIds.length > 0) {
+    query = query.or(`user_id.in.(${userIds.join(',')}),shipping_data->>phone.eq.${from},shipping_data->>phone.eq.${last10}`);
+  } else {
+    query = query.or(`shipping_data->>phone.eq.${from},shipping_data->>phone.eq.${last10}`);
+  }
+
+  const { data: orders, error } = await query;
 
   if (error || !orders || orders.length === 0) {
     await sendText(from, "We couldn't find any recent orders associated with your phone number.\n\nIf you ordered with a different number, please contact Support.");
@@ -25,7 +41,9 @@ export async function handleTracking(from: string, session: WhatsAppSession) {
 
   let text = "Here are your recent orders:\n\n";
   for (const o of orders) {
-    text += `*Order #ORD-${o.id}*\nStatus: ${formatStatus(o.status)}\nDate: ${new Date(o.created_at).toLocaleDateString()}\n\n`;
+    const awb = o.awb_code || o.tracking_id;
+    const trackLink = awb ? `\nTrack: https://www.icarry.in/track-shipment?awb=${awb}` : '';
+    text += `*Order #ORD-${o.id}*\nStatus: ${formatStatus(o.status)}\nDate: ${new Date(o.created_at).toLocaleDateString()}${trackLink}\n\n`;
   }
 
   await whatsappClient.sendRaw({

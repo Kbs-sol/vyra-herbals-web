@@ -62,7 +62,7 @@ const Checkout = ({
     pincode: "",
     city: "",
     state: "",
-    country: "",
+    country: "India",
   };
   const defaultFormErrors = {
     fullName: "Please enter your full name.",
@@ -413,7 +413,7 @@ const Checkout = ({
           ...prev,
           city: "",
           state: "",
-          country: "",
+          country: "India",
         }));
         setIsApiSuccess(false);
       }
@@ -481,11 +481,6 @@ const Checkout = ({
 
     if (!formData.area.trim()) {
       errors.area = defaultFormErrors.area;
-      isValid = false;
-    }
-
-    if (!formData.landmark.trim()) {
-      errors.landmark = defaultFormErrors.landmark;
       isValid = false;
     }
 
@@ -773,37 +768,35 @@ const Checkout = ({
     }
   };
 
+  // Simplified address form: only what a courier actually needs.
+  // PIN code comes first because it auto-fills city + state. Landmark,
+  // house number and email are optional; country is always India.
+  const AUTOCOMPLETE: Record<string, string> = {
+    fullName: "name",
+    phone: "tel",
+    pincode: "postal-code",
+    city: "address-level2",
+    state: "address-level1",
+    houseNumber: "address-line1",
+    area: "address-line2",
+    email: "email",
+  };
+
   const formFields = [
     { fieldName: "fullName", label: "Full Name", type: "text", required: true },
     {
       fieldName: "phone",
       label: "Mobile Number",
-      type: "text",
+      type: "tel",
+      inputMode: "numeric",
       required: true,
       isValid: () => isValidPhoneNumber(formData.phone),
     },
     {
-      fieldName: "email",
-      label: "Email (Optional)",
-      type: "email",
-      isValid: () => !formData.email || regex.email.test(formData.email),
-    },
-    {
-      fieldName: "houseNumber",
-      label: "House No./Building Name",
-      type: "text",
-    },
-    {
-      fieldName: "area",
-      label: "Area/Street/Village",
-      type: "text",
-      required: true,
-    },
-    { fieldName: "landmark", label: "Landmark", type: "text", required: true },
-    {
       fieldName: "pincode",
-      label: "Pincode",
+      label: "PIN Code",
       type: "text",
+      inputMode: "numeric",
       required: true,
       isValid: () =>
         formData.pincode &&
@@ -825,11 +818,22 @@ const Checkout = ({
       readOnly: isApiSuccess,
     },
     {
-      fieldName: "country",
-      label: "Country",
+      fieldName: "houseNumber",
+      label: "House No./Building (Optional)",
+      type: "text",
+    },
+    {
+      fieldName: "area",
+      label: "Area/Street/Village",
       type: "text",
       required: true,
-      readOnly: isApiSuccess,
+    },
+    { fieldName: "landmark", label: "Landmark (Optional)", type: "text" },
+    {
+      fieldName: "email",
+      label: "Email (Optional)",
+      type: "email",
+      isValid: () => !formData.email || regex.email.test(formData.email),
     },
   ];
 
@@ -878,7 +882,7 @@ const Checkout = ({
     return (
       <StyledForm>
         <center>
-          <b> Provide details to checkout </b>
+          <b> Where should we deliver? </b>
         </center>
 
         <Form
@@ -925,10 +929,12 @@ const Checkout = ({
                 <Form.Control
                   ref={(el) => assignRef(el, field.fieldName)}
                   type={field.type}
+                  inputMode={(field as any).inputMode}
+                  autoComplete={AUTOCOMPLETE[field.fieldName]}
                   name={field.fieldName}
                   value={formData[field.fieldName]}
                   onChange={handleInputChange}
-                  placeholder={"Enter " + field.label}
+                  placeholder={field.label.replace(" (Optional)", "")}
                   isInvalid={hasError}
                   required={field.required}
                   readOnly={field.readOnly}
@@ -966,9 +972,8 @@ const Checkout = ({
                       Prepaid
                     </label>
                     <p className="method-info">
-                      (Prepaid orders have no extra charges, and you'll receive
-                      a tracking link to your given mobile number after placing
-                      your order)
+                      No extra charges. Free shipping across India. Tracking
+                      link sent to your mobile number.
                     </p>
                   </>
                 }
@@ -986,8 +991,8 @@ const Checkout = ({
                       Cash on Delivery
                     </label>
                     <p className="method-info">
-                      (For COD orders, you have to pay a ₹100 advance payment before booking. The remaining amount + ₹50 COD charge can be paid when your
-                      order is delivered)
+                      Pay a ₹100 advance now to confirm. The balance plus a
+                      ₹50 COD charge is paid on delivery.
                     </p>
                   </>
                 }
@@ -1017,7 +1022,7 @@ const Checkout = ({
       >
         <Modal.Header closeButton style={{ backgroundColor: "white" }}>
           <Modal.Title>
-            {showOrderSummary ? "Order Summary" : "Add Address"}
+            {showOrderSummary ? "Order Summary" : "Delivery Details"}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body

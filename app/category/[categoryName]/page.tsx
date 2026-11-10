@@ -11,6 +11,7 @@ import {
 } from '@/utils/seo';
 import JsonLd from '@/Components/Shared/JsonLd';
 import Category from '@/Pages/Category';
+import { categoriesForSlug, getCollection } from '@/utils/collections';
 
 /**
  * Category listing — server component wrapper.
@@ -52,14 +53,17 @@ async function fetchCategory(rawSlug: string): Promise<{
     // (`Hair Oil`, `hair oil`, URL-safe `hair-oil`). Filtering is done in JS
     // because PostgREST filters on products.status silently return 0 rows.
     const norm = (v: string) => v.toLowerCase().replace(/[-_\s]+/g, ' ').trim();
-    const wanted = new Set([decoded, humanised].map(norm));
+    const collection = getCollection(decoded.toLowerCase());
+    const wanted = new Set(
+      (collection ? categoriesForSlug(collection.slug) : [decoded, humanised]).map(norm)
+    );
     const { products: all } = await getLiveProducts(500);
     const data = all.filter((p) => p.category && wanted.has(norm(p.category))).slice(0, 200);
 
     if (data.length === 0) return null;
 
     // Use whichever spelling the DB actually stored for the human name.
-    const displayName = (data.find((r) => r.category)?.category as string) || humanised;
+    const displayName = collection?.title || (data.find((r) => r.category)?.category as string) || humanised;
     return { name: displayName, slug: rawSlug, products: data as unknown as CategoryDataRow[] };
   } catch (e) {
     console.error('[category] unexpected error:', (e as Error).message);
@@ -74,7 +78,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   return buildCategoryMetadata({
     name,
     slug: categoryName,
-    description: null,
+    description: getCollection(categoryName.toLowerCase())?.description || null,
     image_url: result?.products?.[0]?.image_url || null,
     productCount: result?.products?.length,
   });

@@ -67,6 +67,11 @@ const PUBLIC_TABLES: Record<string, TableRule> = {
     sortable: ['created_at', 'id'],
     filterable: ['id', 'status'],
   },
+  chat_reviews: {
+    allowedSelects: ['*'],
+    sortable: ['created_at', 'sort_order', 'id'],
+    filterable: ['id', 'status', 'platform'],
+  },
 };
 
 const MAX_LIMIT = 500;

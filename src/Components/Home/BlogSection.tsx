@@ -40,7 +40,7 @@ const BlogSection = () => {
                         <h2 className="title">Natural Herbal Wisdom & Hair Care Tips</h2>
                     </div>
                     <Link href="/blogs" className="view-all">
-                        View All Articles <span>→</span>
+                        View All Articles
                     </Link>
                 </div>
 

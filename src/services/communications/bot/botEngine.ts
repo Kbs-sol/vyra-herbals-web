@@ -7,7 +7,7 @@ import { handleAddressInput, handleConfirmAddress } from './handlers/addressRece
 import { handleTracking } from './handlers/tracking';
 import { handleProductBrowser } from './handlers/productBrowser';
 import { handleProductViewer } from './handlers/productViewer';
-import { handleCart, handleAddToCart, handleCartQuantity, handleRemoveFromCart } from './handlers/cartManager';
+import { handleCart, handleAddToCart, handleCartQuantity, handleRemoveFromCart, handleEditCart } from './handlers/cartManager';
 import { handleCheckout, handlePaymentCheck, handleCodCheckout } from './handlers/paymentHandler';
 import { handleHumanHandoff } from './handlers/humanHandoff';
 import { handleCancellation } from './handlers/cancellationHandler';
@@ -76,6 +76,11 @@ async function processSingleMessage(msg: any) {
 
   if (['cart','my cart','view cart','show cart'].includes(normalizedText) || replyId === 'VIEW_CART') {
     await handleCart(from, session);
+    return;
+  }
+
+  if (['edit cart', 'edit', 'modify cart'].includes(normalizedText) || replyId === 'EDIT_CART') {
+    await handleEditCart(from, session);
     return;
   }
 
